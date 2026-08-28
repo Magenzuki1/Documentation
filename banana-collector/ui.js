@@ -396,7 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 350);
     };
     els.overlayContent.querySelector(".epic-close").addEventListener("click", close);
-    els.overlay.addEventListener("click", (e) => {
+    els.overlay.addEventListener("pointerdown", (e) => {
       if (e.target === els.overlay) close();
     }, { once: true });
     setTimeout(close, 4500);
@@ -557,7 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
       els.overlay.classList.remove("show");
       setTimeout(() => els.overlay.classList.add("hidden"), 350);
     };
-    els.overlay.addEventListener("click", (e) => {
+    els.overlay.addEventListener("pointerdown", (e) => {
       if (e.target === els.overlay) close();
     }, { once: true });
   }
@@ -1722,7 +1722,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.accountModal.classList.remove("hidden");
   });
   els.accountModalClose.addEventListener("click", closeAccountModal);
-  els.accountModal.addEventListener("click", (e) => {
+  els.accountModal.addEventListener("pointerdown", (e) => {
     if (e.target === els.accountModal) closeAccountModal();
   });
 
