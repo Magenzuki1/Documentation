@@ -2504,16 +2504,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     els.adminPlayersList.querySelectorAll(".admin-player-row").forEach((row) => {
       const username = row.dataset.username;
-      row.querySelector(".admin-save-coins-btn").addEventListener("click", async () => {
+
+      const saveBtn = row.querySelector(".admin-save-coins-btn");
+      saveBtn.addEventListener("click", async () => {
         const value = Math.max(0, Math.floor(Number(row.querySelector(".admin-coins-input").value)));
+        saveBtn.disabled = true;
         const res = await CLOUD.adminAdjustCoins(username, value);
+        saveBtn.disabled = false;
         if (!res.ok) {
           els.adminPlayersError.textContent = res.reason || "Erreur inconnue.";
           els.adminPlayersError.classList.remove("hidden");
           return;
         }
-        renderAdminPlayers();
+        els.adminPlayersError.classList.add("hidden");
+        // Mise à jour de la ligne sur place, sans recharger/retrier toute la
+        // liste (elle est triée par pièces décroissantes) : sinon la ligne
+        // modifiée change de position et l'admin, qui regarde toujours
+        // l'ancien emplacement, a l'impression que rien ne s'est passé.
+        row.querySelector(".admin-coins-input").value = value;
+        flashAdminRowSaved(saveBtn);
       });
+
       row.querySelector(".admin-ban-btn").addEventListener("click", async () => {
         const currentlyBanned = row.classList.contains("banned");
         let reason = null;
@@ -2527,9 +2538,44 @@ document.addEventListener("DOMContentLoaded", () => {
           els.adminPlayersError.classList.remove("hidden");
           return;
         }
-        renderAdminPlayers();
+        els.adminPlayersError.classList.add("hidden");
+        updateAdminPlayerRowBanState(row, username, !currentlyBanned, reason);
       });
     });
+  }
+
+  // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
+  // solde réussie ne donnait aucun retour visible à l'admin.
+  function flashAdminRowSaved(saveBtn) {
+    const original = saveBtn.textContent;
+    saveBtn.textContent = "✅";
+    setTimeout(() => {
+      saveBtn.textContent = original;
+    }, 1200);
+  }
+
+  // Met à jour une ligne de la liste admin en place après un ban/débannissement,
+  // pour la même raison que flashAdminRowSaved : éviter un re-tri complet de
+  // la liste qui masquerait le changement à l'admin.
+  function updateAdminPlayerRowBanState(row, username, banned, reason) {
+    row.classList.toggle("banned", banned);
+    row.querySelector(".admin-player-name").textContent = `${username}${banned ? " 🚫" : ""}`;
+    const banBtn = row.querySelector(".admin-ban-btn");
+    banBtn.textContent = banned ? "Débannir" : "Bannir";
+    banBtn.classList.toggle("danger", !banned);
+    const existingReason = row.querySelector(".admin-player-ban-reason");
+    if (banned && reason) {
+      if (existingReason) {
+        existingReason.textContent = `Motif : ${reason}`;
+      } else {
+        const span = document.createElement("span");
+        span.className = "admin-player-ban-reason";
+        span.textContent = `Motif : ${reason}`;
+        row.querySelector(".admin-player-main").appendChild(span);
+      }
+    } else if (existingReason) {
+      existingReason.remove();
+    }
   }
 
   async function renderAdminMovements() {
