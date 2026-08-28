@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
     progressLabel: document.getElementById("progress-label"),
     shopList: document.getElementById("shop-list"),
     questsList: document.getElementById("quests-list"),
+    weeklyQuestsList: document.getElementById("weekly-quests-list"),
+    permanentQuestsList: document.getElementById("permanent-quests-list"),
     muteBtn: document.getElementById("mute-btn"),
     watchAdBtn: document.getElementById("watch-ad-btn"),
     adQuota: document.getElementById("ad-quota"),
@@ -606,11 +608,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ---------------- Quêtes quotidiennes ---------------- */
+  /* ---------------- Quêtes (jour / semaine / permanentes) ---------------- */
 
-  function renderQuests() {
-    const quests = questsForToday();
-    els.questsList.innerHTML = quests.map((quest) => {
+  function renderQuestList(container, quests) {
+    container.innerHTML = quests.map((quest) => {
       const pct = Math.round((quest.progress / quest.need) * 100);
       return `
         <div class="quest-item ${quest.done ? "done" : ""}">
@@ -623,6 +624,12 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
     }).join("");
+  }
+
+  function renderQuests() {
+    renderQuestList(els.questsList, questsForToday());
+    renderQuestList(els.weeklyQuestsList, weeklyQuestsForToday());
+    renderQuestList(els.permanentQuestsList, permanentQuestsView());
   }
 
   /* ---------------- Marché ---------------- */
