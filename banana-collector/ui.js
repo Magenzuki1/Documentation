@@ -46,6 +46,16 @@ document.addEventListener("DOMContentLoaded", () => {
     wheelDisc: document.getElementById("wheel-disc"),
     wheelSpinBtn: document.getElementById("wheel-spin-btn"),
     wheelStatus: document.getElementById("wheel-status"),
+    openMemoryGame: document.getElementById("open-memory-game"),
+    memoryBestLabel: document.getElementById("memory-best-label"),
+    minigameMemory: document.getElementById("minigame-memory"),
+    memoryMoves: document.getElementById("memory-moves"),
+    memoryTimer: document.getElementById("memory-timer"),
+    memoryArea: document.getElementById("memory-area"),
+    memoryGrid: document.getElementById("memory-grid"),
+    memoryStartOverlay: document.getElementById("memory-start-overlay"),
+    memoryStartBtn: document.getElementById("memory-start-btn"),
+    memoryResult: document.getElementById("memory-result"),
     achievementsPanel: document.getElementById("achievements-content"),
     accountBtn: document.getElementById("account-btn"),
     accountModal: document.getElementById("account-modal"),
@@ -881,6 +891,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.minigamesMenu.classList.toggle("hidden", view !== "menu");
     els.minigameCatch.classList.toggle("hidden", view !== "catch");
     els.minigameWheel.classList.toggle("hidden", view !== "wheel");
+    els.minigameMemory.classList.toggle("hidden", view !== "memory");
   }
 
   function renderMinigamesMenu() {
@@ -888,10 +899,14 @@ document.addEventListener("DOMContentLoaded", () => {
       ? `🏆 Record : ${state.catchGame.bestScore} bananes`
       : "Pas encore joué";
     els.wheelStatusLabel.textContent = canSpinWheelToday() ? "🎁 Tour disponible !" : "✅ Déjà tourné aujourd'hui";
+    els.memoryBestLabel.textContent = state.memoryGame.bestMoves != null
+      ? `🏆 Record : ${state.memoryGame.bestMoves} coups`
+      : "Pas encore joué";
   }
 
   function showMinigamesMenu() {
     stopCatchGame();
+    stopMemoryGame();
     showMinigameView("menu");
     renderMinigamesMenu();
   }
@@ -903,6 +918,10 @@ document.addEventListener("DOMContentLoaded", () => {
   els.openWheelGame.addEventListener("click", () => {
     showMinigameView("wheel");
     renderWheelView();
+  });
+  els.openMemoryGame.addEventListener("click", () => {
+    showMinigameView("memory");
+    resetMemoryGameView();
   });
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", showMinigamesMenu);
@@ -1047,6 +1066,144 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (good >= 6) spawnConfetti(20);
     catchState = null;
+    renderMinigamesMenu();
+
+    const unlocked = checkAchievements();
+    if (unlocked.length > 0) {
+      renderHeader();
+      showAchievementToasts(unlocked);
+    }
+    const questsDone = checkQuests();
+    if (questsDone.length > 0) {
+      renderHeader();
+      showQuestToasts(questsDone);
+    }
+  }
+
+  /* ---------------- Mini-jeu : Mémoire des bananes ---------------- */
+
+  let memoryState = null; // { deck, flipped, moves, locked, startTime, tickTimer }
+
+  function stopMemoryGame() {
+    if (!memoryState) return;
+    clearInterval(memoryState.tickTimer);
+    memoryState = null;
+  }
+
+  function resetMemoryGameView() {
+    stopMemoryGame();
+    els.memoryStartOverlay.classList.remove("hidden");
+    els.memoryResult.classList.add("hidden");
+    els.memoryGrid.innerHTML = "";
+    els.memoryMoves.textContent = "🔄 0 coups";
+    els.memoryTimer.textContent = "⏱️ 0s";
+  }
+
+  function buildMemoryDeck() {
+    const bananaIds = pickMemoryBananaIds();
+    const cards = [];
+    bananaIds.forEach((id) => {
+      cards.push({ bananaId: id, matched: false });
+      cards.push({ bananaId: id, matched: false });
+    });
+    for (let i = cards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    return cards;
+  }
+
+  function renderMemoryGrid() {
+    els.memoryGrid.innerHTML = memoryState.deck.map((card, idx) => `
+      <button class="memory-card" data-idx="${idx}">
+        <span class="memory-card-inner">
+          <span class="memory-card-back">🍌</span>
+          <span class="memory-card-front">${bananaIconHTML(BANANAS_BY_ID[card.bananaId], 2)}</span>
+        </span>
+      </button>
+    `).join("");
+
+    els.memoryGrid.querySelectorAll(".memory-card").forEach((btn) => {
+      btn.addEventListener("click", () => onMemoryCardClick(Number(btn.dataset.idx)));
+    });
+  }
+
+  function updateMemoryHud() {
+    els.memoryMoves.textContent = `🔄 ${memoryState.moves} coup${memoryState.moves > 1 ? "s" : ""}`;
+  }
+
+  function onMemoryCardClick(idx) {
+    if (!memoryState || memoryState.locked) return;
+    const card = memoryState.deck[idx];
+    if (card.matched || memoryState.flipped.includes(idx)) return;
+
+    els.memoryGrid.children[idx].classList.add("flipped");
+    memoryState.flipped.push(idx);
+    if (memoryState.flipped.length < 2) return;
+
+    memoryState.moves += 1;
+    updateMemoryHud();
+    memoryState.locked = true;
+
+    const [firstIdx, secondIdx] = memoryState.flipped;
+    const first = memoryState.deck[firstIdx];
+    const second = memoryState.deck[secondIdx];
+
+    if (first.bananaId === second.bananaId) {
+      first.matched = true;
+      second.matched = true;
+      els.memoryGrid.children[firstIdx].classList.add("matched");
+      els.memoryGrid.children[secondIdx].classList.add("matched");
+      memoryState.flipped = [];
+      memoryState.locked = false;
+      SFX.click();
+      if (memoryState.deck.every((c) => c.matched)) endMemoryGame();
+    } else {
+      SFX.lose();
+      setTimeout(() => {
+        if (!memoryState) return;
+        els.memoryGrid.children[firstIdx].classList.remove("flipped");
+        els.memoryGrid.children[secondIdx].classList.remove("flipped");
+        memoryState.flipped = [];
+        memoryState.locked = false;
+      }, 700);
+    }
+  }
+
+  els.memoryStartBtn.addEventListener("click", () => {
+    stopMemoryGame();
+    els.memoryStartOverlay.classList.add("hidden");
+    els.memoryResult.classList.add("hidden");
+    memoryState = { deck: buildMemoryDeck(), flipped: [], moves: 0, locked: false, startTime: Date.now(), tickTimer: null };
+    renderMemoryGrid();
+    updateMemoryHud();
+    memoryState.tickTimer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - memoryState.startTime) / 1000);
+      els.memoryTimer.textContent = `⏱️ ${elapsed}s`;
+    }, 500);
+  });
+
+  function endMemoryGame() {
+    if (!memoryState) return;
+    clearInterval(memoryState.tickTimer);
+    const moves = memoryState.moves;
+    const timeMs = Date.now() - memoryState.startTime;
+    const coinsEarned = awardMemoryGameResult(moves, timeMs);
+    renderHeader();
+
+    els.memoryResult.innerHTML = `
+      <div class="catch-result-title">🏁 Toutes les paires trouvées !</div>
+      <div class="catch-result-line">${moves} coups, ${Math.round(timeMs / 1000)}s</div>
+      <div class="catch-result-coins">🪙 +${coinsEarned}</div>
+      <button class="btn harvest-btn" id="memory-replay-btn">🔁 Rejouer</button>
+    `;
+    els.memoryResult.classList.remove("hidden");
+    els.memoryResult.querySelector("#memory-replay-btn").addEventListener("click", () => {
+      els.memoryStartBtn.click();
+    });
+
+    spawnConfetti(20);
+    memoryState = null;
     renderMinigamesMenu();
 
     const unlocked = checkAchievements();
@@ -1631,25 +1788,73 @@ document.addEventListener("DOMContentLoaded", () => {
     els.accountModal.classList.add("hidden");
   }
 
+  /* ---------------- Profil & avatars ---------------- */
+
+  function profileSectionHTML() {
+    const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
+    return `
+      <div class="profile-section">
+        <h3>🎭 Profil</h3>
+        <div class="profile-current">
+          ${bananaIconHTML(BANANAS_BY_ID[currentAvatar().bananaId], 3)}
+          <div class="profile-current-name">${displayName}</div>
+        </div>
+        <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
+        <div class="profile-avatar-grid">
+          ${AVATARS.map((a) => {
+            const unlocked = isAvatarUnlocked(a, state);
+            const banana = BANANAS_BY_ID[a.bananaId];
+            const selected = a.id === state.profile.avatarId;
+            const ach = a.unlock ? ACHIEVEMENTS.find((x) => x.id === a.unlock) : null;
+            const title = unlocked ? banana.name : `Succès requis : ${ach ? ach.name : "?"}`;
+            return `
+              <button class="profile-avatar-option ${selected ? "selected" : ""} ${unlocked ? "" : "locked"}" data-avatar-id="${a.id}" ${unlocked ? "" : "disabled"} title="${title}">
+                ${unlocked ? bananaIconHTML(banana, 2) : `<span class="profile-avatar-lock">🔒</span>`}
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function wireProfileSection(container) {
+    container.querySelectorAll(".profile-avatar-option:not(.locked)").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = setAvatar(btn.dataset.avatarId);
+        if (res.ok) {
+          SFX.buy();
+          renderAccountModal();
+        }
+      });
+    });
+  }
+
   function renderAccountModal() {
     if (!CLOUD.available) {
-      els.accountModalContent.innerHTML = `
+      els.accountModalContent.innerHTML =
+        profileSectionHTML() +
+        `
         <div class="account-form">
           <h3>👤 Compte</h3>
           <p class="account-hint">Le service de compte est momentanément indisponible (connexion réseau). Le jeu solo continue de fonctionner normalement — réessaie plus tard pour le Marché et l'Arène PVP.</p>
         </div>
       `;
+      wireProfileSection(els.accountModalContent);
       return;
     }
 
     if (CLOUD.isLinked()) {
-      els.accountModalContent.innerHTML = `
+      els.accountModalContent.innerHTML =
+        profileSectionHTML() +
+        `
         <div class="account-logged-in">
           <div class="account-username">👤 ${CLOUD.currentUsername()}</div>
           <div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>
           <button id="account-signout-btn" class="btn danger">Déconnexion</button>
         </div>
       `;
+      wireProfileSection(els.accountModalContent);
       els.accountModalContent.querySelector("#account-signout-btn").addEventListener("click", async () => {
         await CLOUD.signOut();
         updateAccountBtn();
@@ -1661,7 +1866,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const isSignup = accountMode === "signup";
-    els.accountModalContent.innerHTML = `
+    els.accountModalContent.innerHTML =
+      profileSectionHTML() +
+      `
       <div class="account-form">
         <h3>${isSignup ? "Créer un compte" : "Connexion"}</h3>
         ${isSignup ? `<p class="account-warning">⚠️ Pas d'email associé à ce compte : si tu oublies ton mot de passe, il ne pourra pas être récupéré. Note-le bien quelque part !</p>` : ""}
@@ -1680,6 +1887,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     `;
+    wireProfileSection(els.accountModalContent);
 
     const errorEl = els.accountModalContent.querySelector("#account-error");
     els.accountModalContent.querySelector("#account-switch-mode-btn").addEventListener("click", () => {

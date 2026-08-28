@@ -89,6 +89,14 @@
                 <span class="game-card-best" id="wheel-status-label"></span>
               </span>
             </button>
+            <button class="game-card" id="open-memory-game" data-game="memory">
+              <span class="game-card-icon">🧠</span>
+              <span class="game-card-body">
+                <span class="game-card-title">Mémoire des bananes</span>
+                <span class="game-card-desc">Retrouve les 8 paires de bananes cachées en un minimum de coups.</span>
+                <span class="game-card-best" id="memory-best-label"></span>
+              </span>
+            </button>
           </div>
 
           <div id="minigame-catch" class="game-view hidden">
@@ -122,6 +130,23 @@
             </div>
             <button id="wheel-spin-btn" class="btn harvest-btn">🎡 Tourner la roue</button>
             <p id="wheel-status" class="ad-quota"></p>
+          </div>
+
+          <div id="minigame-memory" class="game-view hidden">
+            <button class="btn game-back-btn" data-back>← Retour</button>
+            <h2>🧠 Mémoire des bananes</h2>
+            <div class="memory-hud">
+              <span id="memory-moves">🔄 0 coups</span>
+              <span id="memory-timer">⏱️ 0s</span>
+            </div>
+            <div id="memory-area" class="memory-area">
+              <div id="memory-grid" class="memory-grid"></div>
+              <div id="memory-start-overlay" class="catch-start-overlay">
+                <p class="catch-instructions">Retourne les cartes deux par deux et retrouve les 8 paires de bananes en un minimum de coups.</p>
+                <button id="memory-start-btn" class="btn harvest-btn">▶️ Démarrer</button>
+              </div>
+              <div id="memory-result" class="catch-result hidden"></div>
+            </div>
           </div>
         </div>
       </section>
