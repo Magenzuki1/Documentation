@@ -91,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pvePlayerFighter: document.getElementById("pve-player-fighter"),
     pveEnemyFighter: document.getElementById("pve-enemy-fighter"),
     pveVsMark: document.getElementById("pve-vs-mark"),
+    pveWinChance: document.getElementById("pve-win-chance"),
     pveFightBtn: document.getElementById("pve-fight-btn"),
     pveResult: document.getElementById("pve-result"),
     pveStageList: document.getElementById("pve-stage-list"),
@@ -1351,6 +1352,14 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="pve-fighter-stats">⚔️ ${enemy.atk} · 🛡️ ${enemy.def} · 🪙 ${Math.round(enemy.reward * PVE_WIN_REWARD_MULT)}</div>
       <div class="pve-fighter-stats">Niveau ${pveSelectedStage + 1} / ${FRUIT_ENEMIES.length}</div>
     `;
+
+    if (playerBanana && !locked) {
+      const chance = Math.round(combatWinChance(playerStats, enemy) * 100);
+      const tone = chance >= 60 ? "favorable" : chance >= 35 ? "neutral" : "unfavorable";
+      els.pveWinChance.innerHTML = `<span class="pve-win-chance-badge ${tone}">🎲 Chance de victoire : ${chance}%</span>`;
+    } else {
+      els.pveWinChance.innerHTML = "";
+    }
 
     els.pveFightBtn.disabled = pveFighting || !playerBanana || locked;
     els.pveFightBtn.textContent = locked ? "🔒 Bats l'ennemi précédent d'abord" : "⚔️ Attaquer";
