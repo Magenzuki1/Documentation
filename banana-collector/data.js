@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (135 normales + 5 secrètes)
+   Raretés, table de bananes (142 normales + 5 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -43,7 +43,7 @@ function valueFor(rarity, indexInRarity) {
     peu_commune: [10, 13, 14, 11, 16, 14, 13, 16, 13, 14, 11, 15, 12, 10, 14, 12, 15, 11, 13, 14, 13, 15, 14, 12, 16, 13, 11, 14],
     rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32, 33, 35, 30, 32, 36, 28, 31, 34, 29],
     epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65, 73, 78, 81, 70, 75, 69, 74, 84, 88, 82],
-    legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195],
+    legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195, 215, 235, 245, 200, 210, 225, 190],
     mythique: [640, 770, 960, 1150, 700],
     secrete: [3200, 3500, 3800, 4200, 4500],
   };
@@ -740,7 +740,7 @@ const BANANA_DEFS = [
     image: "images/banana_151.png",
   },
 
-  // ================= Légendaire (10) =================
+  // ================= Légendaire (17) =================
   {
     id: 81, name: "Banane radioactive", rarity: "legendaire", image: "images/banana_81.png", emoji: "🍌",
     deco: {
@@ -811,6 +811,34 @@ const BANANA_DEFS = [
         { type: "peak-out-right", color: "#e6ecf2", style: "right:-10%; top:-14%; width:16%; height:20%;" },
       ],
     },
+  },
+  {
+    id: 152, name: "Banane lune", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_152.png",
+  },
+  {
+    id: 153, name: "Banane soleil", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_153.png",
+  },
+  {
+    id: 154, name: "Banane étoile", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_154.png",
+  },
+  {
+    id: 155, name: "Banane singe", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_155.png",
+  },
+  {
+    id: 156, name: "Banane homme de Cro-Magnon", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_156.png",
+  },
+  {
+    id: 157, name: "Banane cromathique", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_157.png",
+  },
+  {
+    id: 158, name: "Banane poulet", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_158.png",
   },
 
   // ================= Mythique (5) =================
@@ -929,5 +957,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 135
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 142
 const TOTAL_SECRET = SECRET_BANANAS.length; // 5
