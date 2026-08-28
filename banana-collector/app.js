@@ -202,6 +202,7 @@ function defaultState() {
     totalRolls: 0,
     counts: {}, // bananaId -> count
     discovered: [], // bananaId[]
+    bananaLevels: {}, // bananaId -> niveau (1 si absent), voir "Niveaux de banane"
     pityRare: 0,
     pityLegendary: 0,
     upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0, questbonushebdo: 0, chercheur: 0, recycleur: 0, trefle: 0, filet: 0, butin: 0 },
@@ -253,6 +254,9 @@ function sanitizeState(s) {
   s.discovered = s.discovered.filter((id) => BANANAS_BY_ID[id]);
   for (const id of Object.keys(s.counts)) {
     if (!BANANAS_BY_ID[id]) delete s.counts[id];
+  }
+  for (const id of Object.keys(s.bananaLevels)) {
+    if (!BANANAS_BY_ID[id]) delete s.bananaLevels[id];
   }
   if (s.lastBananaId != null && !BANANAS_BY_ID[s.lastBananaId]) s.lastBananaId = null;
   if (s.rarestId != null && !BANANAS_BY_ID[s.rarestId]) s.rarestId = null;
@@ -853,6 +857,9 @@ const ACHIEVEMENTS = [
   { id: "prestige_1", icon: "🥉", name: "Premier Prestige", desc: "Effectue ton premier Prestige", reward: 2000, check: (s) => (s.prestige.level || 0) >= 1 },
   { id: "prestige_5", icon: "🥈", name: "Vétéran du Prestige", desc: "Atteins le niveau de Prestige 5", reward: 8000, check: (s) => (s.prestige.level || 0) >= 5 },
   { id: "prestige_20", icon: "🥇", name: "Légende du Prestige", desc: "Atteins le niveau de Prestige 20", reward: 30000, check: (s) => (s.prestige.level || 0) >= 20 },
+  { id: "banana_level_10", icon: "🔗", name: "Fusion réussie", desc: "Monte une banane au niveau 10 en combinant des doublons", reward: 500, check: (s) => maxBananaLevelIn(s) >= 10 },
+  { id: "banana_level_50", icon: "🔗", name: "Maître fusionneur", desc: "Monte une banane au niveau 50", reward: 3000, check: (s) => maxBananaLevelIn(s) >= 50 },
+  { id: "banana_level_100", icon: "🔗", name: "Fusion ultime", desc: "Monte une banane au niveau 100 (le maximum)", reward: 15000, check: (s) => maxBananaLevelIn(s) >= MAX_BANANA_LEVEL },
 ];
 
 // Évalue tous les succès, débloque les nouveaux, crédite leur récompense.
@@ -895,12 +902,65 @@ function prestigeCombatMultiplier() {
   return 1 + (state.prestige.level || 0) * PRESTIGE_BONUS_PER_LEVEL;
 }
 
+/* ---------------- Niveaux de banane (combiner les doublons) ----------------
+   Chaque doublon (exemplaire au-delà du tout premier) peut être combiné pour
+   monter le niveau de la banane, jusqu'au niveau 100. Le coût en doublons
+   suit 5*(niveau²+1) : 10 doublons pour passer niveau 1→2, 25 pour 2→3,
+   50 pour 3→4, etc. — une progression qui reste raisonnable au début pour
+   les bananes communes (obtenues en masse) et devient un objectif de très
+   long terme pour les raretés élevées. Chaque niveau gagné ajoute un bonus
+   fixe d'attaque ET de défense, croissant avec la rareté (+2 par palier de
+   rareté), qui vient s'ajouter aux stats de combat habituelles. */
+const MAX_BANANA_LEVEL = 100;
+
+const BANANA_LEVEL_STAT_BONUS = {
+  commune: 3,
+  peu_commune: 5,
+  rare: 7,
+  epique: 9,
+  legendaire: 11,
+  mythique: 13,
+  secrete: 15,
+};
+
+function bananaLevel(bananaId) {
+  return state.bananaLevels[bananaId] || 1;
+}
+
+function maxBananaLevelIn(s) {
+  const levels = Object.values(s.bananaLevels);
+  return levels.length > 0 ? Math.max(...levels) : 1;
+}
+
+// Coût en doublons pour passer du niveau courant au niveau suivant.
+function bananaLevelUpCost(currentLevel) {
+  return 5 * (currentLevel * currentLevel + 1);
+}
+
+function bananaDuplicatesOwned(bananaId) {
+  return Math.max((state.counts[bananaId] || 0) - 1, 0);
+}
+
+function levelUpBanana(bananaId) {
+  const banana = BANANAS_BY_ID[bananaId];
+  if (!banana || !state.discovered.includes(bananaId)) return { ok: false, reason: "banane_inconnue" };
+  const level = bananaLevel(bananaId);
+  if (level >= MAX_BANANA_LEVEL) return { ok: false, reason: "niveau_max" };
+  const cost = bananaLevelUpCost(level);
+  if (bananaDuplicatesOwned(bananaId) < cost) return { ok: false, reason: "doublons_insuffisants" };
+  state.counts[bananaId] -= cost;
+  state.bananaLevels[bananaId] = level + 1;
+  saveState();
+  return { ok: true, level: level + 1, cost };
+}
+
 function bananaCombatStats(banana) {
   const base = BANANA_BASE_STATS[banana.rarity];
   const mult = prestigeCombatMultiplier();
+  const levelBonus = BANANA_LEVEL_STAT_BONUS[banana.rarity] * (bananaLevel(banana.id) - 1);
   return {
-    atk: Math.round((base.atk + Math.floor(banana.value / 8)) * mult),
-    def: Math.round((base.def + Math.floor(banana.value / 10)) * mult),
+    atk: Math.round((base.atk + Math.floor(banana.value / 8) + levelBonus) * mult),
+    def: Math.round((base.def + Math.floor(banana.value / 10) + levelBonus) * mult),
   };
 }
 

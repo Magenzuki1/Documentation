@@ -492,13 +492,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Collection ---------------- */
 
+  // Carte compacte partagée par la grille normale et la grille des secrets —
+  // affiche un badge de niveau dès qu'une banane a été montée au-delà du
+  // niveau 1 via la fusion de doublons (voir showBananaDetailOverlay).
+  function bananaGridCardHTML(banana) {
+    const count = state.counts[banana.id] || 0;
+    const level = bananaLevel(banana.id);
+    const rarity = RARITIES[banana.rarity];
+    return `
+      <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        ${level > 1 ? `<div class="banana-level-badge">Nv. ${level}</div>` : ""}
+        ${bananaIconHTML(banana)}
+        <div class="banana-name">${banana.name}</div>
+        <div class="banana-rarity">${rarity.label}</div>
+        <div class="banana-value">🪙 ${banana.value}</div>
+        <div class="banana-count">x${count}</div>
+      </div>
+    `;
+  }
+
   function renderCollection() {
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
     els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
     els.progressBarFill.style.width = `${(discoveredNormal / TOTAL_NORMAL) * 100}%`;
 
     els.collectionGrid.innerHTML = NORMAL_BANANAS.map((banana) => {
-      const count = state.counts[banana.id] || 0;
       const discovered = state.discovered.includes(banana.id);
       if (!discovered) {
         return `
@@ -511,16 +529,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
       }
-      const rarity = RARITIES[banana.rarity];
-      return `
-        <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
-          ${bananaIconHTML(banana)}
-          <div class="banana-name">${banana.name}</div>
-          <div class="banana-rarity">${rarity.label}</div>
-          <div class="banana-value">🪙 ${banana.value}</div>
-          <div class="banana-count">x${count}</div>
-        </div>
-      `;
+      return bananaGridCardHTML(banana);
     }).join("");
     els.collectionGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
       card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
@@ -532,19 +541,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (discoveredSecrets.length === 0) {
       els.secretGrid.innerHTML = `<p class="secret-hint">🕵️ Des bananes secrètes se cachent quelque part... continue de récolter pour percer leur mystère !</p>`;
     } else {
-      els.secretGrid.innerHTML = discoveredSecrets.map((banana) => {
-        const count = state.counts[banana.id] || 0;
-        const rarity = RARITIES[banana.rarity];
-        return `
-          <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
-            ${bananaIconHTML(banana)}
-            <div class="banana-name">${banana.name}</div>
-            <div class="banana-rarity">${rarity.label}</div>
-            <div class="banana-value">🪙 ${banana.value}</div>
-            <div class="banana-count">x${count}</div>
-          </div>
-        `;
-      }).join("");
+      els.secretGrid.innerHTML = discoveredSecrets.map((banana) => bananaGridCardHTML(banana)).join("");
       els.secretGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
         card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
       });
@@ -555,6 +552,40 @@ document.addEventListener("DOMContentLoaded", () => {
   // "premium" (bordure, halo, anneau tournant) à mesure que la rareté monte,
   // toujours dans la couleur de cette rareté.
   const RARITY_TIER = { commune: 0, peu_commune: 1, rare: 2, epique: 3, legendaire: 4, mythique: 5, secrete: 6 };
+
+  // Section "Fusion de doublons" de la fiche agrandie : consomme des
+  // exemplaires en trop pour monter le niveau de la banane (jusqu'à 100),
+  // chaque niveau ajoutant un bonus fixe d'attaque/défense selon la rareté.
+  function bananaLevelSectionHTML(banana) {
+    const level = bananaLevel(banana.id);
+    const maxed = level >= MAX_BANANA_LEVEL;
+    const levelBonus = BANANA_LEVEL_STAT_BONUS[banana.rarity] * (level - 1);
+    const bonusHTML = level > 1 ? ` <span class="banana-level-bonus">(+${levelBonus} ATK/DEF)</span>` : "";
+
+    if (maxed) {
+      return `
+        <div class="banana-level-section">
+          <div class="banana-level-title">🔗 Niveau ${level} / ${MAX_BANANA_LEVEL}${bonusHTML}</div>
+          <div class="banana-level-maxed">🌟 Niveau maximum atteint !</div>
+        </div>
+      `;
+    }
+
+    const duplicates = bananaDuplicatesOwned(banana.id);
+    const cost = bananaLevelUpCost(level);
+    const canLevelUp = duplicates >= cost;
+    const pct = Math.min(100, Math.round((duplicates / cost) * 100));
+    return `
+      <div class="banana-level-section">
+        <div class="banana-level-title">🔗 Niveau ${level} / ${MAX_BANANA_LEVEL}${bonusHTML}</div>
+        <div class="banana-level-progress-label">Doublons : ${Math.min(duplicates, cost)} / ${cost}</div>
+        <div class="banana-level-progress-bar"><div class="banana-level-progress-fill" style="width:${pct}%;"></div></div>
+        <button class="btn banana-level-up-btn" id="banana-level-up-btn" ${canLevelUp ? "" : "disabled"}>
+          🔗 Combiner ${cost} doublons → Niveau ${level + 1}
+        </button>
+      </div>
+    `;
+  }
 
   function showBananaDetailOverlay(bananaId) {
     const banana = BANANAS_BY_ID[bananaId];
@@ -573,6 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>🪙 ${banana.value}</span>
           <span>x${count}</span>
         </div>
+        ${bananaLevelSectionHTML(banana)}
       </div>
     `;
     els.overlay.classList.remove("hidden");
@@ -585,6 +617,24 @@ document.addEventListener("DOMContentLoaded", () => {
     els.overlay.addEventListener("pointerdown", (e) => {
       if (e.target === els.overlay) close();
     }, { once: true });
+
+    const levelUpBtn = els.overlayContent.querySelector("#banana-level-up-btn");
+    if (levelUpBtn) {
+      levelUpBtn.addEventListener("click", () => {
+        const res = levelUpBanana(bananaId);
+        if (!res.ok) return;
+        SFX.buy();
+        spawnConfetti(14);
+        renderHeader();
+        renderCollection();
+        showBananaDetailOverlay(bananaId);
+        const unlocked = checkAchievements();
+        if (unlocked.length > 0) {
+          renderHeader();
+          showAchievementToasts(unlocked);
+        }
+      });
+    }
   }
 
   /* ---------------- Boutique ---------------- */
