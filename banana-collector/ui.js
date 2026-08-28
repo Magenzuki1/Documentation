@@ -310,9 +310,13 @@ document.addEventListener("DOMContentLoaded", () => {
       busy = false;
       els.harvestBtn.disabled = false;
     }, cooldown);
+
+    return rarity;
   }
 
-  els.harvestBtn.addEventListener("click", harvest);
+  els.harvestBtn.addEventListener("click", () => {
+    registerManualHarvestClick(harvest());
+  });
 
   /* ---------------- Animations ---------------- */
 
@@ -386,13 +390,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const close = () => {
       els.overlay.classList.remove("show");
-      setTimeout(() => els.overlay.classList.add("hidden"), 350);
+      setTimeout(() => {
+        els.overlay.classList.add("hidden");
+        flushPendingAdBreak();
+      }, 350);
     };
     els.overlayContent.querySelector(".epic-close").addEventListener("click", close);
     els.overlay.addEventListener("click", (e) => {
       if (e.target === els.overlay) close();
     }, { once: true });
     setTimeout(close, 4500);
+  }
+
+  /* ---------------- Pause publicitaire (interstitiel) ----------------
+     Voir AD_BREAK_EVERY dans app.js. Ne compte que les clics manuels sur
+     le bouton "Récolter" (l'appel automatique par le fermier ne passe
+     pas par ce chemin), pour ne jamais interrompre un joueur absent avec
+     une pub qu'il ne peut pas fermer. */
+
+  const AD_BREAK_DURATION_MS = 4000;
+  let pendingAdBreak = false;
+
+  function registerManualHarvestClick(rarity) {
+    if (!rarity) return; // clic ignoré (cooldown en cours) : ne compte pas
+    state.adBreak.clicksSinceLast += 1;
+    if (state.adBreak.clicksSinceLast < AD_BREAK_EVERY) {
+      saveState();
+      return;
+    }
+    state.adBreak.clicksSinceLast = 0;
+    saveState();
+    // Une banane mythique/secrète vient d'ouvrir l'overlay épique : on
+    // n'empile pas deux overlays, la pub s'affichera à sa fermeture.
+    if (!els.overlay.classList.contains("hidden")) {
+      pendingAdBreak = true;
+    } else {
+      showAdBreakOverlay();
+    }
+  }
+
+  function flushPendingAdBreak() {
+    if (!pendingAdBreak) return;
+    pendingAdBreak = false;
+    showAdBreakOverlay();
+  }
+
+  function showAdBreakOverlay() {
+    let remaining = Math.ceil(AD_BREAK_DURATION_MS / 1000);
+    els.overlayContent.innerHTML = `
+      <div class="ad-break-box">
+        <div class="ad-break-label">📺 Publicité</div>
+        <div class="ad-break-sub">Merci de soutenir Banana Collector !</div>
+        <div class="ad-break-timer">${remaining}</div>
+      </div>
+    `;
+    els.overlay.classList.remove("hidden");
+    requestAnimationFrame(() => els.overlay.classList.add("show"));
+
+    const timerEl = els.overlayContent.querySelector(".ad-break-timer");
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (timerEl) timerEl.textContent = String(Math.max(remaining, 0));
+    }, 1000);
+
+    // Simulation du chargement/visionnage d'une vraie pub interstitielle.
+    // Pour brancher une vraie régie plus tard : Web -> Google Ad Manager
+    // (format interstitiel) ; Mobile (Capacitor) -> @capacitor-community/admob,
+    // InterstitialAd.load() puis .show(), fermeture dans "onAdDismissed".
+    // Non fermable manuellement, comme une vraie pub interstitielle.
+    setTimeout(() => {
+      clearInterval(tick);
+      els.overlay.classList.remove("show");
+      setTimeout(() => els.overlay.classList.add("hidden"), 350);
+    }, AD_BREAK_DURATION_MS);
   }
 
   /* ---------------- Collection ---------------- */
