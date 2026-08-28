@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     collectionGrid: document.getElementById("collection-grid"),
     collectionSortSelect: document.getElementById("collection-sort-select"),
     collectionRaritySelect: document.getElementById("collection-rarity-select"),
+    collectionSearchInput: document.getElementById("collection-search-input"),
     secretGrid: document.getElementById("secret-grid"),
     secretSection: document.getElementById("secret-section"),
     progressBarFill: document.getElementById("progress-bar-fill"),
@@ -129,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let bilanView = "classement"; // "classement" | "stats"
   let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def"
   let collectionRarityFilter = "toutes"; // "toutes" | une valeur de RARITY_ORDER (hors "secrete")
+  let collectionSearchQuery = ""; // minuscules, sans espaces superflus
 
   function showProgressionView(view) {
     progressionView = view;
@@ -522,9 +524,10 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  // Rempli une fois : liste des raretés normales (hors "secrete", qui a sa
-  // propre grille séparée) dans l'ordre du plus commun au plus rare.
-  function populateCollectionRarityFilter() {
+  // Mis en place une seule fois : liste des raretés normales (hors
+  // "secrete", qui a sa propre grille séparée) et écouteurs des contrôles
+  // de tri/filtre/recherche de la collection.
+  function initCollectionControlsOnce() {
     if (els.collectionRaritySelect.dataset.filled) return;
     els.collectionRaritySelect.dataset.filled = "1";
     RARITY_ORDER.filter((r) => r !== "secrete").forEach((r) => {
@@ -539,6 +542,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     els.collectionRaritySelect.addEventListener("change", () => {
       collectionRarityFilter = els.collectionRaritySelect.value;
+      renderCollection();
+    });
+    els.collectionSearchInput.addEventListener("input", () => {
+      collectionSearchQuery = els.collectionSearchInput.value.trim().toLowerCase();
       renderCollection();
     });
   }
@@ -557,7 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderCollection() {
-    populateCollectionRarityFilter();
+    initCollectionControlsOnce();
 
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
     els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
@@ -566,6 +573,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let bananas = collectionRarityFilter === "toutes"
       ? NORMAL_BANANAS
       : NORMAL_BANANAS.filter((b) => b.rarity === collectionRarityFilter);
+
+    // La recherche ne porte que sur les bananes déjà découvertes : une
+    // banane non découverte s'affiche toujours en "???", donc chercher son
+    // vrai nom ne doit ni la faire apparaître ni révéler qu'elle existe.
+    if (collectionSearchQuery) {
+      bananas = bananas.filter((b) => state.discovered.includes(b.id) && b.name.toLowerCase().includes(collectionSearchQuery));
+    }
 
     // Un tri par niveau/ATK/DEF n'a de sens que sur les bananes déjà
     // découvertes (les stats des bananes non découvertes ne sont pas
@@ -632,6 +646,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const cost = bananaLevelUpCost(level);
     const canLevelUp = duplicates >= cost;
     const pct = Math.min(100, Math.round((duplicates / cost) * 100));
+    const gainableMax = levelsGainableFromDuplicates(banana.id);
+    // Le bouton "Monter au maximum" n'apporte rien de plus que "Combiner"
+    // s'il ne permet de gagner qu'un seul niveau : on ne l'affiche que
+    // lorsqu'il fait vraiment gagner du temps.
+    const maxButtonHTML = gainableMax >= 2 ? `
+      <button class="btn banana-level-up-max-btn" id="banana-level-up-max-btn">
+        ⬆️ Monter au maximum (+${gainableMax} niveaux)
+      </button>
+    ` : "";
     return `
       <div class="banana-level-section">
         <div class="banana-level-title">🔗 Niveau ${level} / ${MAX_BANANA_LEVEL}${bonusHTML}</div>
@@ -640,6 +663,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <button class="btn banana-level-up-btn" id="banana-level-up-btn" ${canLevelUp ? "" : "disabled"}>
           🔗 Combiner ${cost} doublons → Niveau ${level + 1}
         </button>
+        ${maxButtonHTML}
       </div>
     `;
   }
@@ -679,22 +703,27 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     els.overlay.addEventListener("pointerdown", overlayBackdropCloseHandler, { once: true });
 
+    const onLevelUpResult = (res, confettiCount) => {
+      if (!res.ok) return;
+      SFX.buy();
+      spawnConfetti(confettiCount);
+      renderHeader();
+      renderCollection();
+      showBananaDetailOverlay(bananaId);
+      const unlocked = checkAchievements();
+      if (unlocked.length > 0) {
+        renderHeader();
+        showAchievementToasts(unlocked);
+      }
+    };
+
     const levelUpBtn = els.overlayContent.querySelector("#banana-level-up-btn");
     if (levelUpBtn) {
-      levelUpBtn.addEventListener("click", () => {
-        const res = levelUpBanana(bananaId);
-        if (!res.ok) return;
-        SFX.buy();
-        spawnConfetti(14);
-        renderHeader();
-        renderCollection();
-        showBananaDetailOverlay(bananaId);
-        const unlocked = checkAchievements();
-        if (unlocked.length > 0) {
-          renderHeader();
-          showAchievementToasts(unlocked);
-        }
-      });
+      levelUpBtn.addEventListener("click", () => onLevelUpResult(levelUpBanana(bananaId), 14));
+    }
+    const levelUpMaxBtn = els.overlayContent.querySelector("#banana-level-up-max-btn");
+    if (levelUpMaxBtn) {
+      levelUpMaxBtn.addEventListener("click", () => onLevelUpResult(levelUpBananaToMax(bananaId), 30));
     }
   }
 

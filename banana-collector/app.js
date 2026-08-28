@@ -958,6 +958,38 @@ function levelUpBanana(bananaId) {
   return { ok: true, level: level + 1, cost };
 }
 
+// Combien de niveaux pleins peut-on gagner avec les doublons actuellement
+// possédés, sans rien dépenser (utilisé pour afficher/activer le bouton
+// "Monter au maximum").
+function levelsGainableFromDuplicates(bananaId) {
+  let level = bananaLevel(bananaId);
+  let duplicates = bananaDuplicatesOwned(bananaId);
+  let gained = 0;
+  while (level < MAX_BANANA_LEVEL) {
+    const cost = bananaLevelUpCost(level);
+    if (duplicates < cost) break;
+    duplicates -= cost;
+    level += 1;
+    gained += 1;
+  }
+  return gained;
+}
+
+function levelUpBananaToMax(bananaId) {
+  const banana = BANANAS_BY_ID[bananaId];
+  if (!banana || !state.discovered.includes(bananaId)) return { ok: false, reason: "banane_inconnue" };
+  const levelsGained = levelsGainableFromDuplicates(bananaId);
+  if (levelsGained === 0) return { ok: false, reason: "doublons_insuffisants" };
+  const startLevel = bananaLevel(bananaId);
+  const newLevel = startLevel + levelsGained;
+  let duplicatesSpent = 0;
+  for (let l = startLevel; l < newLevel; l++) duplicatesSpent += bananaLevelUpCost(l);
+  state.counts[bananaId] -= duplicatesSpent;
+  state.bananaLevels[bananaId] = newLevel;
+  saveState();
+  return { ok: true, level: newLevel, levelsGained, duplicatesSpent };
+}
+
 function bananaCombatStats(banana) {
   const base = BANANA_BASE_STATS[banana.rarity];
   const mult = prestigeCombatMultiplier();

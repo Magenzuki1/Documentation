@@ -511,6 +511,24 @@ body {
   cursor: pointer;
 }
 
+.collection-control-search {
+  flex: 1 1 200px;
+}
+
+.collection-control-search input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--card-bg);
+  border: 2px solid #f0dfa8;
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 0;
+}
+.collection-control-search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .secret-section { margin-top: 30px; }
 .secret-hint { font-style: italic; color: #6b5a30; }
 
@@ -1442,6 +1460,16 @@ body {
   margin-top: 10px;
   padding: 10px;
   font-size: 0.85rem;
+}
+
+.banana-level-up-max-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 2px solid var(--accent-dark);
+  color: var(--accent-dark);
 }
 
 .banana-level-maxed {
