@@ -1823,6 +1823,80 @@ body {
 .account-logged-in .account-username { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .account-logged-in .account-hint { font-size: 0.82rem; color: #5c4a1a; margin-bottom: 16px; }
 
+.account-banned-notice {
+  background: #fde2e2;
+  color: #7a1616;
+  border: 2px solid var(--danger);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* --- Panneau admin --- */
+
+.admin-modal-box {
+  max-width: 560px;
+  width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  text-align: left;
+  position: relative;
+}
+
+.admin-players-list, .admin-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-player-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fffdf5;
+  border: 2px solid #f0dfa8;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.admin-player-row.banned { border-color: var(--danger); background: #fff3f3; }
+
+.admin-player-main { display: flex; flex-direction: column; gap: 2px; }
+.admin-player-name { font-weight: 800; }
+.admin-player-meta { font-size: 0.75rem; color: #7a6224; }
+.admin-player-ban-reason { font-size: 0.75rem; color: var(--danger); font-weight: 700; }
+
+.admin-player-actions { display: flex; align-items: center; gap: 6px; }
+.admin-coins-input {
+  width: 100px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 2px solid #f0dfa8;
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.admin-player-actions .btn { padding: 6px 12px; font-size: 0.78rem; }
+
+.admin-log-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #f0dfa8;
+  padding-bottom: 8px;
+}
+.admin-log-user { font-weight: 800; }
+.admin-log-delta { font-weight: 800; }
+.admin-log-delta.positive { color: #2e7d32; }
+.admin-log-delta.negative { color: var(--danger); }
+.admin-log-reason { color: #5c4a1a; }
+.admin-log-date { color: #9c8b5e; margin-left: auto; }
+
 /* --- Responsive --- */
 
 @media (max-width: 480px) {
