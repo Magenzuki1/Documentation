@@ -76,7 +76,7 @@ const UPGRADES = [
   {
     id: "strategie",
     name: "🎯 Stratège de combat",
-    desc: "+4% de chance de victoire dans l'Arène par niveau",
+    desc: "+8% de puissance de combat (attaque + défense) dans l'Arène par niveau",
     targets: [],
     basePrice: 2200,
     priceMult: 1.8,
@@ -911,6 +911,23 @@ function bananaCombatStats(banana) {
 // accordé.
 const PVE_WIN_REWARD_MULT = 0.525;
 
+// Chance de victoire = fonction du RATIO de puissance (attaque + défense),
+// pas d'une simple moyenne de ratios additifs — un écart de puissance x2
+// favorise déjà nettement un camp, x10 rend l'issue quasi certaine. Ça évite
+// l'incohérence de l'ancien système, où une banane bien plus faible pouvait
+// encore gagner près d'un tirage sur trois contre un ennemi 10x plus fort.
+const ARENA_WIN_CHANCE_STEEPNESS = 2.2;
+const STRATEGY_POWER_BONUS_PER_LEVEL = 0.08;
+
+function combatWinChance(playerStats, enemyStats) {
+  const strategyMult = 1 + (state.upgrades.strategie || 0) * STRATEGY_POWER_BONUS_PER_LEVEL;
+  const playerPower = (playerStats.atk + playerStats.def) * strategyMult;
+  const enemyPower = Math.max(enemyStats.atk + enemyStats.def, 1);
+  const ratio = playerPower / enemyPower;
+  const weighted = Math.pow(ratio, ARENA_WIN_CHANCE_STEEPNESS);
+  return Math.min(0.97, Math.max(0.02, weighted / (weighted + 1)));
+}
+
 // L'arène compte 15 familles de fruits, 6 niveaux chacune (90 au total).
 // Les ananas (famille 0) gardent leurs stats historiques ; chaque famille
 // suivante est strictement plus forte que la précédente — la première Pomme
@@ -935,36 +952,57 @@ const FRUIT_FAMILIES = [
   { emoji: "🌌", label: "Fruit Primordial", names: ["Fruit Primordial endormi", "Fruit Primordial enragé", "Fruit Primordial doré", "Fruit Primordial de fer", "Fruit Primordial légendaire", "Divinité du Fruit Primordial"] },
 ];
 
-const PINEAPPLE_BASE_STATS = [
-  { atk: 6, def: 5, reward: 15 },
-  { atk: 12, def: 9, reward: 35 },
-  { atk: 22, def: 18, reward: 80 },
-  { atk: 35, def: 30, reward: 160 },
-  { atk: 55, def: 45, reward: 350 },
-  { atk: 80, def: 65, reward: 800 },
-];
+const PINEAPPLE_REWARDS = [15, 35, 80, 160, 350, 800];
+
+// Puissance (attaque + défense combinées) d'un ennemi selon son stade,
+// calibrée pour combatWinChance() ci-dessus plutôt que dévinée à la main
+// stade par stade. Deux segments, chacun une simple exponentielle entre un
+// point de départ et un point d'arrivée choisis pour rester cohérents avec
+// la puissance réellement atteignable par un joueur à ce moment du jeu :
+// - 0 → 59 (contenu "classique") : de 6 (trivial pour la toute première
+//   banane) à 2000 (dur mais gagnable pour la meilleure banane secrète du
+//   jeu avec Stratège de combat maxé, sans aucun Prestige).
+// - 59 → 89 (les 5 dernières familles) : jusqu'à 4760, pensé pour rester
+//   hors de portée sans Prestige et devenir progressivement jouable au fil
+//   des niveaux de Prestige (qui augmentent la puissance de toutes les
+//   bananes de façon linéaire, d'où une progression plus douce ici que sur
+//   le premier segment).
+const ARENA_POWER_STAGE0 = 6;
+const ARENA_POWER_STAGE59 = 2000;
+const ARENA_POWER_STAGE89 = 4760;
+const ARENA_ATK_FRACTION = 0.56;
+
+function enemyPowerForStage(stage) {
+  if (stage <= 59) {
+    const growth = Math.pow(ARENA_POWER_STAGE59 / ARENA_POWER_STAGE0, 1 / 59);
+    return ARENA_POWER_STAGE0 * Math.pow(growth, stage);
+  }
+  const growth = Math.pow(ARENA_POWER_STAGE89 / ARENA_POWER_STAGE59, 1 / 30);
+  return ARENA_POWER_STAGE59 * Math.pow(growth, stage - 59);
+}
 
 const FRUIT_ENEMIES = (() => {
   const list = [];
+  let lastPower = 0;
   FRUIT_FAMILIES.forEach((family, f) => {
     family.names.forEach((name, l) => {
       const stage = f * 6 + l;
-      let atk, def, reward;
+      const power = enemyPowerForStage(stage);
+      let atk = Math.max(1, Math.round(power * ARENA_ATK_FRACTION));
+      let def = Math.max(1, Math.round(power * (1 - ARENA_ATK_FRACTION)));
+      // À très bas niveau, l'arrondi peut faire stagner deux stades
+      // consécutifs à la même puissance totale — on force la progression
+      // stricte plutôt que de dévier de la formule pour tous les stades.
+      while (atk + def <= lastPower) atk += 1;
+      lastPower = atk + def;
+      let reward;
       if (stage < 6) {
-        ({ atk, def, reward } = PINEAPPLE_BASE_STATS[stage]);
+        reward = PINEAPPLE_REWARDS[stage];
       } else if (stage < 60) {
         const t = stage - 5; // 1..54, progression exponentielle jusqu'à l'Empereur Fruit du Dragon
-        atk = Math.round(80 * Math.pow(37.5, t / 54));
-        def = Math.round(65 * Math.pow(33.85, t / 54));
         reward = Math.round(800 * Math.pow(150, t / 54));
       } else {
-        // Contenu post-Prestige (stades 60 à 89) : repart des stats de
-        // l'Empereur Fruit du Dragon et grimpe bien plus vite, jusqu'à un
-        // boss final environ 5x plus fort — pensé pour nécessiter plusieurs
-        // niveaux de Prestige pour être vaincu.
         const t2 = stage - 59; // 1..30
-        atk = Math.round(3000 * Math.pow(5, t2 / 30));
-        def = Math.round(2200 * Math.pow(4.5, t2 / 30));
         reward = Math.round(120000 * Math.pow(8, t2 / 30));
       }
       list.push({ name, emoji: family.emoji, family: f, familyLabel: family.label, atk, def, reward });
@@ -989,10 +1027,7 @@ function fightFruitEnemy(bananaId, stageIndex) {
 
   const enemy = FRUIT_ENEMIES[stageIndex];
   const playerStats = bananaCombatStats(banana);
-  const atkRatio = playerStats.atk / (playerStats.atk + enemy.atk);
-  const defRatio = playerStats.def / (playerStats.def + enemy.def);
-  const strategyBonus = (state.upgrades.strategie || 0) * 0.04;
-  const winChance = Math.min(0.95, Math.max(0.05, atkRatio * 0.5 + defRatio * 0.5 + strategyBonus));
+  const winChance = combatWinChance(playerStats, enemy);
   const won = Math.random() < winChance;
 
   let coinsEarned;

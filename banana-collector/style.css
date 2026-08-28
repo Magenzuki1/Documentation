@@ -1031,6 +1031,19 @@ body {
 .pve-fighter-stats { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
 .pve-enemy-icon { line-height: 1; }
 
+.pve-win-chance { text-align: center; margin: 4px 0 14px; }
+
+.pve-win-chance-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.pve-win-chance-badge.favorable { background: #dff2c8; color: #3d6b1f; }
+.pve-win-chance-badge.neutral { background: #ffe9b8; color: #7a5200; }
+.pve-win-chance-badge.unfavorable { background: #ffd6d6; color: #8a1f1f; }
+
 .pve-vs-mark {
   font-size: 1.6rem;
   flex-shrink: 0;
