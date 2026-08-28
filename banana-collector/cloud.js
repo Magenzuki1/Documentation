@@ -259,6 +259,16 @@ const CLOUD = (() => {
     return error || !data ? [] : data;
   }
 
+  // Synchronise l'avatar choisi localement (voir app.js setAvatar()) vers le
+  // profil public, pour qu'il apparaisse aux autres joueurs (marché, arène
+  // PVP, classement).
+  async function setAvatar(avatarId) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("set_avatar", { p_avatar_id: avatarId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   /* ---------------- Marché ---------------- */
 
   // Annonces actives de tout le monde, avec le pseudo du vendeur récupéré
@@ -274,12 +284,16 @@ const CLOUD = (() => {
     if (error || !listings) return [];
 
     const sellerIds = [...new Set(listings.map((l) => l.seller_id))];
-    let usernames = {};
+    let profilesById = {};
     if (sellerIds.length > 0) {
-      const { data: profiles } = await supabase.from("public_profiles").select("id, username").in("id", sellerIds);
-      if (profiles) usernames = Object.fromEntries(profiles.map((p) => [p.id, p.username]));
+      const { data: profiles } = await supabase.from("public_profiles").select("id, username, avatar_id").in("id", sellerIds);
+      if (profiles) profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
     }
-    return listings.map((l) => ({ ...l, sellerUsername: usernames[l.seller_id] || "?" }));
+    return listings.map((l) => ({
+      ...l,
+      sellerUsername: profilesById[l.seller_id]?.username || "?",
+      sellerAvatarId: profilesById[l.seller_id]?.avatar_id || null,
+    }));
   }
 
   // Historique complet (actives/vendues/annulées) du joueur connecté.
@@ -347,7 +361,7 @@ const CLOUD = (() => {
     if (error) return { ok: false, reason: error.message };
     if (!data || data.length === 0) return { ok: false, reason: "aucun_adversaire" };
     const row = data[0];
-    return { ok: true, defenderId: row.defender_id, username: row.username, power: row.power };
+    return { ok: true, defenderId: row.defender_id, username: row.username, avatarId: row.avatar_id, power: row.power };
   }
 
   async function attackPlayer(defenderId) {
@@ -380,12 +394,16 @@ const CLOUD = (() => {
     if (error || !data || data.length === 0) return [];
 
     const attackerIds = [...new Set(data.map((r) => r.attacker_id))];
-    let usernames = {};
+    let profilesById = {};
     if (attackerIds.length > 0) {
-      const { data: profiles } = await supabase.from("public_profiles").select("id, username").in("id", attackerIds);
-      if (profiles) usernames = Object.fromEntries(profiles.map((p) => [p.id, p.username]));
+      const { data: profiles } = await supabase.from("public_profiles").select("id, username, avatar_id").in("id", attackerIds);
+      if (profiles) profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
     }
-    return data.map((r) => ({ ...r, attackerUsername: usernames[r.attacker_id] || "?" }));
+    return data.map((r) => ({
+      ...r,
+      attackerUsername: profilesById[r.attacker_id]?.username || "?",
+      attackerAvatarId: profilesById[r.attacker_id]?.avatar_id || null,
+    }));
   }
 
   async function markCombatLogSeen(ids) {
@@ -457,6 +475,7 @@ const CLOUD = (() => {
     resetCloudProgress,
     scheduleSync,
     fetchLeaderboard,
+    setAvatar,
     fetchActiveListings,
     fetchMyListings,
     createListing,

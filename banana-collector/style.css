@@ -66,6 +66,9 @@ body {
 }
 .mute-btn.muted { opacity: 0.55; }
 
+.inline-avatar-icon { display: inline-flex; vertical-align: middle; }
+.inline-avatar-icon .banana-icon { margin: 0; }
+
 .account-btn {
   border: none;
   background: var(--card-bg);
@@ -73,6 +76,9 @@ body {
   padding: 6px 14px;
   font-weight: 700;
   font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
   box-shadow: var(--shadow);
 }
@@ -493,7 +499,7 @@ body {
   box-shadow: var(--shadow);
 }
 
-.market-listing-seller { font-size: 0.75rem; color: #7a6224; margin-top: 4px; }
+.market-listing-seller { font-size: 0.75rem; color: #7a6224; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .market-listing-qty { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
 .market-listing-price { font-weight: 800; color: var(--accent-dark); margin-top: 6px; }
 .market-listing-status { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
@@ -1110,7 +1116,7 @@ body {
   text-align: center;
   box-shadow: var(--shadow);
 }
-.pvp-opponent-name { font-weight: 800; font-size: 1.05rem; }
+.pvp-opponent-name { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .pvp-opponent-power { font-size: 0.85rem; color: #5c4a1a; margin-top: 4px; }
 
 .pvp-report-card {
@@ -1123,7 +1129,7 @@ body {
 }
 .pvp-report-card.lost { border-left-color: var(--danger); }
 .pvp-report-title { font-weight: 800; }
-.pvp-report-line { font-size: 0.85rem; color: #5c4a1a; margin-top: 2px; }
+.pvp-report-line { font-size: 0.85rem; color: #5c4a1a; margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 /* --- Classement --- */
 
@@ -1148,6 +1154,8 @@ body {
   font-weight: 800;
   color: #5c4a1a;
 }
+
+.leaderboard-player-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
 .leaderboard-table tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.03); }
 
@@ -1530,7 +1538,7 @@ body {
 }
 
 .account-logged-in { text-align: center; }
-.account-logged-in .account-username { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+.account-logged-in .account-username { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .account-logged-in .account-hint { font-size: 0.82rem; color: #5c4a1a; margin-bottom: 16px; }
 
 /* --- Responsive --- */
