@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (142 normales + 5 secrètes)
+   Raretés, table de bananes (150 normales + 9 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -44,8 +44,8 @@ function valueFor(rarity, indexInRarity) {
     rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32, 33, 35, 30, 32, 36, 28, 31, 34, 29],
     epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65, 73, 78, 81, 70, 75, 69, 74, 84, 88, 82],
     legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195, 215, 235, 245, 200, 210, 225, 190],
-    mythique: [640, 770, 960, 1150, 700],
-    secrete: [3200, 3500, 3800, 4200, 4500],
+    mythique: [640, 770, 960, 1150, 700, 1100, 850, 750, 680, 720, 780, 820, 900],
+    secrete: [3200, 3500, 3800, 4200, 4500, 3600, 4000, 3400, 4800],
   };
   return table[rarity][indexInRarity] || 10;
 }
@@ -841,7 +841,7 @@ const BANANA_DEFS = [
     image: "images/banana_158.png",
   },
 
-  // ================= Mythique (5) =================
+  // ================= Mythique (13) =================
   {
     id: 93, name: "Banane arc-en-ciel", rarity: "mythique", image: "images/banana_93.png", emoji: "🍌",
     deco: {
@@ -886,8 +886,40 @@ const BANANA_DEFS = [
       ],
     },
   },
+  {
+    id: 159, name: "Banane ultime", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_159.png",
+  },
+  {
+    id: 160, name: "Banane père Noël", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_160.png",
+  },
+  {
+    id: 161, name: "Banane sapin", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_161.png",
+  },
+  {
+    id: 162, name: "Banane bébé singe", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_162.png",
+  },
+  {
+    id: 163, name: "Banane sopalin", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_163.png",
+  },
+  {
+    id: 164, name: "Banane vache", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_164.png",
+  },
+  {
+    id: 165, name: "Banane grosse tête", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_165.png",
+  },
+  {
+    id: 166, name: "Banane fleur", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_166.png",
+  },
 
-  // ================= Secrète (5) — variantes bonus, ultra rares =================
+  // ================= Secrète (9) — variantes bonus, ultra rares =================
   {
     id: 101, name: "Banane agent secret", rarity: "secrete", image: "images/banana_101.png", emoji: "🍌",
     deco: {
@@ -926,6 +958,22 @@ const BANANA_DEFS = [
       ],
     },
   },
+  {
+    id: 167, name: "Banane glitch", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_167.png",
+  },
+  {
+    id: 168, name: "Banane maudite", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_168.png",
+  },
+  {
+    id: 169, name: "Banane pourrie", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_169.png",
+  },
+  {
+    id: 170, name: "Banane bananception", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_170.png",
+  },
 ];
 
 // Construction de la table finale avec id, valeur, index dans la rareté, etc.
@@ -957,5 +1005,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 142
-const TOTAL_SECRET = SECRET_BANANAS.length; // 5
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 150
+const TOTAL_SECRET = SECRET_BANANAS.length; // 9
