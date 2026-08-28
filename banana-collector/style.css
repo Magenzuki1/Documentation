@@ -1114,9 +1114,11 @@ body {
 .pve-stage-label { font-weight: 700; margin: 22px 0 8px; }
 
 .pve-stage-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px 12px;
+  align-items: start;
+  width: 100%;
 }
 
 .pve-stage-group-label {
@@ -1306,6 +1308,8 @@ body {
   --rarity-glow: #c9c9c9;
   position: relative;
   width: min(84vw, 320px);
+  max-height: 88vh;
+  overflow-y: auto;
   margin: 0 auto;
   padding: 30px 20px 24px;
   border-radius: 22px;
@@ -1316,6 +1320,24 @@ body {
 }
 
 .banana-detail-frame .banana-icon { margin: 4px auto 6px; }
+
+.banana-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.banana-detail-close:hover { background: rgba(255, 255, 255, 0.28); }
 
 .banana-detail-glow {
   position: absolute;

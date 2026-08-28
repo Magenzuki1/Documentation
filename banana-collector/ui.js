@@ -265,6 +265,11 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------------- Récolte ---------------- */
 
   let busy = false;
+  // Poignée du listener de fermeture "clic en dehors" de #overlay, pour
+  // pouvoir le retirer avant d'en réattacher un nouveau (showBananaDetailOverlay
+  // se ré-invoque à chaque montée de niveau tant que l'overlay reste ouvert :
+  // sans ce nettoyage, les listeners s'empilaient indéfiniment).
+  let overlayBackdropCloseHandler = null;
 
   // Carte "héros" utilisée uniquement pour la dernière banane récoltée —
   // en grand, avec une lueur de fond, distincte des petites cartes compactes
@@ -599,6 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     els.overlayContent.innerHTML = `
       <div class="banana-detail-frame tier-${tier}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        <button class="banana-detail-close" id="banana-detail-close-btn" aria-label="Fermer">✕</button>
         <div class="banana-detail-glow"></div>
         ${bananaIconHTML(banana, 6)}
         <div class="banana-detail-name">${banana.name}</div>
@@ -617,9 +623,12 @@ document.addEventListener("DOMContentLoaded", () => {
       els.overlay.classList.remove("show");
       setTimeout(() => els.overlay.classList.add("hidden"), 350);
     };
-    els.overlay.addEventListener("pointerdown", (e) => {
+    els.overlayContent.querySelector("#banana-detail-close-btn").addEventListener("click", close);
+    if (overlayBackdropCloseHandler) els.overlay.removeEventListener("pointerdown", overlayBackdropCloseHandler);
+    overlayBackdropCloseHandler = (e) => {
       if (e.target === els.overlay) close();
-    }, { once: true });
+    };
+    els.overlay.addEventListener("pointerdown", overlayBackdropCloseHandler, { once: true });
 
     const levelUpBtn = els.overlayContent.querySelector("#banana-level-up-btn");
     if (levelUpBtn) {
