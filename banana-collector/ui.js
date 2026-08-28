@@ -94,6 +94,13 @@ document.addEventListener("DOMContentLoaded", () => {
     pveFightBtn: document.getElementById("pve-fight-btn"),
     pveResult: document.getElementById("pve-result"),
     pveStageList: document.getElementById("pve-stage-list"),
+    pveIntroText: document.getElementById("pve-intro-text"),
+    pvePrestigeLevel: document.getElementById("pve-prestige-level"),
+    pvePrestigeBonus: document.getElementById("pve-prestige-bonus"),
+    pvePrestigeBtn: document.getElementById("pve-prestige-btn"),
+    prestigeConfirmModal: document.getElementById("prestige-confirm-modal"),
+    prestigeConfirmYes: document.getElementById("prestige-confirm-yes"),
+    prestigeConfirmNo: document.getElementById("prestige-confirm-no"),
     leaderboardTabCollection: document.getElementById("leaderboard-tab-collection"),
     leaderboardTabPvp: document.getElementById("leaderboard-tab-pvp"),
     leaderboardTabPve: document.getElementById("leaderboard-tab-pve"),
@@ -1379,13 +1386,52 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderPvePrestige() {
+    els.pveIntroText.textContent = `Ta meilleure banane combat automatiquement et affronte ${FRUIT_ENEMIES.length} niveaux répartis en ${FRUIT_FAMILIES.length} familles de fruits, de plus en plus fortes. L'attaque et la défense dépendent de la rareté de ta banane (et de ton niveau de Prestige).`;
+    const level = state.prestige.level || 0;
+    const bonusPct = Math.round(level * 15);
+    els.pvePrestigeLevel.textContent = `🏅 Prestige ${level}`;
+    els.pvePrestigeBonus.textContent = `Bonus permanent : +${bonusPct}% ATK/DEF`;
+    els.pvePrestigeBtn.classList.toggle("hidden", !canPrestige());
+  }
+
   function renderPveTab() {
     if (pveSelectedStage > maxPlayablePveStage()) pveSelectedStage = maxPlayablePveStage();
     pickBestPveBanana();
+    renderPvePrestige();
     renderPveStageList();
     renderPveFighters();
     els.pveResult.classList.add("hidden");
   }
+
+  els.pvePrestigeBtn.addEventListener("click", () => {
+    els.prestigeConfirmModal.classList.remove("hidden");
+  });
+  els.prestigeConfirmNo.addEventListener("click", () => {
+    els.prestigeConfirmModal.classList.add("hidden");
+  });
+  els.prestigeConfirmYes.addEventListener("click", () => {
+    const res = doPrestige();
+    els.prestigeConfirmModal.classList.add("hidden");
+    if (!res.ok) return;
+    SFX.win();
+    spawnConfetti(30);
+    showBanner("🏅 PRESTIGE !", { emoji: "🏅", name: `Niveau ${res.level}` }, 1800);
+    renderHeader();
+    pveSelectedStage = 0;
+    renderPveTab();
+
+    const unlocked = checkAchievements();
+    if (unlocked.length > 0) {
+      renderHeader();
+      showAchievementToasts(unlocked);
+    }
+    const questsDone = checkQuests();
+    if (questsDone.length > 0) {
+      renderHeader();
+      showQuestToasts(questsDone);
+    }
+  });
 
   els.pveFightBtn.addEventListener("click", () => {
     if (pveFighting || !pveSelectedBananaId) return;
@@ -1792,12 +1838,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
+    const medal = currentPrestigeMedal(state);
+    const medalHTML = medal.name
+      ? `<div class="profile-medal" title="${medal.name} — Prestige ${state.prestige.level}">
+          <span class="profile-medal-icon" style="filter:${medal.filter};">🍌</span>
+          <span class="profile-medal-label">${medal.name}</span>
+        </div>`
+      : "";
     return `
       <div class="profile-section">
         <h3>🎭 Profil</h3>
         <div class="profile-current">
           ${bananaIconHTML(BANANAS_BY_ID[currentAvatar().bananaId], 3)}
           <div class="profile-current-name">${displayName}</div>
+          ${medalHTML}
         </div>
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
         <div class="profile-avatar-grid">

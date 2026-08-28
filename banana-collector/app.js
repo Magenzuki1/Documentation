@@ -168,8 +168,9 @@ const AVATARS = [
   { id: "av_kraken", bananaId: 87, unlock: "set_legendaire" },
   { id: "av_cosmique", bananaId: 94, unlock: "set_mythique" },
   { id: "av_blanche", bananaId: 102, unlock: "set_secret" },
-  { id: "av_titan", bananaId: 85, unlock: "pve_king" },
+  { id: "av_titan", bananaId: 85, unlock: "pve_dragon_emperor" },
   { id: "av_doree", bananaId: 65, unlock: "coins_earned_1m" },
+  { id: "av_primordial", bananaId: 96, unlock: "pve_king" },
 ];
 
 function isAvatarUnlocked(avatar, s) {
@@ -218,6 +219,7 @@ function defaultState() {
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     profile: { avatarId: "av_verte" },
+    prestige: { level: 0 },
     pve: { stage: 0, wins: 0, losses: 0 },
     quests: { date: null, assigned: [], progress: {}, completed: [] },
     weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
@@ -655,6 +657,7 @@ const PERMANENT_QUEST_POOL = [
     reward: 10000,
     progress: (s) => UPGRADES.filter((u) => (s.upgrades[u.id] || 0) >= u.maxLevel).length,
   },
+  { id: "p_prestige10", desc: "Atteins le niveau de Prestige 10", need: 10, reward: 15000, progress: (s) => s.prestige.level || 0 },
 ];
 
 function questCountToday() {
@@ -844,8 +847,12 @@ const ACHIEVEMENTS = [
   { id: "pve_wins_25", icon: "🗡️", name: "Guerrier de l'arène", desc: "Remporte 25 combats dans l'Arène solo", reward: 700, check: (s) => s.pve.wins >= 25 },
   { id: "pve_wins_100", icon: "🛡️", name: "Champion de l'arène", desc: "Remporte 100 combats dans l'Arène solo", reward: 3000, check: (s) => s.pve.wins >= 100 },
   { id: "pve_ananas_king", icon: "🍍", name: "Vainqueur du Roi Ananas", desc: "Bats le Roi Ananas et ouvre la voie vers les autres familles de fruits", reward: 800, check: (s) => s.pve.stage >= 5 },
-  { id: "pve_king", icon: "🏆", name: "Empereur vaincu", desc: "Bats l'Empereur Fruit du Dragon, le boss final de l'arène à 60 niveaux", reward: 5000, check: (s) => s.pve.stage >= FRUIT_ENEMIES.length - 1 },
+  { id: "pve_dragon_emperor", icon: "🐉", name: "Empereur vaincu", desc: "Bats l'Empereur Fruit du Dragon (stade 60) et débloque le Prestige", reward: 5000, check: (s) => s.pve.stage >= 59 },
+  { id: "pve_king", icon: "🏆", name: "Divinité vaincue", desc: "Bats la Divinité du Fruit Primordial, le boss final de l'arène à 90 niveaux", reward: 20000, check: (s) => s.pve.stage >= FRUIT_ENEMIES.length - 1 },
   { id: "pve_no_loss", icon: "🥇", name: "Invaincu", desc: "Remporte 10 combats d'Arène sans jamais perdre", reward: 1200, check: (s) => s.pve.wins >= 10 && s.pve.losses === 0 },
+  { id: "prestige_1", icon: "🥉", name: "Premier Prestige", desc: "Effectue ton premier Prestige", reward: 2000, check: (s) => (s.prestige.level || 0) >= 1 },
+  { id: "prestige_5", icon: "🥈", name: "Vétéran du Prestige", desc: "Atteins le niveau de Prestige 5", reward: 8000, check: (s) => (s.prestige.level || 0) >= 5 },
+  { id: "prestige_20", icon: "🥇", name: "Légende du Prestige", desc: "Atteins le niveau de Prestige 20", reward: 30000, check: (s) => (s.prestige.level || 0) >= 20 },
 ];
 
 // Évalue tous les succès, débloque les nouveaux, crédite leur récompense.
@@ -880,11 +887,20 @@ const BANANA_BASE_STATS = {
   secrete: { atk: 60, def: 50 },
 };
 
+// Bonus permanent d'attaque/défense accordé par le Prestige (voir plus bas),
+// appliqué à toutes les bananes du joueur, tout le temps.
+const PRESTIGE_BONUS_PER_LEVEL = 0.15;
+
+function prestigeCombatMultiplier() {
+  return 1 + (state.prestige.level || 0) * PRESTIGE_BONUS_PER_LEVEL;
+}
+
 function bananaCombatStats(banana) {
   const base = BANANA_BASE_STATS[banana.rarity];
+  const mult = prestigeCombatMultiplier();
   return {
-    atk: base.atk + Math.floor(banana.value / 8),
-    def: base.def + Math.floor(banana.value / 10),
+    atk: Math.round((base.atk + Math.floor(banana.value / 8)) * mult),
+    def: Math.round((base.def + Math.floor(banana.value / 10)) * mult),
   };
 }
 
@@ -895,10 +911,12 @@ function bananaCombatStats(banana) {
 // accordé.
 const PVE_WIN_REWARD_MULT = 0.525;
 
-// L'arène compte 10 familles de fruits, 6 niveaux chacune (60 au total).
+// L'arène compte 15 familles de fruits, 6 niveaux chacune (90 au total).
 // Les ananas (famille 0) gardent leurs stats historiques ; chaque famille
 // suivante est strictement plus forte que la précédente — la première Pomme
-// (stade 6) dépasse déjà le Roi Ananas (stade 5).
+// (stade 6) dépasse déjà le Roi Ananas (stade 5). Les 5 dernières familles
+// (stades 60 à 89) forment le contenu "post-Prestige" : bien plus dur, pensé
+// pour n'être franchissable qu'avec le bonus d'attaque/défense du Prestige.
 const FRUIT_FAMILIES = [
   { emoji: "🍍", label: "Ananas", names: ["Ananas basique", "Ananas piquant", "Ananas doré", "Ananas de fer", "Ananas légendaire", "Roi Ananas"] },
   { emoji: "🍎", label: "Pomme", names: ["Pomme sauvage", "Pomme acide", "Pomme dorée", "Pomme de fer", "Pomme légendaire", "Reine Pomme"] },
@@ -910,6 +928,11 @@ const FRUIT_FAMILIES = [
   { emoji: "🥝", label: "Kiwi", names: ["Kiwi sauvage", "Kiwi acide", "Kiwi doré", "Kiwi de fer", "Kiwi légendaire", "Roi Kiwi"] },
   { emoji: "🥭", label: "Mangue", names: ["Mangue sauvage", "Mangue acide", "Mangue dorée", "Mangue de fer", "Mangue légendaire", "Reine Mangue"] },
   { emoji: "🍈", label: "Fruit du Dragon", names: ["Fruit du Dragon endormi", "Fruit du Dragon enragé", "Fruit du Dragon doré", "Fruit du Dragon de fer", "Fruit du Dragon légendaire", "Empereur Fruit du Dragon"] },
+  { emoji: "🍑", label: "Pêche", names: ["Pêche sauvage", "Pêche acide", "Pêche dorée", "Pêche de fer", "Pêche légendaire", "Reine Pêche"] },
+  { emoji: "🥥", label: "Noix de coco", names: ["Noix de coco sauvage", "Noix de coco acide", "Noix de coco dorée", "Noix de coco de fer", "Noix de coco légendaire", "Roi Noix de coco"] },
+  { emoji: "🫐", label: "Myrtille", names: ["Myrtille sauvage", "Myrtille acide", "Myrtille dorée", "Myrtille de fer", "Myrtille légendaire", "Reine Myrtille"] },
+  { emoji: "🍒", label: "Cerise", names: ["Cerise sauvage", "Cerise acide", "Cerise dorée", "Cerise de fer", "Cerise légendaire", "Reine Cerise"] },
+  { emoji: "🌌", label: "Fruit Primordial", names: ["Fruit Primordial endormi", "Fruit Primordial enragé", "Fruit Primordial doré", "Fruit Primordial de fer", "Fruit Primordial légendaire", "Divinité du Fruit Primordial"] },
 ];
 
 const PINEAPPLE_BASE_STATS = [
@@ -929,11 +952,20 @@ const FRUIT_ENEMIES = (() => {
       let atk, def, reward;
       if (stage < 6) {
         ({ atk, def, reward } = PINEAPPLE_BASE_STATS[stage]);
-      } else {
-        const t = stage - 5; // 1..54, progression exponentielle jusqu'au boss final
+      } else if (stage < 60) {
+        const t = stage - 5; // 1..54, progression exponentielle jusqu'à l'Empereur Fruit du Dragon
         atk = Math.round(80 * Math.pow(37.5, t / 54));
         def = Math.round(65 * Math.pow(33.85, t / 54));
         reward = Math.round(800 * Math.pow(150, t / 54));
+      } else {
+        // Contenu post-Prestige (stades 60 à 89) : repart des stats de
+        // l'Empereur Fruit du Dragon et grimpe bien plus vite, jusqu'à un
+        // boss final environ 5x plus fort — pensé pour nécessiter plusieurs
+        // niveaux de Prestige pour être vaincu.
+        const t2 = stage - 59; // 1..30
+        atk = Math.round(3000 * Math.pow(5, t2 / 30));
+        def = Math.round(2200 * Math.pow(4.5, t2 / 30));
+        reward = Math.round(120000 * Math.pow(8, t2 / 30));
       }
       list.push({ name, emoji: family.emoji, family: f, familyLabel: family.label, atk, def, reward });
     });
@@ -978,6 +1010,46 @@ function fightFruitEnemy(bananaId, stageIndex) {
   }
   saveState();
   return { ok: true, won, coinsEarned, winChance, enemy, playerStats, stageAdvanced };
+}
+
+/* ---------------- Prestige ---------------- */
+
+// Le Prestige remet à zéro la progression dans l'Arène (mais rien d'autre :
+// collection, boutique, pièces, succès et quêtes restent intacts) contre un
+// bonus permanent et cumulatif d'attaque/défense pour toutes les bananes.
+// Débloqué en battant le dernier stade actuellement disponible ; comme ce
+// dernier stade recule à chaque extension de l'Arène, le Prestige reste
+// utile même après plusieurs cycles.
+function canPrestige() {
+  return state.pve.stage >= FRUIT_ENEMIES.length - 1;
+}
+
+function doPrestige() {
+  if (!canPrestige()) return { ok: false, reason: "verrouille" };
+  state.prestige.level += 1;
+  state.pve = { stage: 0, wins: 0, losses: 0 };
+  saveState();
+  return { ok: true, level: state.prestige.level };
+}
+
+// La "médaille banane" affichée sur le profil évolue par palier avec le
+// niveau de Prestige (jamais de retour en arrière une fois un palier admis).
+const PRESTIGE_MEDALS = [
+  { minLevel: 0, name: null, filter: null },
+  { minLevel: 1, name: "Médaille de bronze", filter: "sepia(0.6) saturate(2) hue-rotate(-20deg) brightness(0.85)" },
+  { minLevel: 3, name: "Médaille d'argent", filter: "grayscale(0.85) brightness(1.25) contrast(1.1)" },
+  { minLevel: 5, name: "Médaille d'or", filter: "saturate(2.2) brightness(1.15) hue-rotate(-8deg)" },
+  { minLevel: 10, name: "Médaille de platine", filter: "grayscale(0.4) brightness(1.4) saturate(1.4) hue-rotate(150deg)" },
+  { minLevel: 20, name: "Médaille de diamant", filter: "grayscale(0.2) brightness(1.5) saturate(2.5) hue-rotate(180deg) drop-shadow(0 0 6px #7be0ff)" },
+  { minLevel: 50, name: "Médaille prismatique", filter: "saturate(3) hue-rotate(0deg) drop-shadow(0 0 8px #ff9fd0)" },
+];
+
+function currentPrestigeMedal(s) {
+  let best = PRESTIGE_MEDALS[0];
+  for (const medal of PRESTIGE_MEDALS) {
+    if ((s.prestige.level || 0) >= medal.minLevel) best = medal;
+  }
+  return best;
 }
 
 /* ---------------- Réinitialisation ---------------- */
