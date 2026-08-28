@@ -59,6 +59,24 @@ document.addEventListener("DOMContentLoaded", () => {
     memoryStartOverlay: document.getElementById("memory-start-overlay"),
     memoryStartBtn: document.getElementById("memory-start-btn"),
     memoryResult: document.getElementById("memory-result"),
+    openBlackjackGame: document.getElementById("open-blackjack-game"),
+    blackjackBestLabel: document.getElementById("blackjack-best-label"),
+    minigameBlackjack: document.getElementById("minigame-blackjack"),
+    bjBetPanel: document.getElementById("bj-bet-panel"),
+    bjBetInput: document.getElementById("bj-bet-input"),
+    bjDealBtn: document.getElementById("bj-deal-btn"),
+    bjBetError: document.getElementById("bj-bet-error"),
+    bjTable: document.getElementById("bj-table"),
+    bjDealerHand: document.getElementById("bj-dealer-hand"),
+    bjPlayerHand: document.getElementById("bj-player-hand"),
+    bjDealerTotal: document.getElementById("bj-dealer-total"),
+    bjPlayerTotal: document.getElementById("bj-player-total"),
+    bjActions: document.getElementById("bj-actions"),
+    bjHitBtn: document.getElementById("bj-hit-btn"),
+    bjStandBtn: document.getElementById("bj-stand-btn"),
+    bjDoubleBtn: document.getElementById("bj-double-btn"),
+    bjResult: document.getElementById("bj-result"),
+    bjAgainBtn: document.getElementById("bj-again-btn"),
     achievementsPanel: document.getElementById("achievements-content"),
     accountBtn: document.getElementById("account-btn"),
     accountModal: document.getElementById("account-modal"),
@@ -1045,6 +1063,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.minigameCatch.classList.toggle("hidden", view !== "catch");
     els.minigameWheel.classList.toggle("hidden", view !== "wheel");
     els.minigameMemory.classList.toggle("hidden", view !== "memory");
+    els.minigameBlackjack.classList.toggle("hidden", view !== "blackjack");
   }
 
   function renderMinigamesMenu() {
@@ -1055,11 +1074,15 @@ document.addEventListener("DOMContentLoaded", () => {
     els.memoryBestLabel.textContent = state.memoryGame.bestMoves != null
       ? `🏆 Record : ${state.memoryGame.bestMoves} coups`
       : "Pas encore joué";
+    els.blackjackBestLabel.textContent = state.blackjackGame.gamesPlayed > 0
+      ? `🏆 Meilleur gain : ${state.blackjackGame.biggestWin} 🪙`
+      : "Pas encore joué";
   }
 
   function showMinigamesMenu() {
     stopCatchGame();
     stopMemoryGame();
+    stopBlackjackGame();
     showMinigameView("menu");
     renderMinigamesMenu();
   }
@@ -1075,6 +1098,10 @@ document.addEventListener("DOMContentLoaded", () => {
   els.openMemoryGame.addEventListener("click", () => {
     showMinigameView("memory");
     resetMemoryGameView();
+  });
+  els.openBlackjackGame.addEventListener("click", () => {
+    showMinigameView("blackjack");
+    resetBlackjackView();
   });
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", showMinigamesMenu);
@@ -1370,6 +1397,231 @@ document.addEventListener("DOMContentLoaded", () => {
       showQuestToasts(questsDone);
     }
   }
+
+  /* ---------------- Mini-jeu : Black Jack (bananes) ---------------- */
+
+  let blackjackState = null; // { deck, playerHand, dealerHand, bet, phase } phase: "player" | "dealer" | "result"
+
+  function stopBlackjackGame() {
+    // Quitter en pleine main abandonne la mise déjà déduite (comme quitter
+    // une table de casino avant la fin du coup) : pas de remboursement.
+    blackjackState = null;
+  }
+
+  function resetBlackjackView() {
+    stopBlackjackGame();
+    els.bjBetPanel.classList.remove("hidden");
+    els.bjTable.classList.add("hidden");
+    els.bjActions.classList.add("hidden");
+    els.bjResult.classList.add("hidden");
+    els.bjAgainBtn.classList.add("hidden");
+    els.bjBetError.classList.add("hidden");
+    els.bjDealerHand.innerHTML = "";
+    els.bjPlayerHand.innerHTML = "";
+    els.bjDealerTotal.textContent = "";
+    els.bjPlayerTotal.textContent = "";
+    const maxAffordable = Math.max(1, Math.min(BLACKJACK_MAX_BET, state.coins));
+    els.bjBetInput.max = maxAffordable;
+    const current = Number(els.bjBetInput.value) || 100;
+    els.bjBetInput.value = Math.min(Math.max(current, 1), maxAffordable);
+  }
+
+  function blackjackCardHTML(card) {
+    return `
+      <div class="bj-card">
+        <div class="bj-card-rank">${card.rank}</div>
+        <div class="bj-card-suit">${BLACKJACK_SUIT_EMOJI[card.suit]}</div>
+      </div>
+    `;
+  }
+
+  function blackjackCardBackHTML() {
+    return `<div class="bj-card bj-card-back">🍌</div>`;
+  }
+
+  function renderBlackjackHands(revealDealer) {
+    els.bjPlayerHand.innerHTML = blackjackState.playerHand.map(blackjackCardHTML).join("");
+    els.bjPlayerTotal.textContent = `(${blackjackHandTotal(blackjackState.playerHand)})`;
+
+    els.bjDealerHand.innerHTML = blackjackState.dealerHand.map((card, i) => (
+      i === 1 && !revealDealer ? blackjackCardBackHTML() : blackjackCardHTML(card)
+    )).join("");
+    els.bjDealerTotal.textContent = revealDealer ? `(${blackjackHandTotal(blackjackState.dealerHand)})` : "";
+  }
+
+  function updateBlackjackActionButtons() {
+    // Doubler n'est autorisé que sur les deux premières cartes (règle
+    // classique), et seulement si le joueur peut couvrir une seconde mise
+    // identique.
+    const canDouble = blackjackState.playerHand.length === 2 && blackjackState.bet <= state.coins;
+    els.bjDoubleBtn.disabled = !canDouble;
+  }
+
+  const BLACKJACK_BET_ERROR_MESSAGES = {
+    invalide: "Entre une mise valide (nombre entier positif).",
+    trop_eleve: `La mise maximum est de ${BLACKJACK_MAX_BET.toLocaleString("fr-FR")} 🪙.`,
+    pauvre: "Tu n'as pas assez de pièces pour cette mise.",
+  };
+
+  els.bjBetPanel.querySelectorAll(".bj-quick-bet-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const maxAllowed = Math.min(BLACKJACK_MAX_BET, state.coins);
+      const value = btn.dataset.bet === "max" ? maxAllowed : Math.min(Number(btn.dataset.bet), maxAllowed);
+      els.bjBetInput.value = Math.max(0, value);
+    });
+  });
+
+  els.bjDealBtn.addEventListener("click", () => {
+    const bet = Math.floor(Number(els.bjBetInput.value));
+    const res = placeBlackjackBet(bet);
+    if (!res.ok) {
+      els.bjBetError.textContent = BLACKJACK_BET_ERROR_MESSAGES[res.reason] || "Mise refusée.";
+      els.bjBetError.classList.remove("hidden");
+      return;
+    }
+    els.bjBetError.classList.add("hidden");
+    renderHeader();
+
+    const deck = buildBlackjackDeck();
+    blackjackState = {
+      deck,
+      playerHand: [deck.pop(), deck.pop()],
+      dealerHand: [deck.pop(), deck.pop()],
+      bet,
+      phase: "player",
+    };
+    els.bjBetPanel.classList.add("hidden");
+    els.bjTable.classList.remove("hidden");
+    els.bjResult.classList.add("hidden");
+    els.bjAgainBtn.classList.add("hidden");
+    SFX.click();
+
+    if (isBlackjackHand(blackjackState.playerHand)) {
+      blackjackState.phase = "result";
+      renderBlackjackHands(true);
+      els.bjActions.classList.add("hidden");
+      finishBlackjackRound(isBlackjackHand(blackjackState.dealerHand) ? "egalite" : "blackjack");
+    } else {
+      renderBlackjackHands(false);
+      els.bjActions.classList.remove("hidden");
+      updateBlackjackActionButtons();
+    }
+  });
+
+  els.bjHitBtn.addEventListener("click", () => {
+    if (!blackjackState || blackjackState.phase !== "player") return;
+    blackjackState.playerHand.push(blackjackState.deck.pop());
+    SFX.click();
+    if (blackjackHandTotal(blackjackState.playerHand) > 21) {
+      blackjackState.phase = "result";
+      renderBlackjackHands(true);
+      els.bjActions.classList.add("hidden");
+      finishBlackjackRound("defaite");
+    } else {
+      renderBlackjackHands(false);
+      updateBlackjackActionButtons();
+    }
+  });
+
+  els.bjStandBtn.addEventListener("click", () => {
+    if (!blackjackState || blackjackState.phase !== "player") return;
+    blackjackState.phase = "dealer";
+    els.bjActions.classList.add("hidden");
+    playBlackjackDealerTurn();
+  });
+
+  els.bjDoubleBtn.addEventListener("click", () => {
+    if (!blackjackState || blackjackState.phase !== "player" || blackjackState.playerHand.length !== 2) return;
+    const res = placeBlackjackBet(blackjackState.bet);
+    if (!res.ok) return; // le bouton est déjà désactivé si le joueur ne peut pas couvrir, filet de sécurité
+    blackjackState.bet *= 2;
+    renderHeader();
+    blackjackState.playerHand.push(blackjackState.deck.pop());
+    SFX.click();
+    blackjackState.phase = "dealer";
+    els.bjActions.classList.add("hidden");
+    if (blackjackHandTotal(blackjackState.playerHand) > 21) {
+      renderBlackjackHands(true);
+      finishBlackjackRound("defaite");
+    } else {
+      renderBlackjackHands(false);
+      playBlackjackDealerTurn();
+    }
+  });
+
+  function playBlackjackDealerTurn() {
+    renderBlackjackHands(true);
+    const step = () => {
+      if (blackjackHandTotal(blackjackState.dealerHand) < 17) {
+        setTimeout(() => {
+          if (!blackjackState) return;
+          blackjackState.dealerHand.push(blackjackState.deck.pop());
+          renderBlackjackHands(true);
+          SFX.click();
+          step();
+        }, 550);
+      } else {
+        setTimeout(() => {
+          if (!blackjackState) return;
+          const playerTotal = blackjackHandTotal(blackjackState.playerHand);
+          const dealerTotal = blackjackHandTotal(blackjackState.dealerHand);
+          blackjackState.phase = "result";
+          let outcome;
+          if (dealerTotal > 21 || playerTotal > dealerTotal) outcome = "victoire";
+          else if (playerTotal === dealerTotal) outcome = "egalite";
+          else outcome = "defaite";
+          finishBlackjackRound(outcome);
+        }, 400);
+      }
+    };
+    step();
+  }
+
+  const BLACKJACK_OUTCOME_INFO = {
+    blackjack: { title: "🃏 Black Jack !", sfx: "win", confetti: 30 },
+    victoire: { title: "🎉 Victoire !", sfx: "win", confetti: 16 },
+    egalite: { title: "🤝 Égalité", sfx: "click", confetti: 0 },
+    defaite: { title: "💥 Défaite", sfx: "lose", confetti: 0 },
+  };
+
+  function finishBlackjackRound(outcome) {
+    const bet = blackjackState.bet;
+    const { coinsEarned } = resolveBlackjackBet(bet, outcome);
+    renderHeader();
+    renderBlackjackHands(true);
+
+    const info = BLACKJACK_OUTCOME_INFO[outcome];
+    SFX[info.sfx]();
+    if (info.confetti > 0) spawnConfetti(info.confetti);
+
+    const coinsLine = outcome === "defaite"
+      ? `🪙 -${bet}`
+      : outcome === "egalite"
+        ? "🪙 Mise remboursée"
+        : `🪙 +${coinsEarned}`;
+
+    els.bjResult.innerHTML = `
+      <div class="catch-result-title">${info.title}</div>
+      <div class="catch-result-coins">${coinsLine}</div>
+    `;
+    els.bjResult.classList.remove("hidden");
+    els.bjAgainBtn.classList.remove("hidden");
+    blackjackState = null;
+    renderMinigamesMenu();
+
+    const unlocked = checkAchievements();
+    if (unlocked.length > 0) {
+      renderHeader();
+      showAchievementToasts(unlocked);
+    }
+    const questsDone = checkQuests();
+    if (questsDone.length > 0) {
+      renderHeader();
+      showQuestToasts(questsDone);
+    }
+  }
+
+  els.bjAgainBtn.addEventListener("click", resetBlackjackView);
 
   /* ---------------- Mini-jeu : Roue de la fortune ---------------- */
 

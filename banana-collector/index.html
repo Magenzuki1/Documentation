@@ -120,6 +120,14 @@
                 <span class="game-card-best" id="memory-best-label"></span>
               </span>
             </button>
+            <button class="game-card" id="open-blackjack-game" data-game="blackjack">
+              <span class="game-card-icon">🃏</span>
+              <span class="game-card-body">
+                <span class="game-card-title">Black Jack</span>
+                <span class="game-card-desc">Le Black Jack classique, en version bananes : banane, kiwi, mangue et ananas remplacent cœur, carreau, pique et trèfle. Mise jusqu'à 100 000 🪙.</span>
+                <span class="game-card-best" id="blackjack-best-label"></span>
+              </span>
+            </button>
           </div>
 
           <div id="minigame-catch" class="game-view hidden">
@@ -169,6 +177,45 @@
                 <button id="memory-start-btn" class="btn harvest-btn">▶️ Démarrer</button>
               </div>
               <div id="memory-result" class="catch-result hidden"></div>
+            </div>
+          </div>
+
+          <div id="minigame-blackjack" class="game-view hidden">
+            <button class="btn game-back-btn" data-back>← Retour</button>
+            <h2>🃏 Black Jack</h2>
+            <p class="shop-hint">Rapproche-toi de 21 sans le dépasser pour battre le croupier. Black Jack naturel payé 3:2. Mise maximum : 100 000 🪙.</p>
+
+            <div id="bj-bet-panel" class="bj-bet-panel">
+              <label class="collection-control">
+                Mise
+                <input type="number" id="bj-bet-input" min="10" max="100000" step="10" value="100" />
+              </label>
+              <div class="bj-quick-bets">
+                <button class="btn bj-quick-bet-btn" type="button" data-bet="100">100</button>
+                <button class="btn bj-quick-bet-btn" type="button" data-bet="1000">1 000</button>
+                <button class="btn bj-quick-bet-btn" type="button" data-bet="10000">10 000</button>
+                <button class="btn bj-quick-bet-btn" type="button" data-bet="max">Max</button>
+              </div>
+              <button id="bj-deal-btn" class="btn harvest-btn">🃏 Miser et distribuer</button>
+              <p id="bj-bet-error" class="bj-bet-error hidden"></p>
+            </div>
+
+            <div id="bj-table" class="bj-table hidden">
+              <div class="bj-hand-zone">
+                <div class="bj-hand-label">🤵 Croupier <span id="bj-dealer-total"></span></div>
+                <div id="bj-dealer-hand" class="bj-hand"></div>
+              </div>
+              <div class="bj-hand-zone">
+                <div class="bj-hand-label">🙂 Toi <span id="bj-player-total"></span></div>
+                <div id="bj-player-hand" class="bj-hand"></div>
+              </div>
+              <div id="bj-actions" class="bj-actions hidden">
+                <button id="bj-hit-btn" class="btn">➕ Tirer</button>
+                <button id="bj-stand-btn" class="btn">✋ Rester</button>
+                <button id="bj-double-btn" class="btn">⏫ Doubler</button>
+              </div>
+              <div id="bj-result" class="bj-result hidden"></div>
+              <button id="bj-again-btn" class="btn harvest-btn hidden">🔁 Nouvelle main</button>
             </div>
           </div>
         </div>

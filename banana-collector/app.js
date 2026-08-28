@@ -217,6 +217,7 @@ function defaultState() {
     weeklyQuestsCompletedTotal: 0,
     catchGame: { bestScore: 0, bestCoins: 0 },
     memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0 },
+    blackjackGame: { gamesPlayed: 0, biggestWin: 0 },
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     profile: { avatarId: "av_verte" },
@@ -566,6 +567,89 @@ function awardMemoryGameResult(moves, timeMs) {
   return coinsEarned;
 }
 
+/* ---------------- Mini-jeu : Black Jack (bananes) ----------------
+   Black Jack classique (mise, tirer/rester/doubler, Black Jack naturel payé
+   3:2), mais avec les 4 couleurs du jeu thématisées : banane, kiwi, mangue
+   et ananas au lieu de cœur/carreau/pique/trèfle. Mise plafonnée à 100 000
+   pièces par manche, quel que soit le solde du joueur. */
+
+const BLACKJACK_MAX_BET = 100000;
+const BLACKJACK_SUITS = ["banane", "kiwi", "mangue", "ananas"];
+const BLACKJACK_SUIT_EMOJI = { banane: "🍌", kiwi: "🥝", mangue: "🥭", ananas: "🍍" };
+const BLACKJACK_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+
+function buildBlackjackDeck() {
+  const deck = [];
+  for (const suit of BLACKJACK_SUITS) {
+    for (const rank of BLACKJACK_RANKS) deck.push({ suit, rank });
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+function blackjackCardValue(rank) {
+  if (rank === "A") return 11;
+  if (rank === "J" || rank === "Q" || rank === "K") return 10;
+  return Number(rank);
+}
+
+// Compte chaque As à 11, sauf si ça fait dépasser 21 : il repasse alors à 1,
+// un As à la fois (une main ne peut jamais avoir besoin d'en repasser plus
+// d'un, vu qu'au-delà de deux As à 11 le total dépasserait déjà 21).
+function blackjackHandTotal(hand) {
+  let total = hand.reduce((sum, c) => sum + blackjackCardValue(c.rank), 0);
+  let aces = hand.filter((c) => c.rank === "A").length;
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces -= 1;
+  }
+  return total;
+}
+
+function isBlackjackHand(hand) {
+  return hand.length === 2 && blackjackHandTotal(hand) === 21;
+}
+
+// Valide et déduit une mise (utilisée à la fois pour la mise initiale et
+// pour le montant supplémentaire d'un "Doubler", qui revient à miser une
+// seconde fois le même montant).
+function placeBlackjackBet(bet) {
+  if (!Number.isInteger(bet) || bet <= 0) return { ok: false, reason: "invalide" };
+  if (bet > BLACKJACK_MAX_BET) return { ok: false, reason: "trop_eleve" };
+  if (bet > state.coins) return { ok: false, reason: "pauvre" };
+  state.coins -= bet;
+  saveState();
+  return { ok: true };
+}
+
+// outcome : "blackjack" (gagné avec un Black Jack naturel, payé 3:2),
+// "victoire" (payé 1:1), "egalite" (mise remboursée) ou "defaite" (mise
+// déjà perdue, rien à faire de plus).
+// La mise remboursée passe directement par state.coins (jamais par
+// grantCoins) pour qu'une égalité ou le remboursement du capital ne soit
+// pas gonflé par le multiplicateur de pièces de la boutique : seul le GAIN
+// net (le profit au-dessus de la mise) passe par grantCoins, comme tous les
+// autres gains du jeu.
+function resolveBlackjackBet(totalBet, outcome) {
+  state.blackjackGame.gamesPlayed = (state.blackjackGame.gamesPlayed || 0) + 1;
+  let coinsEarned = 0;
+  if (outcome === "blackjack") {
+    state.coins += totalBet;
+    coinsEarned = grantCoins(Math.round(totalBet * 1.5));
+  } else if (outcome === "victoire") {
+    state.coins += totalBet;
+    coinsEarned = grantCoins(totalBet);
+  } else if (outcome === "egalite") {
+    state.coins += totalBet;
+  }
+  if (coinsEarned > (state.blackjackGame.biggestWin || 0)) state.blackjackGame.biggestWin = coinsEarned;
+  saveState();
+  return { coinsEarned };
+}
+
 /* ---------------- Prime de connexion quotidienne ---------------- */
 
 // Appelée une fois au démarrage. Retourne les infos de la prime si un
@@ -831,6 +915,8 @@ const ACHIEVEMENTS = [
   { id: "memory_first", icon: "🧠", name: "Bonne mémoire", desc: "Termine ta première partie de Mémoire des bananes", reward: 100, check: (s) => (s.memoryGame.gamesPlayed || 0) >= 1 },
   { id: "memory_100", icon: "🧩", name: "Mémoire d'éléphant", desc: "Termine 100 parties de Mémoire des bananes", reward: 1500, check: (s) => (s.memoryGame.gamesPlayed || 0) >= 100 },
   { id: "memory_perfect", icon: "⚡", name: "Mémoire parfaite", desc: `Termine une partie de Mémoire des bananes en ${MEMORY_PAIRS_COUNT} coups (le minimum possible)`, reward: 800, check: (s) => s.memoryGame.bestMoves != null && s.memoryGame.bestMoves <= MEMORY_PAIRS_COUNT },
+  { id: "black_first", icon: "🃏", name: "Premier coup de cartes", desc: "Termine ta première manche de Black Jack", reward: 100, check: (s) => (s.blackjackGame.gamesPlayed || 0) >= 1 },
+  { id: "black_big_win", icon: "🎰", name: "Gros coup", desc: "Gagne au moins 10 000 pièces en une seule manche de Black Jack", reward: 800, check: (s) => (s.blackjackGame.biggestWin || 0) >= 10000 },
   { id: "streak_7", icon: "🔥", name: "Semaine parfaite", desc: "Connecte-toi 7 jours d'affilée", reward: 500, check: (s) => s.streak.count >= 7 },
   { id: "streak_30", icon: "🔥", name: "Habitué de la jungle", desc: "Connecte-toi 30 jours d'affilée", reward: 3000, check: (s) => s.streak.count >= 30 },
   { id: "streak_100", icon: "🔥", name: "Increvable", desc: "Connecte-toi 100 jours d'affilée", reward: 12000, check: (s) => s.streak.count >= 100 },
