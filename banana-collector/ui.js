@@ -256,6 +256,15 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Icône d'avatar à partir d'un id d'avatar (le sien ou celui d'un autre
+  // joueur récupéré via le cloud) — retombe sur le premier avatar (toujours
+  // débloqué) si l'id est inconnu ou absent (ex : joueur pas encore connecté
+  // au compte cloud au moment de l'ajout de cette fonctionnalité).
+  function avatarIconHTML(avatarId, sizeRem) {
+    const avatar = AVATARS.find((a) => a.id === avatarId) || AVATARS[0];
+    return `<span class="inline-avatar-icon">${bananaIconHTML(BANANAS_BY_ID[avatar.bananaId], sizeRem)}</span>`;
+  }
+
   /* ---------------- Récolte ---------------- */
 
   let busy = false;
@@ -698,7 +707,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="market-listing-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         ${bananaIconHTML(banana, 2.2)}
         <div class="banana-name">${banana.name}</div>
-        ${mode === "buy" ? `<div class="market-listing-seller">par ${listing.sellerUsername}</div>` : ""}
+        ${mode === "buy" ? `<div class="market-listing-seller">par ${avatarIconHTML(listing.sellerAvatarId, 1.1)} ${listing.sellerUsername}</div>` : ""}
         <div class="market-listing-qty">x${listing.quantity}</div>
         <div class="market-listing-price">🪙 ${listing.unit_price} / unité</div>
         ${mode === "sell" ? `<div class="market-listing-status ${listing.status}">${statusLabel}</div>` : ""}
@@ -1570,7 +1579,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ${reports.map((r) => `
         <div class="pvp-report-card ${r.defender_delta > 0 ? "" : "lost"}">
           <div class="pvp-report-title">${r.defender_delta > 0 ? "🛡️ Défense réussie !" : "💥 Tu as été attaqué"}</div>
-          <div class="pvp-report-line">${r.attackerUsername} — ${r.defender_delta > 0 ? `tu as récupéré ${r.defender_delta}` : `tu as perdu ${Math.abs(r.defender_delta)}`} 🪙</div>
+          <div class="pvp-report-line">${avatarIconHTML(r.attackerAvatarId, 1.1)} ${r.attackerUsername} — ${r.defender_delta > 0 ? `tu as récupéré ${r.defender_delta}` : `tu as perdu ${Math.abs(r.defender_delta)}`} 🪙</div>
         </div>
       `).join("")}
     `;
@@ -1589,7 +1598,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pvpOpponentCard.classList.remove("hidden");
     els.pvpAttackBtn.classList.remove("hidden");
     els.pvpOpponentCard.innerHTML = `
-      <div class="pvp-opponent-name">👤 ${pvpOpponent.username}</div>
+      <div class="pvp-opponent-name">${avatarIconHTML(pvpOpponent.avatarId, 1.4)} ${pvpOpponent.username}</div>
       <div class="pvp-opponent-power">Puissance totale : ${pvpOpponent.power}</div>
     `;
   }
@@ -1607,7 +1616,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showBanner("😕 PAS D'ADVERSAIRE", { emoji: "🔍", name: result.reason === "pas_equipe" ? "Sauvegarde d'abord ton équipe" : "Réessaie plus tard" }, 1800);
       return;
     }
-    pvpOpponent = { defenderId: result.defenderId, username: result.username, power: result.power };
+    pvpOpponent = { defenderId: result.defenderId, username: result.username, avatarId: result.avatarId, power: result.power };
     renderPvpOpponent();
   });
 
@@ -1807,7 +1816,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ${sorted.map((r, i) => `
             <tr class="${r.username === myUsername ? "leaderboard-me" : ""}">
               <td>${i + 1}</td>
-              <td>${r.username}</td>
+              <td class="leaderboard-player-cell">${avatarIconHTML(r.avatar_id, 1.3)} ${r.username}</td>
               ${cfg.columns.map((c) => `<td>${c.value(r)}</td>`).join("")}
             </tr>
           `).join("")}
@@ -1822,10 +1831,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateAccountBtn() {
     if (CLOUD.available && CLOUD.isLinked()) {
-      els.accountBtn.textContent = `👤 ${CLOUD.currentUsername()}`;
+      els.accountBtn.innerHTML = `${avatarIconHTML(state.profile.avatarId, 1.3)} ${CLOUD.currentUsername()}`;
       els.accountBtn.classList.add("linked");
     } else {
-      els.accountBtn.textContent = "👤 Compte";
+      els.accountBtn.innerHTML = `${avatarIconHTML(state.profile.avatarId, 1.3)} Compte`;
       els.accountBtn.classList.remove("linked");
     }
   }
@@ -1879,6 +1888,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (res.ok) {
           SFX.buy();
           renderAccountModal();
+          updateAccountBtn();
+          if (CLOUD.available && CLOUD.isLinked()) CLOUD.setAvatar(btn.dataset.avatarId);
         }
       });
     });
@@ -1903,7 +1914,7 @@ document.addEventListener("DOMContentLoaded", () => {
         profileSectionHTML() +
         `
         <div class="account-logged-in">
-          <div class="account-username">👤 ${CLOUD.currentUsername()}</div>
+          <div class="account-username">${avatarIconHTML(state.profile.avatarId, 1.4)} ${CLOUD.currentUsername()}</div>
           <div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>
           <button id="account-signout-btn" class="btn danger">Déconnexion</button>
         </div>
@@ -1982,6 +1993,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       renderMarketTab();
       renderPvpTab();
+      CLOUD.setAvatar(state.profile.avatarId);
     });
   }
 
