@@ -1049,12 +1049,33 @@ body {
   flex-shrink: 0;
   transition: transform 0.15s ease;
 }
-.pve-vs-mark.clash { animation: pveClash 0.5s ease; }
 
-@keyframes pveClash {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  40% { transform: scale(1.6) rotate(-15deg); }
-  60% { transform: scale(1.6) rotate(15deg); }
+.pve-vs-mark.rolling {
+  display: inline-block;
+  animation: pveDiceRoll 0.55s ease-in-out infinite;
+}
+
+@keyframes pveDiceRoll {
+  0% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(90deg) scale(1.2); }
+  40% { transform: rotate(180deg) scale(0.85); }
+  60% { transform: rotate(270deg) scale(1.2); }
+  80% { transform: rotate(360deg) scale(0.85); }
+  100% { transform: rotate(450deg) scale(1); }
+}
+
+.pve-vs-mark.result-won,
+.pve-vs-mark.result-lost {
+  display: inline-block;
+  animation: pveDiceReveal 0.35s ease-out;
+}
+.pve-vs-mark.result-won { filter: drop-shadow(0 0 8px #4caf50); }
+.pve-vs-mark.result-lost { filter: drop-shadow(0 0 8px #e63946); }
+
+@keyframes pveDiceReveal {
+  0% { transform: scale(0.3) rotate(0deg); opacity: 0; }
+  60% { transform: scale(1.35) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
 .pve-result {
