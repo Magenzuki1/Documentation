@@ -909,36 +909,6 @@ body {
 
 /* --- Combat : l'Arène des Ananas --- */
 
-.pve-picker { margin: 12px 0; }
-.pve-picker-label { font-weight: 700; display: block; margin-bottom: 8px; }
-
-.pve-banana-select {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.pve-banana-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: var(--card-bg);
-  border: 2px solid #f0dfa8;
-  border-radius: 12px;
-  padding: 6px 8px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pve-banana-option.selected {
-  border-color: var(--accent-dark);
-  background: #fff6d5;
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.pve-banana-stats { font-size: 0.68rem; font-weight: 700; color: #5c4a1a; }
-
 .pve-vs {
   display: flex;
   align-items: center;
@@ -1031,45 +1001,26 @@ body {
 
 /* --- Arène PVP --- */
 
-.pvp-team-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 10px 0;
-}
-.pvp-team-count { font-weight: 700; color: #5c4a1a; }
-
-.pve-banana-option.pvp-locked-slot { opacity: 0.4; cursor: not-allowed; }
+.pvp-team-count { font-weight: 700; color: #5c4a1a; display: block; margin: 10px 0; }
 
 .pvp-team-slots {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .pvp-slot {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.pvp-slot-label {
-  font-weight: 700;
-  color: #5c4a1a;
-  min-width: 110px;
-}
-
-.pvp-slot-select {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 10px;
+  gap: 8px;
+  background: var(--card-bg);
   border: 2px solid #f0dfa8;
   border-radius: 12px;
-  background: var(--card-bg);
-  font-family: inherit;
-  font-size: 0.9rem;
-  color: inherit;
+  padding: 6px 10px;
 }
+
+.pvp-slot-name { font-weight: 700; font-size: 0.85rem; }
+.pvp-slot-stats { font-size: 0.75rem; color: #5c4a1a; }
 
 .pvp-opponent-card {
   background: var(--card-bg);

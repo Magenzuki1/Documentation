@@ -71,13 +71,11 @@ document.addEventListener("DOMContentLoaded", () => {
     pvpReports: document.getElementById("pvp-reports"),
     pvpTeamPicker: document.getElementById("pvp-team-picker"),
     pvpTeamCount: document.getElementById("pvp-team-count"),
-    pvpSaveTeamBtn: document.getElementById("pvp-save-team-btn"),
     pvpTeamError: document.getElementById("pvp-team-error"),
     pvpFindBtn: document.getElementById("pvp-find-btn"),
     pvpOpponentCard: document.getElementById("pvp-opponent-card"),
     pvpAttackBtn: document.getElementById("pvp-attack-btn"),
     pvpAttackResult: document.getElementById("pvp-attack-result"),
-    pveBananaSelect: document.getElementById("pve-banana-select"),
     pvePlayerFighter: document.getElementById("pve-player-fighter"),
     pveEnemyFighter: document.getElementById("pve-enemy-fighter"),
     pveVsMark: document.getElementById("pve-vs-mark"),
@@ -1024,33 +1022,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .sort((a, b) => rarityIndex(b.rarity) - rarityIndex(a.rarity) || b.value - a.value);
   }
 
-  function renderPveBananaSelect() {
+  // La championne est toujours la meilleure banane possédée (rareté puis
+  // valeur) : le choix manuel n'avait aucun impact, l'attaque et la défense
+  // ne dépendant que de ces deux critères, donc une autre banane n'était
+  // jamais préférable.
+  function pickBestPveBanana() {
     const owned = pveDiscoveredBananasSorted();
-    if (owned.length === 0) {
-      els.pveBananaSelect.innerHTML = `<p class="secret-hint">Récolte au moins une banane avant de combattre !</p>`;
-      pveSelectedBananaId = null;
-      return;
-    }
-    if (!pveSelectedBananaId || !owned.some((b) => b.id === pveSelectedBananaId)) {
-      pveSelectedBananaId = owned[0].id;
-    }
-    els.pveBananaSelect.innerHTML = owned.map((b) => {
-      const stats = bananaCombatStats(b);
-      const selected = b.id === pveSelectedBananaId;
-      return `
-        <button class="pve-banana-option ${selected ? "selected" : ""}" data-id="${b.id}" title="${b.name}">
-          ${bananaIconHTML(b, 2)}
-          <span class="pve-banana-stats">⚔️${stats.atk} 🛡️${stats.def}</span>
-        </button>
-      `;
-    }).join("");
-    els.pveBananaSelect.querySelectorAll(".pve-banana-option").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        pveSelectedBananaId = Number(btn.dataset.id);
-        renderPveBananaSelect();
-        renderPveFighters();
-      });
-    });
+    pveSelectedBananaId = owned.length > 0 ? owned[0].id : null;
   }
 
   // Lueur de l'ennemi : une teinte par famille de fruit (10 familles réparties
@@ -1077,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ${bananaIconHTML(playerBanana, 3.4)}
       <div class="pve-fighter-name">${playerBanana.name}</div>
       <div class="pve-fighter-stats">⚔️ ${playerStats.atk} · 🛡️ ${playerStats.def}</div>
-    ` : `<div class="pve-fighter-empty">Choisis une banane</div>`;
+    ` : `<div class="pve-fighter-empty">Récolte une banane pour combattre</div>`;
 
     els.pveEnemyFighter.innerHTML = `
       <div class="pve-enemy-icon" style="font-size:${enemySize}rem; filter:drop-shadow(0 0 10px ${pveStageGlow(pveSelectedStage)});">${enemy.emoji}</div>
@@ -1127,7 +1105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderPveTab() {
     if (pveSelectedStage > maxPlayablePveStage()) pveSelectedStage = maxPlayablePveStage();
-    renderPveBananaSelect();
+    pickBestPveBanana();
     renderPveStageList();
     renderPveFighters();
     els.pveResult.classList.add("hidden");
@@ -1201,7 +1179,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Arène PVP ---------------- */
 
-  let pvpSelectedTeam = Array(5).fill(null);
   let pvpOpponent = null;
 
   function pvpOwnedBananas() {
@@ -1211,6 +1188,14 @@ document.addEventListener("DOMContentLoaded", () => {
       .sort((a, b) => rarityIndex(b.rarity) - rarityIndex(a.rarity) || b.value - a.value);
   }
 
+  // L'équipe est toujours les 5 meilleures bananes possédées (rareté puis
+  // valeur) : le choix manuel n'avait aucun impact, l'attaque et la défense
+  // ne dépendant que de ces deux critères, donc une autre composition
+  // n'était jamais préférable.
+  function bestPvpTeam() {
+    return pvpOwnedBananas().slice(0, 5).map((b) => b.id);
+  }
+
   function renderPvpTeamPicker() {
     const owned = pvpOwnedBananas();
     if (owned.length === 0) {
@@ -1218,54 +1203,37 @@ document.addEventListener("DOMContentLoaded", () => {
       els.pvpTeamCount.textContent = "";
       return;
     }
-    // Retire de l'équipe les bananes qu'on ne possède plus.
-    pvpSelectedTeam = pvpSelectedTeam.map((id) => (id != null && owned.some((b) => b.id === id) ? id : null));
-
-    els.pvpTeamPicker.innerHTML = pvpSelectedTeam.map((currentId, slot) => {
-      const options = owned.map((b) => {
-        const usedElsewhere = pvpSelectedTeam.includes(b.id) && currentId !== b.id;
-        const stats = bananaCombatStats(b);
-        return `<option value="${b.id}" ${b.id === currentId ? "selected" : ""} ${usedElsewhere ? "disabled" : ""}>${b.name} — ⚔️${stats.atk} 🛡️${stats.def}</option>`;
-      }).join("");
+    const team = bestPvpTeam();
+    els.pvpTeamPicker.innerHTML = team.map((id) => {
+      const b = BANANAS_BY_ID[id];
+      const stats = bananaCombatStats(b);
       return `
         <div class="pvp-slot">
-          <label class="pvp-slot-label">Combattant ${slot + 1}</label>
-          <select class="pvp-slot-select" data-slot="${slot}">
-            <option value="">— Vide —</option>
-            ${options}
-          </select>
+          ${bananaIconHTML(b, 2)}
+          <span class="pvp-slot-name">${b.name}</span>
+          <span class="pvp-slot-stats">⚔️${stats.atk} 🛡️${stats.def}</span>
         </div>
       `;
     }).join("");
-    els.pvpTeamCount.textContent = `${pvpSelectedTeam.filter((id) => id != null).length} / 5 sélectionnées`;
-    els.pvpTeamPicker.querySelectorAll(".pvp-slot-select").forEach((select) => {
-      select.addEventListener("change", () => {
-        const slot = Number(select.dataset.slot);
-        pvpSelectedTeam[slot] = select.value ? Number(select.value) : null;
-        renderPvpTeamPicker();
-      });
-    });
+    els.pvpTeamCount.textContent = team.length < 5
+      ? `${team.length} / 5 — récolte encore des bananes pour activer ta défense`
+      : "🤖 Équipe automatique : tes 5 meilleures bananes";
   }
 
-  els.pvpSaveTeamBtn.addEventListener("click", async () => {
+  // Maintient l'équipe sauvegardée alignée sur les 5 meilleures bananes
+  // possédées, sans jamais demander de choix au joueur.
+  async function syncBestPvpTeam() {
     els.pvpTeamError.textContent = "";
-    const team = pvpSelectedTeam.filter((id) => id != null);
-    if (team.length !== 5) {
-      els.pvpTeamError.textContent = "Choisis exactement 5 bananes.";
-      return;
-    }
-    els.pvpSaveTeamBtn.disabled = true;
-    els.pvpSaveTeamBtn.textContent = "⏳...";
+    const team = bestPvpTeam();
+    if (team.length !== 5) return;
+    const savedTeam = await CLOUD.fetchMyDefenseTeam();
+    const upToDate = savedTeam && savedTeam.length === 5 && savedTeam.every((id, i) => id === team[i]);
+    if (upToDate) return;
     const result = await CLOUD.setDefenseTeam(team);
-    els.pvpSaveTeamBtn.disabled = false;
-    els.pvpSaveTeamBtn.textContent = "Sauvegarder l'équipe";
     if (!result.ok) {
-      els.pvpTeamError.textContent = result.reason || "Impossible de sauvegarder l'équipe.";
-      return;
+      els.pvpTeamError.textContent = result.reason || "Impossible de mettre à jour l'équipe.";
     }
-    SFX.buy();
-    showBanner("✅ ÉQUIPE SAUVEGARDÉE !", { emoji: "🛡️", name: "Elle te défend même hors ligne" }, 1800);
-  });
+  }
 
   async function renderPvpReports() {
     const reports = await CLOUD.fetchUnseenCombatReports();
@@ -1374,10 +1342,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     await renderPvpReports();
 
-    const savedTeam = await CLOUD.fetchMyDefenseTeam();
-    pvpSelectedTeam = Array(5).fill(null);
-    (savedTeam || []).forEach((id, i) => { pvpSelectedTeam[i] = id; });
     renderPvpTeamPicker();
+    await syncBestPvpTeam();
   }
 
   /* ---------------- Statistiques ---------------- */
