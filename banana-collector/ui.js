@@ -1456,45 +1456,59 @@ document.addEventListener("DOMContentLoaded", () => {
     pveFighting = true;
     els.pveFightBtn.disabled = true;
     els.pveResult.classList.add("hidden");
-    els.pveVsMark.classList.add("clash");
+
+    const result = fightFruitEnemy(pveSelectedBananaId, pveSelectedStage);
+    if (!result.ok) {
+      pveFighting = false;
+      els.pveFightBtn.disabled = false;
+      renderPveFighters();
+      return;
+    }
+
+    // Petite animation de dé qui roule, puis se fige sur la face gagnée ou
+    // perdue, avant d'afficher le résultat complet — un peu de suspense.
+    els.pveVsMark.textContent = "🎲";
+    els.pveVsMark.classList.remove("result-won", "result-lost");
+    els.pveVsMark.classList.add("rolling");
 
     setTimeout(() => {
-      els.pveVsMark.classList.remove("clash");
-      const result = fightFruitEnemy(pveSelectedBananaId, pveSelectedStage);
-      pveFighting = false;
-
-      if (!result.ok) {
-        renderPveFighters();
-        return;
-      }
-
+      els.pveVsMark.classList.remove("rolling");
+      els.pveVsMark.textContent = result.won ? "✅" : "❌";
+      els.pveVsMark.classList.add(result.won ? "result-won" : "result-lost");
       SFX[result.won ? "win" : "lose"]();
-      renderHeader();
-      CLOUD.scheduleSync();
-      els.pveResult.innerHTML = `
-        <div class="pve-result-title">${result.won ? "🎉 Victoire !" : "💥 Défaite..."}</div>
-        <div class="pve-result-line">${result.won ? "Ta banane triomphe de l'ennemi !" : "L'ennemi était trop coriace cette fois — courage vaincu quand même récompensé."}</div>
-        <div class="pve-result-coins">🪙 +${result.coinsEarned}</div>
-        ${result.stageAdvanced ? '<div class="pve-result-line">🔓 Ennemi suivant débloqué !</div>' : ""}
-      `;
-      els.pveResult.classList.remove("hidden");
 
-      if (result.won) spawnConfetti(result.stageAdvanced ? 25 : 12);
+      setTimeout(() => {
+        els.pveVsMark.textContent = "⚔️";
+        els.pveVsMark.classList.remove("result-won", "result-lost");
+        pveFighting = false;
 
-      const unlocked = checkAchievements();
-      if (unlocked.length > 0) {
         renderHeader();
-        showAchievementToasts(unlocked);
-      }
-      const questsDone = checkQuests();
-      if (questsDone.length > 0) {
-        renderHeader();
-        showQuestToasts(questsDone);
-      }
+        CLOUD.scheduleSync();
+        els.pveResult.innerHTML = `
+          <div class="pve-result-title">${result.won ? "🎉 Victoire !" : "💥 Défaite..."}</div>
+          <div class="pve-result-line">${result.won ? "Ta banane triomphe de l'ennemi !" : "L'ennemi était trop coriace cette fois — courage vaincu quand même récompensé."}</div>
+          <div class="pve-result-coins">🪙 +${result.coinsEarned}</div>
+          ${result.stageAdvanced ? '<div class="pve-result-line">🔓 Ennemi suivant débloqué !</div>' : ""}
+        `;
+        els.pveResult.classList.remove("hidden");
 
-      renderPveStageList();
-      renderPveFighters();
-    }, 650);
+        if (result.won) spawnConfetti(result.stageAdvanced ? 25 : 12);
+
+        const unlocked = checkAchievements();
+        if (unlocked.length > 0) {
+          renderHeader();
+          showAchievementToasts(unlocked);
+        }
+        const questsDone = checkQuests();
+        if (questsDone.length > 0) {
+          renderHeader();
+          showQuestToasts(questsDone);
+        }
+
+        renderPveStageList();
+        renderPveFighters();
+      }, 550);
+    }, 800);
   });
 
   /* ---------------- Combat : sous-onglets Solo / PVP ---------------- */
