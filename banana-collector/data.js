@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (122 normales + 5 secrètes)
+   Raretés, table de bananes (125 normales + 5 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -41,7 +41,7 @@ function valueFor(rarity, indexInRarity) {
   const table = {
     commune: [3, 5, 3, 6, 5, 6, 3, 5, 6, 3, 5, 6, 4, 6, 3, 5, 4, 6, 3, 5, 4, 6, 3, 5, 5, 4, 5, 6, 4, 5, 3, 6, 5],
     peu_commune: [10, 13, 14, 11, 16, 14, 13, 16, 13, 14, 11, 15, 12, 10, 14, 12, 15, 11, 13, 14, 13, 15, 14, 12, 16, 13, 11, 14],
-    rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32, 33, 35, 30, 32, 36, 28],
+    rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32, 33, 35, 30, 32, 36, 28, 31, 34, 29],
     epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65],
     legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195],
     mythique: [640, 770, 960, 1150, 700],
@@ -358,7 +358,7 @@ const BANANA_DEFS = [
     image: "images/banana_132.png",
   },
 
-  // ================= Rare (26) =================
+  // ================= Rare (29) =================
   {
     id: 45, name: "Banane géante", rarity: "rare", image: "images/banana_45.png", emoji: "🍌",
     deco: { filter: "drop-shadow(0 4px 2px rgba(0,0,0,.35))", scale: 1.22 },
@@ -535,6 +535,18 @@ const BANANA_DEFS = [
   {
     id: 138, name: "Banane moine", rarity: "rare", emoji: "🍌",
     image: "images/banana_138.png",
+  },
+  {
+    id: 139, name: "Banane musicien", rarity: "rare", emoji: "🍌",
+    image: "images/banana_139.png",
+  },
+  {
+    id: 140, name: "Banane avocate", rarity: "rare", emoji: "🍌",
+    image: "images/banana_140.png",
+  },
+  {
+    id: 141, name: "Banane juge", rarity: "rare", emoji: "🍌",
+    image: "images/banana_141.png",
   },
 
   // ================= Épique (20) =================
@@ -877,5 +889,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 122
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 125
 const TOTAL_SECRET = SECRET_BANANAS.length; // 5
