@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (100 normales + 6 secrètes)
+   Raretés, table de bananes (99 normales + 6 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -42,7 +42,7 @@ function valueFor(rarity, indexInRarity) {
     commune: [3, 5, 3, 6, 5, 6, 3, 5, 6, 3, 5, 6, 4, 6, 3, 5, 4, 6, 3, 5, 4, 6, 3, 5, 5],
     peu_commune: [10, 13, 14, 11, 16, 14, 13, 16, 13, 14, 11, 15, 12, 10, 14, 12, 15, 11, 13],
     rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32],
-    epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65, 78],
+    epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65],
     legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195],
     mythique: [640, 770, 960, 1150, 700],
     secrete: [3200, 3500, 3800, 4200, 4500, 4800],
@@ -81,7 +81,7 @@ function valueFor(rarity, indexInRarity) {
 // id existant — sinon les annonces du marché, les équipes de défense et
 // l'historique de combat des joueurs se retrouveraient désynchronisés.
 const BANANA_DEFS = [
-  // ================= Commune (24, + id 111 en fin de fichier) =================
+  // ================= Commune (25) =================
   { id: 1, name: "Banane verte", rarity: "commune", image: "images/banana_1.png", emoji: "🍌" },
   {
     id: 2, name: "Banane rouge", rarity: "commune", image: "images/banana_2.png", emoji: "🍌",
@@ -180,6 +180,10 @@ const BANANA_DEFS = [
   {
     id: 24, name: "Banane gourmande", rarity: "commune", image: "images/banana_24.png", emoji: "🍌",
     deco: { accessories: [{ type: "text", text: "☁️", style: "top:-14%; left:-10%; font-size:.5em;" }] },
+  },
+  {
+    id: 111, name: "Banane rêveuse", rarity: "commune", emoji: "🍌",
+    image: "images/banana_111.png",
   },
 
   // ================= Peu commune (19) =================
@@ -441,7 +445,7 @@ const BANANA_DEFS = [
     },
   },
 
-  // ================= Épique (16, + ids 112-116 en fin de fichier) =================
+  // ================= Épique (20) =================
   {
     id: 65, name: "Banane dorée", rarity: "epique", image: "images/banana_65.png", emoji: "🍌",
     deco: { filter: "sepia(0.6) saturate(2) hue-rotate(-10deg) brightness(1.1) drop-shadow(0 0 5px #ffdb70)" },
@@ -574,6 +578,22 @@ const BANANA_DEFS = [
         { type: "orb", color: "#c81d25", style: "left:46%; top:32%; width:12%; height:12%;" },
       ],
     },
+  },
+  {
+    id: 112, name: "Banane hors-la-loi", rarity: "epique", emoji: "🍌",
+    image: "images/banana_112.png",
+  },
+  {
+    id: 113, name: "Banane guerrière dorée", rarity: "epique", emoji: "🍌",
+    image: "images/banana_113.png",
+  },
+  {
+    id: 114, name: "Banane apprentie mage", rarity: "epique", emoji: "🍌",
+    image: "images/banana_114.png",
+  },
+  {
+    id: 115, name: "Banane bébé", rarity: "epique", emoji: "🍌",
+    image: "images/banana_115.png",
   },
 
   // ================= Légendaire (10) =================
@@ -737,30 +757,6 @@ const BANANA_DEFS = [
   {
     id: 106, name: "Banane invisible", rarity: "secrete", image: "images/banana_106.png", emoji: "🍌",
   },
-  {
-    id: 111, name: "Banane rêveuse", rarity: "commune", emoji: "🍌",
-    image: "images/banana_111.png",
-  },
-  {
-    id: 112, name: "Banane hors-la-loi", rarity: "epique", emoji: "🍌",
-    image: "images/banana_112.png",
-  },
-  {
-    id: 113, name: "Banane guerrière dorée", rarity: "epique", emoji: "🍌",
-    image: "images/banana_113.png",
-  },
-  {
-    id: 114, name: "Banane apprentie mage", rarity: "epique", emoji: "🍌",
-    image: "images/banana_114.png",
-  },
-  {
-    id: 115, name: "Banane bébé", rarity: "epique", emoji: "🍌",
-    image: "images/banana_115.png",
-  },
-  {
-    id: 116, name: "Banane de foudre", rarity: "epique", emoji: "🍌",
-    image: "images/banana_116.png",
-  },
 ];
 
 // Construction de la table finale avec id, valeur, index dans la rareté, etc.
@@ -792,5 +788,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 100
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 99
 const TOTAL_SECRET = SECRET_BANANAS.length; // 6
