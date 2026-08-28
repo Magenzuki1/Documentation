@@ -98,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pvePrestigeLevel: document.getElementById("pve-prestige-level"),
     pvePrestigeBonus: document.getElementById("pve-prestige-bonus"),
     pvePrestigeBtn: document.getElementById("pve-prestige-btn"),
+    pvePrestigeLockedHint: document.getElementById("pve-prestige-locked-hint"),
     prestigeConfirmModal: document.getElementById("prestige-confirm-modal"),
     prestigeConfirmYes: document.getElementById("prestige-confirm-yes"),
     prestigeConfirmNo: document.getElementById("prestige-confirm-no"),
@@ -1401,7 +1402,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const bonusPct = Math.round(level * 15);
     els.pvePrestigeLevel.textContent = `🏅 Prestige ${level}`;
     els.pvePrestigeBonus.textContent = `Bonus permanent : +${bonusPct}% ATK/DEF`;
-    els.pvePrestigeBtn.classList.toggle("hidden", !canPrestige());
+    const unlocked = canPrestige();
+    els.pvePrestigeBtn.classList.toggle("hidden", !unlocked);
+    els.pvePrestigeLockedHint.classList.toggle("hidden", unlocked);
+    if (!unlocked) {
+      const remaining = FRUIT_ENEMIES.length - 1 - state.pve.stage;
+      els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} — encore ${remaining} niveau${remaining > 1 ? "x" : ""} à passer`;
+    }
   }
 
   function renderPveTab() {
