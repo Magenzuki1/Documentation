@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (99 normales + 6 secrètes)
+   Raretés, table de bananes (99 normales + 5 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -45,7 +45,7 @@ function valueFor(rarity, indexInRarity) {
     epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65],
     legendaire: [190, 210, 230, 250, 205, 225, 200, 220, 240, 195],
     mythique: [640, 770, 960, 1150, 700],
-    secrete: [3200, 3500, 3800, 4200, 4500, 4800],
+    secrete: [3200, 3500, 3800, 4200, 4500],
   };
   return table[rarity][indexInRarity] || 10;
 }
@@ -715,7 +715,7 @@ const BANANA_DEFS = [
     },
   },
 
-  // ================= Secrète (6) — variantes bonus, ultra rares =================
+  // ================= Secrète (5) — variantes bonus, ultra rares =================
   {
     id: 101, name: "Banane agent secret", rarity: "secrete", image: "images/banana_101.png", emoji: "🍌",
     deco: {
@@ -754,9 +754,6 @@ const BANANA_DEFS = [
       ],
     },
   },
-  {
-    id: 106, name: "Banane invisible", rarity: "secrete", image: "images/banana_106.png", emoji: "🍌",
-  },
 ];
 
 // Construction de la table finale avec id, valeur, index dans la rareté, etc.
@@ -789,4 +786,4 @@ const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
 const TOTAL_NORMAL = NORMAL_BANANAS.length; // 99
-const TOTAL_SECRET = SECRET_BANANAS.length; // 6
+const TOTAL_SECRET = SECRET_BANANAS.length; // 5
