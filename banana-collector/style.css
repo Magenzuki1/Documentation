@@ -403,6 +403,13 @@ body {
   min-height: 2.4em;
 }
 
+.banana-card-stats {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #5c4a1a;
+  margin-top: 2px;
+}
+
 .banana-rarity {
   font-size: 0.8rem;
   font-weight: 700;

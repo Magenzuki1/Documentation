@@ -499,11 +499,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const count = state.counts[banana.id] || 0;
     const level = bananaLevel(banana.id);
     const rarity = RARITIES[banana.rarity];
+    const stats = bananaCombatStats(banana);
     return `
       <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         ${level > 1 ? `<div class="banana-level-badge">Nv. ${level}</div>` : ""}
         ${bananaIconHTML(banana)}
         <div class="banana-name">${banana.name}</div>
+        <div class="banana-card-stats">⚔️ ${stats.atk} · 🛡️ ${stats.def}</div>
         <div class="banana-rarity">${rarity.label}</div>
         <div class="banana-value">🪙 ${banana.value}</div>
         <div class="banana-count">x${count}</div>
@@ -523,6 +525,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="banana-card locked">
             <div class="banana-emoji silhouette">🍌</div>
             <div class="banana-name">???</div>
+            <div class="banana-card-stats">⚔️ ? · 🛡️ ?</div>
             <div class="banana-rarity">???</div>
             <div class="banana-value">🪙 ?</div>
             <div class="banana-count">x0</div>

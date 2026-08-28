@@ -905,12 +905,12 @@ function prestigeCombatMultiplier() {
 /* ---------------- Niveaux de banane (combiner les doublons) ----------------
    Chaque doublon (exemplaire au-delà du tout premier) peut être combiné pour
    monter le niveau de la banane, jusqu'au niveau 100. Le coût en doublons
-   suit 5*(niveau²+1) : 10 doublons pour passer niveau 1→2, 25 pour 2→3,
-   50 pour 3→4, etc. — une progression qui reste raisonnable au début pour
-   les bananes communes (obtenues en masse) et devient un objectif de très
-   long terme pour les raretés élevées. Chaque niveau gagné ajoute un bonus
-   fixe d'attaque ET de défense, croissant avec la rareté (+2 par palier de
-   rareté), qui vient s'ajouter aux stats de combat habituelles. */
+   suit une simple suite arithmétique (2, 4, 6, 8, 10, 12...), qui reste
+   accessible même en fin de montée puisque le jeu continue de recevoir de
+   nouvelles bananes (donc de moins en moins de doublons par banane au fil
+   du temps). Chaque niveau gagné ajoute un bonus fixe d'attaque ET de
+   défense, croissant avec la rareté (+2 par palier de rareté), qui vient
+   s'ajouter aux stats de combat habituelles. */
 const MAX_BANANA_LEVEL = 100;
 
 const BANANA_LEVEL_STAT_BONUS = {
@@ -932,9 +932,13 @@ function maxBananaLevelIn(s) {
   return levels.length > 0 ? Math.max(...levels) : 1;
 }
 
-// Coût en doublons pour passer du niveau courant au niveau suivant.
+// Coût en doublons pour passer du niveau courant au niveau suivant : une
+// simple suite arithmétique (2, 4, 6, 8, 10, 12...) plutôt qu'une croissance
+// au carré — le jeu continuant à recevoir de nouvelles bananes, les
+// doublons par banane deviennent plus rares à force, donc mieux vaut un
+// coût qui reste accessible sur toute la montée jusqu'au niveau 100.
 function bananaLevelUpCost(currentLevel) {
-  return 5 * (currentLevel * currentLevel + 1);
+  return 2 * currentLevel;
 }
 
 function bananaDuplicatesOwned(bananaId) {
