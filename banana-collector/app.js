@@ -905,11 +905,11 @@ function bananaCombatStats(banana) {
 }
 
 // Multiplicateur appliqué à enemy.reward pour la victoire en Arène solo.
-// Déjà réduit une première fois à 0.75, puis encore baissé de 30% ici
-// (0.75 * 0.7 = 0.525) — partagé avec ui.js pour l'aperçu affiché avant
-// le combat, qui doit toujours annoncer le même gain que celui réellement
-// accordé.
-const PVE_WIN_REWARD_MULT = 0.525;
+// Déjà réduit une première fois à 0.75, puis baissé de 30% (0.75*0.7=0.525),
+// puis encore baissé de 30% ici (0.525*0.7=0.3675) — partagé avec ui.js pour
+// l'aperçu affiché avant le combat, qui doit toujours annoncer le même gain
+// que celui réellement accordé.
+const PVE_WIN_REWARD_MULT = 0.3675;
 
 // Chance de victoire = fonction du RATIO de puissance (attaque + défense),
 // pas d'une simple moyenne de ratios additifs — un écart de puissance x2
@@ -1040,7 +1040,7 @@ function fightFruitEnemy(bananaId, stageIndex) {
     bumpQuestProgress("wins");
     if (stageAdvanced) state.pve.stage = stageIndex;
   } else {
-    coinsEarned = grantCoins(Math.round(winReward * 0.08));
+    coinsEarned = grantCoins(Math.round(winReward * 0.02));
     state.pve.losses += 1;
   }
   saveState();
