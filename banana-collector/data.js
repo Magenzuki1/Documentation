@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (100 normales + 5 secrètes)
+   Raretés, table de bananes (101 normales + 5 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -39,7 +39,7 @@ function isLegendaryOrAbove(key) {
 // Valeur en pièces générée de façon déterministe selon la rareté et la position dans la rareté
 function valueFor(rarity, indexInRarity) {
   const table = {
-    commune: [3, 5, 3, 6, 5, 6, 3, 5, 6, 3, 5, 6, 4, 6, 3, 5, 4, 6, 3, 5, 4, 6, 3, 5, 5, 4],
+    commune: [3, 5, 3, 6, 5, 6, 3, 5, 6, 3, 5, 6, 4, 6, 3, 5, 4, 6, 3, 5, 4, 6, 3, 5, 5, 4, 5],
     peu_commune: [10, 13, 14, 11, 16, 14, 13, 16, 13, 14, 11, 15, 12, 10, 14, 12, 15, 11, 13],
     rare: [24, 29, 32, 35, 27, 30, 34, 29, 27, 37, 26, 33, 28, 36, 25, 31, 29, 34, 27, 32],
     epique: [64, 70, 77, 83, 67, 74, 80, 86, 68, 75, 82, 66, 72, 79, 85, 69, 76, 84, 71, 65],
@@ -81,7 +81,7 @@ function valueFor(rarity, indexInRarity) {
 // id existant — sinon les annonces du marché, les équipes de défense et
 // l'historique de combat des joueurs se retrouveraient désynchronisés.
 const BANANA_DEFS = [
-  // ================= Commune (26) =================
+  // ================= Commune (27) =================
   { id: 1, name: "Banane verte", rarity: "commune", image: "images/banana_1.png", emoji: "🍌" },
   {
     id: 2, name: "Banane rouge", rarity: "commune", image: "images/banana_2.png", emoji: "🍌",
@@ -188,6 +188,10 @@ const BANANA_DEFS = [
   {
     id: 116, name: "Banane à lunettes", rarity: "commune", emoji: "🍌",
     image: "images/banana_116.png",
+  },
+  {
+    id: 117, name: "Banane timide", rarity: "commune", emoji: "🍌",
+    image: "images/banana_117.png",
   },
 
   // ================= Peu commune (19) =================
@@ -789,5 +793,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 100
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 101
 const TOTAL_SECRET = SECRET_BANANAS.length; // 5
