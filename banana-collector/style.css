@@ -969,26 +969,26 @@ body {
 
 /* --- Combat : l'Arène des Ananas --- */
 
-.pve-prestige-panel {
+.prestige-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  background: var(--card-bg);
+  background: #fff6d5;
+  border: 2px solid #f0dfa8;
   border-radius: var(--radius);
   padding: 12px 16px;
-  box-shadow: var(--shadow);
-  margin-bottom: 10px;
+  margin: 12px 0 16px;
 }
 
-.pve-prestige-info {
+.prestige-panel-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   font-weight: 700;
 }
-.pve-prestige-info span:last-child { font-size: 0.8rem; color: #5c4a1a; font-weight: 600; }
+.prestige-panel-info span:last-child { font-size: 0.8rem; color: #5c4a1a; font-weight: 600; }
 
 .prestige-btn {
   padding: 10px 18px;

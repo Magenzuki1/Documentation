@@ -94,11 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
     pveFightBtn: document.getElementById("pve-fight-btn"),
     pveResult: document.getElementById("pve-result"),
     pveStageList: document.getElementById("pve-stage-list"),
-    pveIntroText: document.getElementById("pve-intro-text"),
-    pvePrestigeLevel: document.getElementById("pve-prestige-level"),
-    pvePrestigeBonus: document.getElementById("pve-prestige-bonus"),
-    pvePrestigeBtn: document.getElementById("pve-prestige-btn"),
-    pvePrestigeLockedHint: document.getElementById("pve-prestige-locked-hint"),
     prestigeConfirmModal: document.getElementById("prestige-confirm-modal"),
     prestigeConfirmYes: document.getElementById("prestige-confirm-yes"),
     prestigeConfirmNo: document.getElementById("prestige-confirm-no"),
@@ -1396,39 +1391,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function renderPvePrestige() {
-    els.pveIntroText.textContent = `Ta meilleure banane combat automatiquement et affronte ${FRUIT_ENEMIES.length} niveaux répartis en ${FRUIT_FAMILIES.length} familles de fruits, de plus en plus fortes. L'attaque et la défense dépendent de la rareté de ta banane (et de ton niveau de Prestige).`;
-    const level = state.prestige.level || 0;
-    const bonusPct = Math.round(level * 15);
-    els.pvePrestigeLevel.textContent = `🏅 Prestige ${level}`;
-    els.pvePrestigeBonus.textContent = `Bonus permanent : +${bonusPct}% ATK/DEF`;
-    const unlocked = canPrestige();
-    els.pvePrestigeBtn.classList.toggle("hidden", !unlocked);
-    els.pvePrestigeLockedHint.classList.toggle("hidden", unlocked);
-    if (!unlocked) {
-      const remainingStages = FRUIT_ENEMIES.length - 1 - state.pve.stage;
-      if (level === 0) {
-        const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length;
-        const remainingBananas = TOTAL_NORMAL - discoveredNormal;
-        els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} (encore ${remainingStages}) OU en complétant ta collection normale (encore ${remainingBananas} banane${remainingBananas > 1 ? "s" : ""})`;
-      } else {
-        els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} — encore ${remainingStages} niveau${remainingStages > 1 ? "x" : ""} à passer`;
-      }
-    }
-  }
-
   function renderPveTab() {
     if (pveSelectedStage > maxPlayablePveStage()) pveSelectedStage = maxPlayablePveStage();
     pickBestPveBanana();
-    renderPvePrestige();
     renderPveStageList();
     renderPveFighters();
     els.pveResult.classList.add("hidden");
   }
 
-  els.pvePrestigeBtn.addEventListener("click", () => {
-    els.prestigeConfirmModal.classList.remove("hidden");
-  });
   els.prestigeConfirmNo.addEventListener("click", () => {
     els.prestigeConfirmModal.classList.add("hidden");
   });
@@ -1436,12 +1406,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const res = doPrestige();
     els.prestigeConfirmModal.classList.add("hidden");
     if (!res.ok) return;
+    if (CLOUD.isLinked()) CLOUD.resetCloudProgress().catch(() => {});
+
     SFX.win();
     spawnConfetti(30);
     showBanner("🏅 PRESTIGE !", { emoji: "🏅", name: `Niveau ${res.level}` }, 1800);
-    renderHeader();
+
+    pveSelectedBananaId = null;
     pveSelectedStage = 0;
+    els.lastBanana.innerHTML = `<p class="empty-hint">Clique sur le bouton pour récolter ta première banane !</p>`;
+    updateAutoHarvestTimer();
+
+    renderHeader();
+    renderCollection();
+    renderShop();
+    renderQuests();
+    renderMinigamesMenu();
+    renderStats();
+    renderAchievements();
+    renderAccountModal();
+    updateAccountBtn();
     renderPveTab();
+    renderMarketTab();
+    renderPvpTab();
 
     const unlocked = checkAchievements();
     if (unlocked.length > 0) {
@@ -1858,6 +1845,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Profil & avatars ---------------- */
 
+  function prestigePanelHTML() {
+    const level = state.prestige.level || 0;
+    const bonusPct = Math.round(level * 15);
+    const unlocked = canPrestige();
+    const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length;
+    const remainingBananas = TOTAL_NORMAL - discoveredNormal;
+    const actionHTML = unlocked
+      ? `<button id="profile-prestige-btn" class="btn prestige-btn">🏅 Prestige</button>`
+      : `<span class="prestige-locked-hint">🔒 Complète ta collection normale pour prestiger (encore ${remainingBananas} banane${remainingBananas > 1 ? "s" : ""})</span>`;
+    return `
+      <div class="prestige-panel">
+        <div class="prestige-panel-info">
+          <span>🏅 Prestige ${level}</span>
+          <span>Bonus permanent : +${bonusPct}% ATK/DEF</span>
+        </div>
+        ${actionHTML}
+      </div>
+    `;
+  }
+
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
     const medal = currentPrestigeMedal(state);
@@ -1875,6 +1882,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="profile-current-name">${displayName}</div>
           ${medalHTML}
         </div>
+        ${prestigePanelHTML()}
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
         <div class="profile-avatar-grid">
           ${AVATARS.map((a) => {
@@ -1906,6 +1914,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+    const prestigeBtn = container.querySelector("#profile-prestige-btn");
+    if (prestigeBtn) {
+      prestigeBtn.addEventListener("click", () => {
+        els.prestigeConfirmModal.classList.remove("hidden");
+      });
+    }
   }
 
   function renderAccountModal() {
