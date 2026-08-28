@@ -1020,8 +1020,20 @@ function fightFruitEnemy(bananaId, stageIndex) {
 // Débloqué en battant le dernier stade actuellement disponible ; comme ce
 // dernier stade recule à chaque extension de l'Arène, le Prestige reste
 // utile même après plusieurs cycles.
+//
+// Pour le tout premier Prestige seulement, compléter la collection normale
+// (hors bananes secrètes) débloque aussi le bouton, sans avoir à d'abord
+// battre l'Arène — c'est justement ce bonus d'attaque/défense qui doit
+// ensuite aider à la vaincre. Les Prestiges suivants (le joueur repart de
+// l'Arène remise à zéro) redemandent de battre le dernier stade, seule
+// ressource qui se régénère à chaque cycle.
 function canPrestige() {
-  return state.pve.stage >= FRUIT_ENEMIES.length - 1;
+  if (state.pve.stage >= FRUIT_ENEMIES.length - 1) return true;
+  if ((state.prestige.level || 0) === 0) {
+    const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length;
+    if (discoveredNormal >= TOTAL_NORMAL) return true;
+  }
+  return false;
 }
 
 function doPrestige() {

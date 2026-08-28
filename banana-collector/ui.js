@@ -1406,8 +1406,14 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pvePrestigeBtn.classList.toggle("hidden", !unlocked);
     els.pvePrestigeLockedHint.classList.toggle("hidden", unlocked);
     if (!unlocked) {
-      const remaining = FRUIT_ENEMIES.length - 1 - state.pve.stage;
-      els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} — encore ${remaining} niveau${remaining > 1 ? "x" : ""} à passer`;
+      const remainingStages = FRUIT_ENEMIES.length - 1 - state.pve.stage;
+      if (level === 0) {
+        const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length;
+        const remainingBananas = TOTAL_NORMAL - discoveredNormal;
+        els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} (encore ${remainingStages}) OU en complétant ta collection normale (encore ${remainingBananas} banane${remainingBananas > 1 ? "s" : ""})`;
+      } else {
+        els.pvePrestigeLockedHint.textContent = `🔒 Débloqué au niveau ${FRUIT_ENEMIES.length}/${FRUIT_ENEMIES.length} — encore ${remainingStages} niveau${remainingStages > 1 ? "x" : ""} à passer`;
+      }
     }
   }
 
