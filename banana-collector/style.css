@@ -1078,6 +1078,10 @@ body {
   z-index: 100;
   opacity: 0;
   transition: opacity 0.3s ease;
+  /* Sans cursor:pointer, certains navigateurs mobiles (Safari iOS) ne
+     synthétisent pas d'événement "click" sur un <div> nu au tap : le clic
+     pour fermer en tapant en dehors du cadre ne fonctionnait jamais. */
+  cursor: pointer;
 }
 .overlay.show { opacity: 1; }
 .overlay.hidden { display: none; }
@@ -1307,6 +1311,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 110;
+  cursor: pointer;
 }
 .modal.hidden { display: none; }
 
