@@ -221,7 +221,15 @@
 
         <div id="combat-solo-view">
           <h2>⚔️ L'Arène des Fruits</h2>
-          <p class="shop-hint">Ta meilleure banane combat automatiquement et affronte 60 niveaux répartis en 10 familles de fruits, de plus en plus fortes. L'attaque et la défense dépendent de la rareté de ta banane.</p>
+          <p class="shop-hint" id="pve-intro-text">Ta meilleure banane combat automatiquement et affronte 90 niveaux répartis en 15 familles de fruits, de plus en plus fortes. L'attaque et la défense dépendent de la rareté de ta banane.</p>
+
+          <div id="pve-prestige-panel" class="pve-prestige-panel">
+            <div class="pve-prestige-info">
+              <span id="pve-prestige-level">🏅 Prestige 0</span>
+              <span id="pve-prestige-bonus">Bonus permanent : +0% ATK/DEF</span>
+            </div>
+            <button id="pve-prestige-btn" class="btn prestige-btn hidden">🏅 Prestige</button>
+          </div>
 
           <div class="pve-vs">
             <div class="pve-fighter" id="pve-player-fighter"></div>
@@ -299,6 +307,16 @@
       <div class="modal-actions">
         <button id="confirm-yes" class="btn danger">Oui, tout supprimer</button>
         <button id="confirm-no" class="btn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="prestige-confirm-modal" class="modal hidden">
+    <div class="modal-box">
+      <p>Prestige : ton niveau dans l'Arène solo sera <strong>remis à zéro</strong> (retour à l'Ananas basique), mais tu gagnes un bonus permanent d'attaque et de défense pour toutes tes bananes, et ta médaille de Prestige évolue. Ta collection, ta boutique, tes pièces et tes succès ne sont pas touchés. Confirmer ?</p>
+      <div class="modal-actions">
+        <button id="prestige-confirm-yes" class="btn harvest-btn">🏅 Oui, prestige !</button>
+        <button id="prestige-confirm-no" class="btn">Annuler</button>
       </div>
     </div>
   </div>
