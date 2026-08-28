@@ -72,6 +72,7 @@ const CLOUD = (() => {
     cloud.linked = true;
     saveState();
     await pullLedger();
+    await pullBananas();
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
     // encore rien poussé côté serveur, il faut que solde/inventaire soient à
     // jour avant que le joueur tente d'acheter/vendre/attaquer juste après.
@@ -92,6 +93,7 @@ const CLOUD = (() => {
     cloud.linked = true;
     saveState();
     await pullLedger();
+    await pullBananas();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
     // ou un inventaire périmé côté serveur juste après une connexion.
     await pushAll();
@@ -139,6 +141,36 @@ const CLOUD = (() => {
     }
     saveState();
     return data;
+  }
+
+  // Récupère l'inventaire serveur et l'ajoute au local (jamais un
+  // remplacement total, seulement des comptes relevés vers le haut) : sans
+  // ça, une banane ajoutée/corrigée côté serveur (autre appareil, correction
+  // manuelle) n'apparaissait jamais dans le jeu, qui ne fait que pousser sa
+  // version locale sans jamais relire celle du serveur.
+  async function pullBananas() {
+    if (!isLinked() || !cachedUserId) return;
+    const { data, error } = await supabase
+      .from("player_bananas")
+      .select("banana_id, count")
+      .eq("player_id", cachedUserId)
+      .gt("count", 0);
+    if (error || !data) return;
+
+    let changed = false;
+    for (const row of data) {
+      const id = row.banana_id;
+      if (!BANANAS_BY_ID[id]) continue;
+      if ((state.counts[id] || 0) < row.count) {
+        state.counts[id] = row.count;
+        changed = true;
+      }
+      if (!state.discovered.includes(id)) {
+        state.discovered.push(id);
+        changed = true;
+      }
+    }
+    if (changed) saveState();
   }
 
   // Pousse le solde local courant. Si le serveur a des événements plus
@@ -393,6 +425,7 @@ const CLOUD = (() => {
       saveState();
       try {
         await pullLedger();
+        await pullBananas();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
         // ligne depuis sa dernière visite — pousse tout de suite pour que
         // Marché/PVP voient son vrai solde/inventaire sans attendre.
@@ -416,6 +449,7 @@ const CLOUD = (() => {
     currentUsername,
     currentUserId,
     pullLedger,
+    pullBananas,
     pushBalance,
     pushBananas,
     pushPve,
