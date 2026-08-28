@@ -1132,6 +1132,132 @@ body {
   font-size: 1.1rem;
 }
 
+/* --- Fiche agrandie d'une banane (clic depuis la collection) : le cadre
+   devient plus premium (bordure, halo, anneau tournant, coins ornés) à
+   mesure que la rareté monte, toujours teinté de sa couleur. --- */
+
+.banana-detail-frame {
+  --rarity-color: #9e9e9e;
+  --rarity-glow: #c9c9c9;
+  position: relative;
+  width: min(84vw, 320px);
+  margin: 0 auto;
+  padding: 30px 20px 24px;
+  border-radius: 22px;
+  border: 2px solid var(--rarity-color);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 10px 2px var(--rarity-glow);
+  text-align: center;
+}
+
+.banana-detail-frame .banana-icon { margin: 4px auto 6px; }
+
+.banana-detail-glow {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 280px;
+  height: 280px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--rarity-color) 0%, var(--rarity-glow) 35%, transparent 70%);
+  filter: blur(4px);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.banana-detail-frame .banana-icon,
+.banana-detail-name,
+.banana-detail-rarity-pill,
+.banana-detail-meta {
+  position: relative;
+}
+
+.banana-detail-name { font-weight: 800; font-size: 1.3rem; margin-top: 10px; }
+
+.banana-detail-rarity-pill {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: var(--rarity-color);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.banana-detail-meta {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 14px;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+/* Peu commune : bordure un peu plus marquée. */
+.banana-detail-frame.tier-1 { border-width: 3px; box-shadow: 0 0 14px 3px var(--rarity-glow); }
+
+/* Rare : halo plus présent. */
+.banana-detail-frame.tier-2 {
+  border-width: 3px;
+  box-shadow: 0 0 18px 4px var(--rarity-glow);
+}
+.banana-detail-frame.tier-2 .banana-detail-glow { opacity: 0.5; }
+
+/* Épique : bordure double, halo net. */
+.banana-detail-frame.tier-3 {
+  border-width: 4px;
+  border-style: double;
+  box-shadow: 0 0 24px 6px var(--rarity-glow);
+}
+.banana-detail-frame.tier-3 .banana-detail-glow { opacity: 0.6; }
+
+/* Légendaire : cadre doré animé. */
+.banana-detail-frame.tier-4 {
+  border-width: 5px;
+  border-style: double;
+  box-shadow: 0 0 32px 8px var(--rarity-glow), inset 0 0 16px rgba(255, 255, 255, 0.15);
+  animation: detailPulse 2.2s ease-in-out infinite;
+}
+.banana-detail-frame.tier-4 .banana-detail-glow { opacity: 0.7; }
+
+/* Mythique : coins ornés en plus. */
+.banana-detail-frame.tier-5 {
+  border-width: 5px;
+  border-style: double;
+  box-shadow: 0 0 40px 10px var(--rarity-glow), inset 0 0 20px rgba(255, 255, 255, 0.2);
+  animation: detailPulse 1.8s ease-in-out infinite;
+}
+.banana-detail-frame.tier-5 .banana-detail-glow { opacity: 0.8; }
+.banana-detail-frame.tier-5::before, .banana-detail-frame.tier-5::after,
+.banana-detail-frame.tier-6::before, .banana-detail-frame.tier-6::after {
+  content: "✦";
+  position: absolute;
+  top: -14px;
+  color: var(--rarity-color);
+  font-size: 1.2rem;
+  text-shadow: 0 0 8px var(--rarity-glow);
+}
+.banana-detail-frame.tier-5::before, .banana-detail-frame.tier-6::before { left: -14px; }
+.banana-detail-frame.tier-5::after, .banana-detail-frame.tier-6::after { right: -14px; }
+
+/* Secrète : le cadre le plus premium, halo maximal. */
+.banana-detail-frame.tier-6 {
+  border-width: 6px;
+  border-style: double;
+  box-shadow: 0 0 50px 14px var(--rarity-glow), inset 0 0 26px rgba(255, 255, 255, 0.25);
+  animation: detailPulse 1.5s ease-in-out infinite;
+}
+.banana-detail-frame.tier-6 .banana-detail-glow { opacity: 0.9; }
+
+@keyframes detailPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
 /* --- Bannière légendaire --- */
 
 .rare-banner {

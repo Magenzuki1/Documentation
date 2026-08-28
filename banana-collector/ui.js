@@ -488,7 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const rarity = RARITIES[banana.rarity];
       return `
-        <div class="banana-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
           ${bananaIconHTML(banana)}
           <div class="banana-name">${banana.name}</div>
           <div class="banana-rarity">${rarity.label}</div>
@@ -497,6 +497,9 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
     }).join("");
+    els.collectionGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
+      card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
+    });
 
     const discoveredSecrets = SECRET_BANANAS.filter((b) => state.discovered.includes(b.id));
     els.secretSection.style.display = "block";
@@ -508,7 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const count = state.counts[banana.id] || 0;
         const rarity = RARITIES[banana.rarity];
         return `
-          <div class="banana-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+          <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
             ${bananaIconHTML(banana)}
             <div class="banana-name">${banana.name}</div>
             <div class="banana-rarity">${rarity.label}</div>
@@ -517,7 +520,46 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
       }).join("");
+      els.secretGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
+        card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
+      });
     }
+  }
+
+  // Fiche agrandie d'une banane de la collection : le cadre devient plus
+  // "premium" (bordure, halo, anneau tournant) à mesure que la rareté monte,
+  // toujours dans la couleur de cette rareté.
+  const RARITY_TIER = { commune: 0, peu_commune: 1, rare: 2, epique: 3, legendaire: 4, mythique: 5, secrete: 6 };
+
+  function showBananaDetailOverlay(bananaId) {
+    const banana = BANANAS_BY_ID[bananaId];
+    if (!banana || !state.discovered.includes(bananaId)) return;
+    const rarity = RARITIES[banana.rarity];
+    const count = state.counts[bananaId] || 0;
+    const tier = RARITY_TIER[banana.rarity] ?? 0;
+
+    els.overlayContent.innerHTML = `
+      <div class="banana-detail-frame tier-${tier}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        <div class="banana-detail-glow"></div>
+        ${bananaIconHTML(banana, 6)}
+        <div class="banana-detail-name">${banana.name}</div>
+        <div class="banana-detail-rarity-pill">${rarity.label}</div>
+        <div class="banana-detail-meta">
+          <span>🪙 ${banana.value}</span>
+          <span>x${count}</span>
+        </div>
+      </div>
+    `;
+    els.overlay.classList.remove("hidden");
+    requestAnimationFrame(() => els.overlay.classList.add("show"));
+
+    const close = () => {
+      els.overlay.classList.remove("show");
+      setTimeout(() => els.overlay.classList.add("hidden"), 350);
+    };
+    els.overlay.addEventListener("click", (e) => {
+      if (e.target === els.overlay) close();
+    }, { once: true });
   }
 
   /* ---------------- Boutique ---------------- */
