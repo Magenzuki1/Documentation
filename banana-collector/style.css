@@ -1018,6 +1018,80 @@ body {
 }
 .bj-result .catch-result-line { color: #e8f5e9; }
 
+/* --- Mini-jeu : Machine à sous (fruits) --- */
+
+.slot-machine {
+  background: linear-gradient(160deg, #7a1224, #4a0a16);
+  border: 3px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 14px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 260px;
+  margin: 0 auto 16px;
+}
+
+.slot-cell {
+  aspect-ratio: 1;
+  background: #fffdf5;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  animation: slotCellReveal 0.25s ease;
+}
+
+@keyframes slotCellReveal {
+  from { transform: scale(0.7); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.slot-bonus-panel {
+  background: linear-gradient(160deg, #7a1224, #4a0a16);
+  border: 3px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 14px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.slot-bonus-title {
+  color: #fff;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.slot-bonus-crates {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+
+.slot-bonus-crate {
+  width: 64px;
+  height: 64px;
+  font-size: 1.8rem;
+  border-radius: 12px;
+}
+
+.slot-bonus-crate.revealed {
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+.slot-bonus-crate.picked { outline: 3px solid #fff; }
+
 /* --- Mini-jeu : Roue de la fortune --- */
 
 .wheel-wrap {

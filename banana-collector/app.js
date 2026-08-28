@@ -218,6 +218,7 @@ function defaultState() {
     catchGame: { bestScore: 0, bestCoins: 0 },
     memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0 },
     blackjackGame: { gamesPlayed: 0, biggestWin: 0 },
+    slotGame: { gamesPlayed: 0, biggestWin: 0, bonusesTriggered: 0, jackpotsHit: 0 },
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     profile: { avatarId: "av_verte" },
@@ -616,13 +617,19 @@ function isBlackjackHand(hand) {
 // Valide et déduit une mise (utilisée à la fois pour la mise initiale et
 // pour le montant supplémentaire d'un "Doubler", qui revient à miser une
 // seconde fois le même montant).
-function placeBlackjackBet(bet) {
+// Valide et déduit une mise pour n'importe quel jeu de casino (Black Jack,
+// Machine à sous...), chacun avec son propre plafond.
+function placeCasinoBet(bet, maxBet) {
   if (!Number.isInteger(bet) || bet <= 0) return { ok: false, reason: "invalide" };
-  if (bet > BLACKJACK_MAX_BET) return { ok: false, reason: "trop_eleve" };
+  if (bet > maxBet) return { ok: false, reason: "trop_eleve" };
   if (bet > state.coins) return { ok: false, reason: "pauvre" };
   state.coins -= bet;
   saveState();
   return { ok: true };
+}
+
+function placeBlackjackBet(bet) {
+  return placeCasinoBet(bet, BLACKJACK_MAX_BET);
 }
 
 // outcome : "blackjack" (gagné avec un Black Jack naturel, payé 3:2),
@@ -646,6 +653,131 @@ function resolveBlackjackBet(totalBet, outcome) {
     state.coins += totalBet;
   }
   if (coinsEarned > (state.blackjackGame.biggestWin || 0)) state.blackjackGame.biggestWin = coinsEarned;
+  saveState();
+  return { coinsEarned };
+}
+
+/* ---------------- Mini-jeu : Machine à sous (fruits) ----------------
+   Machine à sous classique 3x3 avec 5 lignes de paiement (les 3 lignes
+   horizontales + les 2 diagonales) sur le thème des fruits. Aligner 3
+   symboles identiques sur une ligne rapporte son multiplicateur ; 3 cloches
+   🔔 ou plus n'importe où sur la grille (peu importe la ligne, comme un
+   symbole "scatter") déclenchent un bonus "Choisis un fruit !" à la manière
+   des vraies machines à sous. Mise plafonnée à 100 000 pièces, comme le
+   Black Jack. */
+
+const SLOT_MAX_BET = 100000;
+const SLOT_SYMBOLS = [
+  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 2 },
+  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 3 },
+  { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 5 },
+  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 8 },
+  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 15 },
+  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 25 },
+  { id: "cloche", emoji: "🔔", name: "Cloche", weight: 5, payout: 0 },
+  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 100 },
+];
+const SLOT_SYMBOLS_BY_ID = Object.fromEntries(SLOT_SYMBOLS.map((s) => [s.id, s]));
+const SLOT_TOTAL_WEIGHT = SLOT_SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
+const SLOT_SCATTER_SYMBOL_ID = "cloche";
+const SLOT_SCATTER_MIN_COUNT = 3;
+const SLOT_BONUS_PRIZE_MULTIPLIERS = [5, 10, 20];
+
+// 3 lignes horizontales + les 2 diagonales, en coordonnées [ligne, colonne].
+const SLOT_PAYLINES = [
+  [[0, 0], [0, 1], [0, 2]],
+  [[1, 0], [1, 1], [1, 2]],
+  [[2, 0], [2, 1], [2, 2]],
+  [[0, 0], [1, 1], [2, 2]],
+  [[0, 2], [1, 1], [2, 0]],
+];
+
+function pickWeightedSlotSymbol() {
+  let roll = Math.random() * SLOT_TOTAL_WEIGHT;
+  for (const s of SLOT_SYMBOLS) {
+    roll -= s.weight;
+    if (roll <= 0) return s.id;
+  }
+  return SLOT_SYMBOLS[SLOT_SYMBOLS.length - 1].id;
+}
+
+function spinSlotGrid() {
+  const grid = [];
+  for (let row = 0; row < 3; row++) {
+    grid.push([pickWeightedSlotSymbol(), pickWeightedSlotSymbol(), pickWeightedSlotSymbol()]);
+  }
+  return grid;
+}
+
+// Évalue une grille 3x3 : gains de ligne (uniquement un alignement complet
+// des 3 cases d'une ligne) + déclenchement du bonus scatter (cloches,
+// n'importe où sur la grille, indépendamment des lignes de paiement).
+function evaluateSlotSpin(grid) {
+  const lineWins = [];
+  let totalMultiplier = 0;
+  let hasJackpotLine = false;
+
+  SLOT_PAYLINES.forEach((line, index) => {
+    const symbols = line.map(([r, c]) => grid[r][c]);
+    if (symbols[0] === symbols[1] && symbols[1] === symbols[2]) {
+      const symbol = SLOT_SYMBOLS_BY_ID[symbols[0]];
+      if (symbol.payout > 0) {
+        lineWins.push({ paylineIndex: index, symbolId: symbol.id, multiplier: symbol.payout });
+        totalMultiplier += symbol.payout;
+        if (symbol.id === "sept") hasJackpotLine = true;
+      }
+    }
+  });
+
+  let scatterCount = 0;
+  for (const row of grid) {
+    for (const cell of row) {
+      if (cell === SLOT_SCATTER_SYMBOL_ID) scatterCount += 1;
+    }
+  }
+
+  return {
+    lineWins,
+    totalMultiplier,
+    scatterCount,
+    bonusTriggered: scatterCount >= SLOT_SCATTER_MIN_COUNT,
+    hasJackpotLine,
+  };
+}
+
+function placeSlotBet(bet) {
+  return placeCasinoBet(bet, SLOT_MAX_BET);
+}
+
+// Même logique anti-exploit que resolveBlackjackBet : la part de la mise
+// simplement "rendue" (jusqu'à hauteur de la mise initiale) passe par
+// state.coins directement, jamais par grantCoins, pour que le multiplicateur
+// de pièces de la boutique ne transforme jamais un tour à peine gagnant en
+// gros profit. Seul le PROFIT net (au-dessus de la mise) passe par
+// grantCoins, comme tous les autres gains du jeu.
+function resolveSlotSpin(evaluation, bet) {
+  state.slotGame.gamesPlayed = (state.slotGame.gamesPlayed || 0) + 1;
+  if (evaluation.hasJackpotLine) state.slotGame.jackpotsHit = (state.slotGame.jackpotsHit || 0) + 1;
+
+  const lineWinAmount = Math.round(bet * evaluation.totalMultiplier);
+  const stakeEquivalent = Math.min(lineWinAmount, bet);
+  const lineProfit = Math.max(lineWinAmount - bet, 0);
+  state.coins += stakeEquivalent;
+  const coinsEarned = lineProfit > 0 ? grantCoins(lineProfit) : 0;
+
+  if (coinsEarned > (state.slotGame.biggestWin || 0)) state.slotGame.biggestWin = coinsEarned;
+  saveState();
+  return { coinsEarned, lineWinAmount };
+}
+
+// Le gain du bonus "Choisis un fruit" est un prix trouvé en plus, jamais lié
+// au remboursement de la mise : il passe donc entièrement par grantCoins,
+// comme un vrai gain.
+function resolveSlotBonusPrize(bet, prizeMultiplier) {
+  state.slotGame.bonusesTriggered = (state.slotGame.bonusesTriggered || 0) + 1;
+  const amount = Math.round(bet * prizeMultiplier);
+  const coinsEarned = grantCoins(amount);
+  if (coinsEarned > (state.slotGame.biggestWin || 0)) state.slotGame.biggestWin = coinsEarned;
   saveState();
   return { coinsEarned };
 }
@@ -917,6 +1049,9 @@ const ACHIEVEMENTS = [
   { id: "memory_perfect", icon: "⚡", name: "Mémoire parfaite", desc: `Termine une partie de Mémoire des bananes en ${MEMORY_PAIRS_COUNT} coups (le minimum possible)`, reward: 800, check: (s) => s.memoryGame.bestMoves != null && s.memoryGame.bestMoves <= MEMORY_PAIRS_COUNT },
   { id: "black_first", icon: "🃏", name: "Premier coup de cartes", desc: "Termine ta première manche de Black Jack", reward: 100, check: (s) => (s.blackjackGame.gamesPlayed || 0) >= 1 },
   { id: "black_big_win", icon: "🎰", name: "Gros coup", desc: "Gagne au moins 10 000 pièces en une seule manche de Black Jack", reward: 800, check: (s) => (s.blackjackGame.biggestWin || 0) >= 10000 },
+  { id: "slot_first", icon: "🎰", name: "Premier tour de manivelle", desc: "Termine ton premier tour de machine à sous", reward: 100, check: (s) => (s.slotGame.gamesPlayed || 0) >= 1 },
+  { id: "slot_bonus", icon: "🔔", name: "Bonus déclenché", desc: "Déclenche le bonus \"Choisis un fruit\" à la machine à sous (3 cloches)", reward: 300, check: (s) => (s.slotGame.bonusesTriggered || 0) >= 1 },
+  { id: "slot_jackpot", icon: "7️⃣", name: "Jackpot !", desc: "Aligne 3 symboles 7️⃣ sur une ligne de la machine à sous", reward: 1500, check: (s) => (s.slotGame.jackpotsHit || 0) >= 1 },
   { id: "streak_7", icon: "🔥", name: "Semaine parfaite", desc: "Connecte-toi 7 jours d'affilée", reward: 500, check: (s) => s.streak.count >= 7 },
   { id: "streak_30", icon: "🔥", name: "Habitué de la jungle", desc: "Connecte-toi 30 jours d'affilée", reward: 3000, check: (s) => s.streak.count >= 30 },
   { id: "streak_100", icon: "🔥", name: "Increvable", desc: "Connecte-toi 100 jours d'affilée", reward: 12000, check: (s) => s.streak.count >= 100 },

@@ -77,6 +77,17 @@ document.addEventListener("DOMContentLoaded", () => {
     bjDoubleBtn: document.getElementById("bj-double-btn"),
     bjResult: document.getElementById("bj-result"),
     bjAgainBtn: document.getElementById("bj-again-btn"),
+    openSlotsGame: document.getElementById("open-slots-game"),
+    slotsBestLabel: document.getElementById("slots-best-label"),
+    minigameSlots: document.getElementById("minigame-slots"),
+    slotBetPanel: document.getElementById("slot-bet-panel"),
+    slotBetInput: document.getElementById("slot-bet-input"),
+    slotBetError: document.getElementById("slot-bet-error"),
+    slotGrid: document.getElementById("slot-grid"),
+    slotSpinBtn: document.getElementById("slot-spin-btn"),
+    slotResult: document.getElementById("slot-result"),
+    slotBonusPanel: document.getElementById("slot-bonus-panel"),
+    slotBonusCrates: document.getElementById("slot-bonus-crates"),
     achievementsPanel: document.getElementById("achievements-content"),
     accountBtn: document.getElementById("account-btn"),
     accountModal: document.getElementById("account-modal"),
@@ -1076,6 +1087,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.minigameWheel.classList.toggle("hidden", view !== "wheel");
     els.minigameMemory.classList.toggle("hidden", view !== "memory");
     els.minigameBlackjack.classList.toggle("hidden", view !== "blackjack");
+    els.minigameSlots.classList.toggle("hidden", view !== "slots");
   }
 
   function renderMinigamesMenu() {
@@ -1089,12 +1101,16 @@ document.addEventListener("DOMContentLoaded", () => {
     els.blackjackBestLabel.textContent = state.blackjackGame.gamesPlayed > 0
       ? `🏆 Meilleur gain : ${state.blackjackGame.biggestWin} 🪙`
       : "Pas encore joué";
+    els.slotsBestLabel.textContent = state.slotGame.gamesPlayed > 0
+      ? `🏆 Meilleur gain : ${state.slotGame.biggestWin} 🪙`
+      : "Pas encore joué";
   }
 
   function showMinigamesMenu() {
     stopCatchGame();
     stopMemoryGame();
     stopBlackjackGame();
+    stopSlotsGame();
     showMinigameView("menu");
     renderMinigamesMenu();
   }
@@ -1114,6 +1130,10 @@ document.addEventListener("DOMContentLoaded", () => {
   els.openBlackjackGame.addEventListener("click", () => {
     showMinigameView("blackjack");
     resetBlackjackView();
+  });
+  els.openSlotsGame.addEventListener("click", () => {
+    showMinigameView("slots");
+    resetSlotsView();
   });
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", showMinigamesMenu);
@@ -1634,6 +1654,135 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   els.bjAgainBtn.addEventListener("click", resetBlackjackView);
+
+  /* ---------------- Mini-jeu : Machine à sous (fruits) ---------------- */
+
+  let currentSlotBet = 0;
+
+  function stopSlotsGame() {
+    // Quitter pendant un bonus en cours abandonne le prix restant à
+    // découvrir (comme quitter la table de casino sans finir sa manche).
+    els.slotBonusPanel.classList.add("hidden");
+    els.slotSpinBtn.disabled = false;
+  }
+
+  function resetSlotsView() {
+    stopSlotsGame();
+    els.slotBetError.classList.add("hidden");
+    els.slotResult.classList.add("hidden");
+    els.slotGrid.innerHTML = Array(9).fill(`<div class="slot-cell">❔</div>`).join("");
+    const maxAffordable = Math.max(1, Math.min(SLOT_MAX_BET, state.coins));
+    els.slotBetInput.max = maxAffordable;
+    const current = Number(els.slotBetInput.value) || 100;
+    els.slotBetInput.value = Math.min(Math.max(current, 1), maxAffordable);
+  }
+
+  function slotCellHTML(symbolId) {
+    return `<div class="slot-cell">${SLOT_SYMBOLS_BY_ID[symbolId].emoji}</div>`;
+  }
+
+  function renderSlotGrid(grid) {
+    els.slotGrid.innerHTML = grid.map((row) => row.map((cell) => slotCellHTML(cell)).join("")).join("");
+  }
+
+  const SLOT_BET_ERROR_MESSAGES = {
+    invalide: "Entre une mise valide (nombre entier positif).",
+    trop_eleve: `La mise maximum est de ${SLOT_MAX_BET.toLocaleString("fr-FR")} 🪙.`,
+    pauvre: "Tu n'as pas assez de pièces pour cette mise.",
+  };
+
+  els.slotBetPanel.querySelectorAll(".bj-quick-bet-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const maxAllowed = Math.min(SLOT_MAX_BET, state.coins);
+      const value = btn.dataset.bet === "max" ? maxAllowed : Math.min(Number(btn.dataset.bet), maxAllowed);
+      els.slotBetInput.value = Math.max(0, value);
+    });
+  });
+
+  function showSlotBonusPanel(bet) {
+    const shuffledPrizes = [...SLOT_BONUS_PRIZE_MULTIPLIERS].sort(() => Math.random() - 0.5);
+    els.slotBonusPanel.classList.remove("hidden");
+    els.slotBonusCrates.innerHTML = shuffledPrizes.map((_, i) => `
+      <button class="btn slot-bonus-crate" data-index="${i}">🎁</button>
+    `).join("");
+    els.slotBonusCrates.querySelectorAll(".slot-bonus-crate").forEach((btn, i) => {
+      btn.addEventListener("click", () => {
+        els.slotBonusCrates.querySelectorAll(".slot-bonus-crate").forEach((b, j) => {
+          b.disabled = true;
+          b.classList.add("revealed");
+          b.textContent = `×${shuffledPrizes[j]}`;
+          if (j === i) b.classList.add("picked");
+        });
+        const { coinsEarned } = resolveSlotBonusPrize(bet, shuffledPrizes[i]);
+        renderHeader();
+        SFX.win();
+        spawnConfetti(30);
+        setTimeout(() => {
+          els.slotBonusPanel.classList.add("hidden");
+          els.slotSpinBtn.disabled = false;
+          const unlocked = checkAchievements();
+          if (unlocked.length > 0) {
+            renderHeader();
+            showAchievementToasts(unlocked);
+          }
+        }, 1400);
+      }, { once: true });
+    });
+  }
+
+  els.slotSpinBtn.addEventListener("click", () => {
+    const bet = Math.floor(Number(els.slotBetInput.value));
+    const res = placeSlotBet(bet);
+    if (!res.ok) {
+      els.slotBetError.textContent = SLOT_BET_ERROR_MESSAGES[res.reason] || "Mise refusée.";
+      els.slotBetError.classList.remove("hidden");
+      return;
+    }
+    els.slotBetError.classList.add("hidden");
+    renderHeader();
+    currentSlotBet = bet;
+    els.slotResult.classList.add("hidden");
+    els.slotSpinBtn.disabled = true;
+    SFX.click();
+
+    const grid = spinSlotGrid();
+    renderSlotGrid(grid);
+
+    setTimeout(() => {
+      const evaluation = evaluateSlotSpin(grid);
+      const { coinsEarned, lineWinAmount } = resolveSlotSpin(evaluation, bet);
+      renderHeader();
+
+      if (lineWinAmount > 0) {
+        SFX.win();
+        spawnConfetti(Math.min(40, 8 + evaluation.lineWins.length * 8));
+      } else {
+        SFX.lose();
+      }
+      els.slotResult.innerHTML = `
+        <div class="catch-result-title">${lineWinAmount > 0 ? "🎉 Gagné !" : "😕 Perdu"}</div>
+        <div class="catch-result-coins">${lineWinAmount > 0 ? `🪙 +${coinsEarned}` : `🪙 -${bet}`}</div>
+      `;
+      els.slotResult.classList.remove("hidden");
+
+      if (evaluation.bonusTriggered) {
+        showSlotBonusPanel(currentSlotBet);
+      } else {
+        els.slotSpinBtn.disabled = false;
+      }
+
+      const unlocked = checkAchievements();
+      if (unlocked.length > 0) {
+        renderHeader();
+        showAchievementToasts(unlocked);
+      }
+      const questsDone = checkQuests();
+      if (questsDone.length > 0) {
+        renderHeader();
+        showQuestToasts(questsDone);
+      }
+    }, 500);
+  });
 
   /* ---------------- Mini-jeu : Roue de la fortune ---------------- */
 
