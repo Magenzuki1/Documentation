@@ -1130,7 +1130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pveEnemyFighter.innerHTML = `
       <div class="pve-enemy-icon" style="font-size:${enemySize}rem; filter:drop-shadow(0 0 10px ${pveStageGlow(pveSelectedStage)});">${enemy.emoji}</div>
       <div class="pve-fighter-name">${enemy.name}${locked ? " 🔒" : ""}</div>
-      <div class="pve-fighter-stats">⚔️ ${enemy.atk} · 🛡️ ${enemy.def} · 🪙 ${Math.round(enemy.reward * 0.75)}</div>
+      <div class="pve-fighter-stats">⚔️ ${enemy.atk} · 🛡️ ${enemy.def} · 🪙 ${Math.round(enemy.reward * PVE_WIN_REWARD_MULT)}</div>
       <div class="pve-fighter-stats">Niveau ${pveSelectedStage + 1} / ${FRUIT_ENEMIES.length}</div>
     `;
 

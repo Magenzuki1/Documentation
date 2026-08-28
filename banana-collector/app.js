@@ -576,6 +576,13 @@ function bananaCombatStats(banana) {
   };
 }
 
+// Multiplicateur appliqué à enemy.reward pour la victoire en Arène solo.
+// Déjà réduit une première fois à 0.75, puis encore baissé de 30% ici
+// (0.75 * 0.7 = 0.525) — partagé avec ui.js pour l'aperçu affiché avant
+// le combat, qui doit toujours annoncer le même gain que celui réellement
+// accordé.
+const PVE_WIN_REWARD_MULT = 0.525;
+
 // L'arène compte 10 familles de fruits, 6 niveaux chacune (60 au total).
 // Les ananas (famille 0) gardent leurs stats historiques ; chaque famille
 // suivante est strictement plus forte que la précédente — la première Pomme
@@ -646,7 +653,7 @@ function fightFruitEnemy(bananaId, stageIndex) {
 
   let coinsEarned;
   const stageAdvanced = won && stageIndex === state.pve.stage + 1;
-  const winReward = Math.round(enemy.reward * 0.75);
+  const winReward = Math.round(enemy.reward * PVE_WIN_REWARD_MULT);
   if (won) {
     coinsEarned = grantCoins(winReward);
     state.pve.wins += 1;
