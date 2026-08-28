@@ -392,6 +392,33 @@
     </div>
   </div>
 
+  <div id="admin-modal" class="modal hidden">
+    <div class="modal-box admin-modal-box">
+      <button id="admin-modal-close" class="modal-close-btn" aria-label="Fermer">✕</button>
+      <h2>🛠️ Panneau admin</h2>
+      <div class="market-subtabs">
+        <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
+        <button class="market-subtab-btn" id="admin-tab-movements" data-adminview="movements">💸 Mouvements</button>
+        <button class="market-subtab-btn" id="admin-tab-log" data-adminview="log">📜 Journal</button>
+      </div>
+
+      <div id="admin-players-view">
+        <p id="admin-players-error" class="account-error hidden"></p>
+        <div id="admin-players-list" class="admin-players-list"></div>
+      </div>
+
+      <div id="admin-movements-view" class="hidden">
+        <p class="shop-hint">Mouvements de pièces (Marché + PVP) triés par amplitude — les plus gros écarts en premier, le signal le plus direct pour repérer un exploit.</p>
+        <div id="admin-movements-list" class="admin-log-list"></div>
+      </div>
+
+      <div id="admin-log-view" class="hidden">
+        <p class="shop-hint">Historique des actions admin (bannissements, corrections de solde).</p>
+        <div id="admin-log-list" class="admin-log-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-layer" class="toast-layer"></div>
 
   <script src="data.js?v=__CACHEBUST__"></script>

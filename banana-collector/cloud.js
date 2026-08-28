@@ -27,6 +27,9 @@ const CLOUD = (() => {
   let cachedUserId = null;
   let pushTimer = null;
   let lastPushedBananasSnapshot = null;
+  // Statut admin/ban du compte connecté, revalidé côté serveur à chaque
+  // connexion (jamais déduit ou mis en cache côté client seul).
+  let accountStatus = { isAdmin: false, banned: false, bannedReason: null };
 
   function ensureCloudState() {
     if (!state.cloud) {
@@ -92,6 +95,7 @@ const CLOUD = (() => {
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
+    await refreshAccountStatus();
     await pullLedger();
     await pullBananas();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
@@ -112,6 +116,73 @@ const CLOUD = (() => {
 
   function isLinked() {
     return ensureCloudState().linked === true;
+  }
+
+  /* ---------------- Statut admin / ban ----------------
+     Revalidé côté serveur (my_account_status) à chaque connexion — jamais
+     déduit côté client seul, pour qu'aucune manipulation locale ne puisse
+     jamais faire croire au jeu qu'on est admin ou débanni. */
+
+  async function refreshAccountStatus() {
+    accountStatus = { isAdmin: false, banned: false, bannedReason: null };
+    if (!supabase || !isLinked()) return;
+    const { data, error } = await supabase.rpc("my_account_status");
+    if (error || !data || data.length === 0) return;
+    const row = data[0];
+    accountStatus = { isAdmin: row.is_admin === true, banned: row.banned === true, bannedReason: row.banned_reason || null };
+  }
+
+  function isAdmin() {
+    return accountStatus.isAdmin;
+  }
+
+  function isBanned() {
+    return accountStatus.banned;
+  }
+
+  function banReason() {
+    return accountStatus.bannedReason;
+  }
+
+  /* ---------------- Panneau admin ---------------- */
+
+  async function adminListProfiles() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_list_profiles");
+    return error || !data ? [] : data;
+  }
+
+  async function adminSetBan(username, banned, reason) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_set_ban", {
+      target_username: username,
+      is_banned: banned,
+      reason: reason || null,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminAdjustCoins(username, newCoins) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_adjust_coins", {
+      target_username: username,
+      new_coins: newCoins,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminListWalletMovements(limit = 200) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_list_wallet_movements", { limit_count: limit });
+    return error || !data ? [] : data;
+  }
+
+  async function adminListActions(limit = 200) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_list_actions", { limit_count: limit });
+    return error || !data ? [] : data;
   }
 
   function currentUserId() {
@@ -442,6 +513,7 @@ const CLOUD = (() => {
       cloud.linked = true;
       saveState();
       try {
+        await refreshAccountStatus();
         await pullLedger();
         await pullBananas();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
@@ -487,6 +559,14 @@ const CLOUD = (() => {
     attackPlayer,
     fetchUnseenCombatReports,
     markCombatLogSeen,
+    isAdmin,
+    isBanned,
+    banReason,
+    adminListProfiles,
+    adminSetBan,
+    adminAdjustCoins,
+    adminListWalletMovements,
+    adminListActions,
     init,
   };
 })();

@@ -82,6 +82,18 @@ document.addEventListener("DOMContentLoaded", () => {
     accountModal: document.getElementById("account-modal"),
     accountModalContent: document.getElementById("account-modal-content"),
     accountModalClose: document.getElementById("account-modal-close"),
+    adminModal: document.getElementById("admin-modal"),
+    adminModalClose: document.getElementById("admin-modal-close"),
+    adminTabPlayers: document.getElementById("admin-tab-players"),
+    adminTabMovements: document.getElementById("admin-tab-movements"),
+    adminTabLog: document.getElementById("admin-tab-log"),
+    adminPlayersView: document.getElementById("admin-players-view"),
+    adminMovementsView: document.getElementById("admin-movements-view"),
+    adminLogView: document.getElementById("admin-log-view"),
+    adminPlayersList: document.getElementById("admin-players-list"),
+    adminPlayersError: document.getElementById("admin-players-error"),
+    adminMovementsList: document.getElementById("admin-movements-list"),
+    adminLogList: document.getElementById("admin-log-list"),
     marketLocked: document.getElementById("market-locked"),
     marketContent: document.getElementById("market-content"),
     marketTabBuy: document.getElementById("market-tab-buy"),
@@ -2352,12 +2364,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (CLOUD.isLinked()) {
+      const bannedHTML = CLOUD.isBanned() ? `
+        <div class="account-banned-notice">
+          🚫 Ton compte a été banni${CLOUD.banReason() ? ` : ${CLOUD.banReason()}` : "."}
+          Le Marché et l'Arène PVP ne sont plus accessibles.
+        </div>
+      ` : "";
+      const adminBtnHTML = CLOUD.isAdmin() ? `<button id="account-admin-btn" class="btn">🛠️ Panneau admin</button>` : "";
       els.accountModalContent.innerHTML =
         profileSectionHTML() +
         `
         <div class="account-logged-in">
           <div class="account-username">${avatarIconHTML(state.profile.avatarId, 1.4)} ${CLOUD.currentUsername()}</div>
-          <div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>
+          ${bannedHTML}
+          ${CLOUD.isBanned() ? "" : `<div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>`}
+          ${adminBtnHTML}
           <button id="account-signout-btn" class="btn danger">Déconnexion</button>
         </div>
       `;
@@ -2369,6 +2390,13 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMarketTab();
         renderPvpTab();
       });
+      const adminBtn = els.accountModalContent.querySelector("#account-admin-btn");
+      if (adminBtn) {
+        adminBtn.addEventListener("click", () => {
+          els.accountModal.classList.add("hidden");
+          openAdminModal();
+        });
+      }
       return;
     }
 
@@ -2448,6 +2476,121 @@ document.addEventListener("DOMContentLoaded", () => {
   els.accountModal.addEventListener("pointerdown", (e) => {
     if (e.target === els.accountModal) closeAccountModal();
   });
+
+  /* ---------------- Panneau admin ---------------- */
+
+  async function renderAdminPlayers() {
+    els.adminPlayersError.classList.add("hidden");
+    els.adminPlayersList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const profiles = await CLOUD.adminListProfiles();
+    if (profiles.length === 0) {
+      els.adminPlayersList.innerHTML = `<p class="account-hint">Aucun joueur (ou accès refusé).</p>`;
+      return;
+    }
+    els.adminPlayersList.innerHTML = profiles.map((p) => `
+      <div class="admin-player-row ${p.banned ? "banned" : ""}" data-username="${p.username}">
+        <div class="admin-player-main">
+          <span class="admin-player-name">${p.username}${p.banned ? " 🚫" : ""}</span>
+          <span class="admin-player-meta">Arène ${p.pve_stage}/90 · ${p.pve_wins}V/${p.pve_losses}D · inscrit ${new Date(p.created_at).toLocaleDateString("fr-FR")}</span>
+          ${p.banned && p.banned_reason ? `<span class="admin-player-ban-reason">Motif : ${p.banned_reason}</span>` : ""}
+        </div>
+        <div class="admin-player-actions">
+          <input type="number" class="admin-coins-input" value="${p.coins}" min="0" />
+          <button class="btn admin-save-coins-btn" title="Corriger le solde">💾</button>
+          <button class="btn ${p.banned ? "" : "danger"} admin-ban-btn">${p.banned ? "Débannir" : "Bannir"}</button>
+        </div>
+      </div>
+    `).join("");
+
+    els.adminPlayersList.querySelectorAll(".admin-player-row").forEach((row) => {
+      const username = row.dataset.username;
+      row.querySelector(".admin-save-coins-btn").addEventListener("click", async () => {
+        const value = Math.max(0, Math.floor(Number(row.querySelector(".admin-coins-input").value)));
+        const res = await CLOUD.adminAdjustCoins(username, value);
+        if (!res.ok) {
+          els.adminPlayersError.textContent = res.reason || "Erreur inconnue.";
+          els.adminPlayersError.classList.remove("hidden");
+          return;
+        }
+        renderAdminPlayers();
+      });
+      row.querySelector(".admin-ban-btn").addEventListener("click", async () => {
+        const currentlyBanned = row.classList.contains("banned");
+        let reason = null;
+        if (!currentlyBanned) {
+          reason = window.prompt(`Motif du bannissement de ${username} :`, "");
+          if (reason === null) return; // annulé
+        }
+        const res = await CLOUD.adminSetBan(username, !currentlyBanned, reason);
+        if (!res.ok) {
+          els.adminPlayersError.textContent = res.reason || "Erreur inconnue.";
+          els.adminPlayersError.classList.remove("hidden");
+          return;
+        }
+        renderAdminPlayers();
+      });
+    });
+  }
+
+  async function renderAdminMovements() {
+    els.adminMovementsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.adminListWalletMovements(200);
+    if (rows.length === 0) {
+      els.adminMovementsList.innerHTML = `<p class="account-hint">Aucun mouvement pour l'instant.</p>`;
+      return;
+    }
+    els.adminMovementsList.innerHTML = rows.map((r) => `
+      <div class="admin-log-row">
+        <span class="admin-log-user">${r.username}</span>
+        <span class="admin-log-delta ${r.delta >= 0 ? "positive" : "negative"}">${r.delta >= 0 ? "+" : ""}${r.delta} 🪙</span>
+        <span class="admin-log-reason">${r.reason}</span>
+        <span class="admin-log-date">${new Date(r.created_at).toLocaleString("fr-FR")}</span>
+      </div>
+    `).join("");
+  }
+
+  async function renderAdminLog() {
+    els.adminLogList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.adminListActions(200);
+    if (rows.length === 0) {
+      els.adminLogList.innerHTML = `<p class="account-hint">Aucune action admin pour l'instant.</p>`;
+      return;
+    }
+    els.adminLogList.innerHTML = rows.map((r) => `
+      <div class="admin-log-row">
+        <span class="admin-log-user">${r.admin_username}</span>
+        <span class="admin-log-reason">${r.action}${r.target_username ? ` → ${r.target_username}` : ""}</span>
+        <span class="admin-log-date">${new Date(r.created_at).toLocaleString("fr-FR")}</span>
+      </div>
+    `).join("");
+  }
+
+  function showAdminView(view) {
+    els.adminPlayersView.classList.toggle("hidden", view !== "players");
+    els.adminMovementsView.classList.toggle("hidden", view !== "movements");
+    els.adminLogView.classList.toggle("hidden", view !== "log");
+    els.adminTabPlayers.classList.toggle("active", view === "players");
+    els.adminTabMovements.classList.toggle("active", view === "movements");
+    els.adminTabLog.classList.toggle("active", view === "log");
+  }
+
+  function openAdminModal() {
+    els.adminModal.classList.remove("hidden");
+    showAdminView("players");
+    renderAdminPlayers();
+  }
+
+  function closeAdminModal() {
+    els.adminModal.classList.add("hidden");
+  }
+
+  els.adminModalClose.addEventListener("click", closeAdminModal);
+  els.adminModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.adminModal) closeAdminModal();
+  });
+  els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
+  els.adminTabMovements.addEventListener("click", () => { showAdminView("movements"); renderAdminMovements(); });
+  els.adminTabLog.addEventListener("click", () => { showAdminView("log"); renderAdminLog(); });
 
   /* ---------------- Son ---------------- */
 
