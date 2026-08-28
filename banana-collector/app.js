@@ -107,6 +107,7 @@ function defaultState() {
     mythicCount: 0,
     rarestId: null,
     ads: { watchedToday: 0, lastResetDate: null },
+    adBreak: { clicksSinceLast: 0 },
     wheel: { lastSpinDate: null },
     catchGame: { bestScore: 0, bestCoins: 0 },
     streak: { count: 0, lastLoginDate: null },
@@ -342,6 +343,16 @@ function grantAdReward() {
   saveState();
   return coinsEarned;
 }
+
+/* ---------------- Pause publicitaire (interstitiel) ----------------
+   Aucune récompense ici (contrairement à watchAd()) : c'est une pause
+   forcée toutes les N récoltes MANUELLES du bouton "Récolter", pas une
+   pub optionnelle. Le fermier automatique ne compte pas dans le
+   compteur, pour ne jamais interrompre un joueur absent avec une pub
+   qu'il ne peut pas fermer. Voir registerManualHarvestClick() dans
+   ui.js pour la logique d'affichage (même principe de simulation que
+   watchAd() ci-dessus, mêmes emplacements d'intégration réelle). */
+const AD_BREAK_EVERY = 50;
 
 /* ---------------- Mini-jeu : Roue de la fortune quotidienne ---------------- */
 
