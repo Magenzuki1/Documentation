@@ -268,6 +268,19 @@ body {
   opacity: 0.7;
 }
 
+.banana-level-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: var(--accent);
+  color: #2b1a00;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  z-index: 1;
+}
+
 .banana-emoji {
   font-size: 2.4rem;
   line-height: 1;
@@ -1340,6 +1353,44 @@ body {
   margin-top: 14px;
   font-weight: 800;
   font-size: 1.05rem;
+}
+
+.banana-level-section {
+  position: relative;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.18);
+}
+
+.banana-level-title { font-weight: 800; font-size: 0.95rem; }
+.banana-level-bonus { font-weight: 600; font-size: 0.78rem; color: #5c4a1a; }
+
+.banana-level-progress-label { font-size: 0.78rem; color: #5c4a1a; margin: 8px 0 4px; }
+
+.banana-level-progress-bar {
+  height: 10px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.banana-level-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.banana-level-up-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 0.85rem;
+}
+
+.banana-level-maxed {
+  margin-top: 8px;
+  font-weight: 800;
+  color: var(--accent-dark);
 }
 
 /* Peu commune : bordure un peu plus marquée. */
