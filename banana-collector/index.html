@@ -48,6 +48,25 @@
             <span id="progress-label">Collection : 0 / 100</span>
             <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
           </div>
+
+          <div class="collection-controls">
+            <label class="collection-control">
+              Trier par
+              <select id="collection-sort-select">
+                <option value="defaut">Par défaut</option>
+                <option value="niveau">Niveau ↓</option>
+                <option value="atk">Attaque ↓</option>
+                <option value="def">Défense ↓</option>
+              </select>
+            </label>
+            <label class="collection-control">
+              Rareté
+              <select id="collection-rarity-select">
+                <option value="toutes">Toutes les raretés</option>
+              </select>
+            </label>
+          </div>
+
           <div id="collection-grid" class="banana-grid"></div>
 
           <div id="secret-section" class="secret-section">

@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
     harvestBtn: document.getElementById("harvest-btn"),
     lastBanana: document.getElementById("last-banana"),
     collectionGrid: document.getElementById("collection-grid"),
+    collectionSortSelect: document.getElementById("collection-sort-select"),
+    collectionRaritySelect: document.getElementById("collection-rarity-select"),
     secretGrid: document.getElementById("secret-grid"),
     secretSection: document.getElementById("secret-section"),
     progressBarFill: document.getElementById("progress-bar-fill"),
@@ -125,6 +127,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let progressionView = "collection"; // "collection" | "quetes" | "minijeux"
   let economieView = "boutique"; // "boutique" | "marche" | "pub"
   let bilanView = "classement"; // "classement" | "stats"
+  let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def"
+  let collectionRarityFilter = "toutes"; // "toutes" | une valeur de RARITY_ORDER (hors "secrete")
 
   function showProgressionView(view) {
     progressionView = view;
@@ -518,26 +522,71 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Rempli une fois : liste des raretés normales (hors "secrete", qui a sa
+  // propre grille séparée) dans l'ordre du plus commun au plus rare.
+  function populateCollectionRarityFilter() {
+    if (els.collectionRaritySelect.dataset.filled) return;
+    els.collectionRaritySelect.dataset.filled = "1";
+    RARITY_ORDER.filter((r) => r !== "secrete").forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r;
+      opt.textContent = RARITIES[r].label;
+      els.collectionRaritySelect.appendChild(opt);
+    });
+    els.collectionSortSelect.addEventListener("change", () => {
+      collectionSort = els.collectionSortSelect.value;
+      renderCollection();
+    });
+    els.collectionRaritySelect.addEventListener("change", () => {
+      collectionRarityFilter = els.collectionRaritySelect.value;
+      renderCollection();
+    });
+  }
+
+  function lockedBananaCardHTML() {
+    return `
+      <div class="banana-card locked">
+        <div class="banana-emoji silhouette">🍌</div>
+        <div class="banana-name">???</div>
+        <div class="banana-card-stats">⚔️ ? · 🛡️ ?</div>
+        <div class="banana-rarity">???</div>
+        <div class="banana-value">🪙 ?</div>
+        <div class="banana-count">x0</div>
+      </div>
+    `;
+  }
+
   function renderCollection() {
+    populateCollectionRarityFilter();
+
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
     els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
     els.progressBarFill.style.width = `${(discoveredNormal / TOTAL_NORMAL) * 100}%`;
 
-    els.collectionGrid.innerHTML = NORMAL_BANANAS.map((banana) => {
+    let bananas = collectionRarityFilter === "toutes"
+      ? NORMAL_BANANAS
+      : NORMAL_BANANAS.filter((b) => b.rarity === collectionRarityFilter);
+
+    // Un tri par niveau/ATK/DEF n'a de sens que sur les bananes déjà
+    // découvertes (les stats des bananes non découvertes ne sont pas
+    // affichées) : on les trie donc entre elles puis on remet les cartes
+    // "???" à la fin, dans leur ordre d'origine, pour ne rien laisser
+    // deviner de la puissance d'une banane pas encore trouvée.
+    if (collectionSort !== "defaut") {
+      const discovered = bananas.filter((b) => state.discovered.includes(b.id));
+      const locked = bananas.filter((b) => !state.discovered.includes(b.id));
+      const metric = (b) => {
+        if (collectionSort === "niveau") return bananaLevel(b.id);
+        const stats = bananaCombatStats(b);
+        return collectionSort === "atk" ? stats.atk : stats.def;
+      };
+      discovered.sort((a, b) => metric(b) - metric(a));
+      bananas = [...discovered, ...locked];
+    }
+
+    els.collectionGrid.innerHTML = bananas.map((banana) => {
       const discovered = state.discovered.includes(banana.id);
-      if (!discovered) {
-        return `
-          <div class="banana-card locked">
-            <div class="banana-emoji silhouette">🍌</div>
-            <div class="banana-name">???</div>
-            <div class="banana-card-stats">⚔️ ? · 🛡️ ?</div>
-            <div class="banana-rarity">???</div>
-            <div class="banana-value">🪙 ?</div>
-            <div class="banana-count">x0</div>
-          </div>
-        `;
-      }
-      return bananaGridCardHTML(banana);
+      return discovered ? bananaGridCardHTML(banana) : lockedBananaCardHTML();
     }).join("");
     els.collectionGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
       card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
