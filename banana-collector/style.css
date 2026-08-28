@@ -428,10 +428,11 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* --- Rareté couleurs de fond légères --- */
-.rarity-secrete { background: linear-gradient(135deg, #1c1c2b, #3a2d5c); color: white; }
-.rarity-secrete .banana-name, .rarity-secrete .banana-value, .rarity-secrete .banana-count { color: #f0e8ff; }
-.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
+/* --- Rareté couleurs de fond légères (cartes collection/marché uniquement,
+   pas la carte de révélation de récolte qui utilise une aura) --- */
+.banana-card.rarity-secrete { background: linear-gradient(135deg, #1c1c2b, #3a2d5c); color: white; }
+.banana-card.rarity-secrete .banana-name, .banana-card.rarity-secrete .banana-value, .banana-card.rarity-secrete .banana-count { color: #f0e8ff; }
+.banana-card.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
 
 /* --- Collection / progression --- */
 
