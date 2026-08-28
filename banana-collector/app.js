@@ -96,6 +96,7 @@ const UPGRADES = [
 function defaultState() {
   return {
     coins: 0,
+    totalCoinsEarned: 0,
     clicks: 0,
     totalRolls: 0,
     counts: {}, // bananaId -> count
@@ -106,14 +107,19 @@ function defaultState() {
     lastBananaId: null,
     mythicCount: 0,
     rarestId: null,
-    ads: { watchedToday: 0, lastResetDate: null },
+    ads: { watchedToday: 0, lastResetDate: null, totalWatched: 0 },
     adBreak: { clicksSinceLast: 0 },
     wheel: { lastSpinDate: null },
+    wheelSpinsTotal: 0,
+    dailyQuestsCompletedTotal: 0,
+    weeklyQuestsCompletedTotal: 0,
     catchGame: { bestScore: 0, bestCoins: 0 },
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     pve: { stage: 0, wins: 0, losses: 0 },
     quests: { date: null, assigned: [], progress: {}, completed: [] },
+    weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
+    permanentQuests: { completed: [] },
     settings: { muted: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -167,6 +173,7 @@ function coinMultiplier() {
 function grantCoins(amount) {
   const final = Math.round(amount * coinMultiplier());
   state.coins += final;
+  state.totalCoinsEarned += Math.max(final, 0);
   return final;
 }
 
@@ -272,6 +279,8 @@ function rollBanana() {
 
   bumpQuestProgress("rolls");
   if (isRareOrAbove(rarity)) bumpQuestProgress("rarePlus");
+  if (isLegendaryOrAbove(rarity)) bumpQuestProgress("legendaryPlus");
+  if (isNew) bumpQuestProgress("newDiscoveries");
 
   saveState();
   return { banana, isNew, rarity, coinsEarned };
@@ -338,6 +347,7 @@ function adsRemainingToday() {
 
 function grantAdReward() {
   state.ads.watchedToday += 1;
+  state.ads.totalWatched = (state.ads.totalWatched || 0) + 1;
   const coinsEarned = grantCoins(AD_REWARD);
   bumpQuestProgress("ads");
   saveState();
@@ -387,6 +397,7 @@ function spinWheel() {
   const index = pickWheelPrizeIndex();
   const prize = WHEEL_PRIZES[index];
   state.wheel.lastSpinDate = todayKey();
+  state.wheelSpinsTotal = (state.wheelSpinsTotal || 0) + 1;
   const coinsEarned = grantCoins(prize.coins);
   bumpQuestProgress("wheel");
   saveState();
@@ -435,25 +446,88 @@ function processDailyStreak() {
   return { streak: state.streak.count, coinsEarned };
 }
 
-/* ---------------- Quêtes quotidiennes ---------------- */
+/* ---------------- Quêtes ---------------- */
 
-// Bassin de quêtes possibles. Chaque jour, un tirage sans répétition en
-// sélectionne quelques-unes (3 de base, plus avec l'amélioration "Quête
-// bonus"). La progression ("key") est comptée en continu dans
-// state.quests.progress et remise à zéro chaque nouveau jour.
+// Trois bassins de quêtes, indépendants :
+// - QUEST_POOL (journalières) : tirage sans répétition chaque jour.
+// - WEEKLY_QUEST_POOL (hebdomadaires) : tirage sans répétition chaque
+//   semaine, objectifs et récompenses plus élevés.
+// - PERMANENT_QUEST_POOL : sans date de fin, toutes actives en même temps
+//   (pas de tirage), la progression se lit directement dans l'état
+//   cumulatif du joueur (comme les succès) et ne se réinitialise jamais.
+// La progression des quêtes journalières/hebdomadaires ("key") est comptée
+// en continu par bumpQuestProgress() et remise à zéro à chaque nouveau
+// jour/semaine.
 const QUEST_POOL = [
   { id: "harvest5", desc: "Récolte 5 bananes", need: 5, reward: 80, key: "rolls" },
   { id: "harvest15", desc: "Récolte 15 bananes", need: 15, reward: 200, key: "rolls" },
+  { id: "harvest30", desc: "Récolte 30 bananes", need: 30, reward: 350, key: "rolls" },
   { id: "watchAd", desc: "Regarde 1 pub", need: 1, reward: 120, key: "ads" },
+  { id: "watchAd3", desc: "Regarde 3 pubs", need: 3, reward: 320, key: "ads" },
   { id: "spinWheel", desc: "Tourne la roue quotidienne", need: 1, reward: 100, key: "wheel" },
   { id: "win1Fight", desc: "Gagne 1 combat dans l'Arène", need: 1, reward: 150, key: "wins" },
   { id: "win3Fight", desc: "Gagne 3 combats dans l'Arène", need: 3, reward: 350, key: "wins" },
   { id: "catchRound", desc: "Termine un round d'Attrape les bananes", need: 1, reward: 130, key: "catchRounds" },
   { id: "rarePlus", desc: "Obtiens une banane rare ou mieux", need: 1, reward: 180, key: "rarePlus" },
+  { id: "rarePlus3", desc: "Obtiens 3 bananes rares ou mieux", need: 3, reward: 400, key: "rarePlus" },
   { id: "buyUpgrade", desc: "Achète une amélioration en boutique", need: 1, reward: 150, key: "upgradesBought" },
+  { id: "newDiscovery", desc: "Découvre 1 nouvelle banane", need: 1, reward: 140, key: "newDiscoveries" },
+];
+
+const WEEKLY_QUEST_POOL = [
+  { id: "w_harvest150", desc: "Récolte 150 bananes cette semaine", need: 150, reward: 1200, key: "rolls" },
+  { id: "w_harvest300", desc: "Récolte 300 bananes cette semaine", need: 300, reward: 2200, key: "rolls" },
+  { id: "w_ads10", desc: "Regarde 10 pubs cette semaine", need: 10, reward: 1400, key: "ads" },
+  { id: "w_wheel5", desc: "Tourne la roue 5 jours cette semaine", need: 5, reward: 900, key: "wheel" },
+  { id: "w_win15", desc: "Gagne 15 combats d'Arène cette semaine", need: 15, reward: 1600, key: "wins" },
+  { id: "w_catch10", desc: "Termine 10 rounds d'Attrape les bananes", need: 10, reward: 1100, key: "catchRounds" },
+  { id: "w_rarePlus10", desc: "Obtiens 10 bananes rares ou mieux", need: 10, reward: 1800, key: "rarePlus" },
+  { id: "w_legendaryPlus2", desc: "Obtiens 2 bananes légendaires ou mieux", need: 2, reward: 2500, key: "legendaryPlus" },
+  { id: "w_newDiscoveries10", desc: "Découvre 10 nouvelles bananes", need: 10, reward: 2000, key: "newDiscoveries" },
+  { id: "w_buyUpgrade3", desc: "Achète 3 améliorations en boutique", need: 3, reward: 1300, key: "upgradesBought" },
+];
+
+// Quêtes sans date de fin : toujours toutes actives, jamais réinitialisées.
+// progress(state) renvoie la valeur cumulative courante, comparée à need.
+const PERMANENT_QUEST_POOL = [
+  { id: "p_rolls1000", desc: "Récolte 1000 bananes au total", need: 1000, reward: 1500, progress: (s) => s.totalRolls },
+  { id: "p_rolls5000", desc: "Récolte 5000 bananes au total", need: 5000, reward: 5000, progress: (s) => s.totalRolls },
+  { id: "p_rolls20000", desc: "Récolte 20 000 bananes au total", need: 20000, reward: 15000, progress: (s) => s.totalRolls },
+  {
+    id: "p_discover_normal",
+    desc: `Découvre les ${TOTAL_NORMAL} bananes normales`,
+    need: TOTAL_NORMAL,
+    reward: 8000,
+    progress: (s) => s.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length,
+  },
+  {
+    id: "p_discover_secret",
+    desc: `Découvre les ${TOTAL_SECRET} bananes secrètes`,
+    need: TOTAL_SECRET,
+    reward: 10000,
+    progress: (s) => s.discovered.filter((id) => BANANAS_BY_ID[id]?.secret).length,
+  },
+  { id: "p_coins_earned_50k", desc: "Gagne 50 000 pièces au total (toutes sources)", need: 50000, reward: 3000, progress: (s) => s.totalCoinsEarned },
+  { id: "p_coins_earned_250k", desc: "Gagne 250 000 pièces au total (toutes sources)", need: 250000, reward: 12000, progress: (s) => s.totalCoinsEarned },
+  { id: "p_pve_wins50", desc: "Remporte 50 combats dans l'Arène solo", need: 50, reward: 2500, progress: (s) => s.pve.wins },
+  { id: "p_pve_wins200", desc: "Remporte 200 combats dans l'Arène solo", need: 200, reward: 8000, progress: (s) => s.pve.wins },
+  { id: "p_ads50", desc: "Regarde 50 pubs au total", need: 50, reward: 4000, progress: (s) => s.ads.totalWatched || 0 },
+  { id: "p_streak30", desc: "Connecte-toi 30 jours d'affilée", need: 30, reward: 6000, progress: (s) => s.streak.count },
+  { id: "p_streak100", desc: "Connecte-toi 100 jours d'affilée", need: 100, reward: 20000, progress: (s) => s.streak.count },
+  {
+    id: "p_upgrades_all_maxed",
+    desc: "Monte toutes les améliorations de la boutique au niveau maximum",
+    need: UPGRADES.length,
+    reward: 10000,
+    progress: (s) => UPGRADES.filter((u) => (s.upgrades[u.id] || 0) >= u.maxLevel).length,
+  },
 ];
 
 function questCountToday() {
+  return 3 + (state.upgrades.questbonus || 0);
+}
+
+function weeklyQuestCountToday() {
   return 3 + (state.upgrades.questbonus || 0);
 }
 
@@ -475,9 +549,37 @@ function refreshQuestsIfNewDay() {
   state.quests.assigned = assigned;
 }
 
+// Clé de semaine stable (7 jours glissants depuis une ancre fixe), sans
+// dépendre du fuseau horaire du joueur pour déterminer le jour exact de
+// coupure — seule la régularité du cycle de 7 jours compte.
+function weekKeyToday() {
+  const anchor = Date.UTC(2024, 0, 1); // lundi
+  const d = new Date();
+  const daysSinceAnchor = Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - anchor) / 86400000);
+  return `w${Math.floor(daysSinceAnchor / 7)}`;
+}
+
+function refreshWeeklyQuestsIfNewWeek() {
+  const week = weekKeyToday();
+  if (state.weeklyQuests.weekKey === week) return;
+  state.weeklyQuests.weekKey = week;
+  state.weeklyQuests.progress = {};
+  state.weeklyQuests.completed = [];
+  const pool = WEEKLY_QUEST_POOL.slice();
+  const assigned = [];
+  const count = Math.min(weeklyQuestCountToday(), pool.length);
+  for (let i = 0; i < count; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    assigned.push(pool.splice(idx, 1)[0].id);
+  }
+  state.weeklyQuests.assigned = assigned;
+}
+
 function bumpQuestProgress(key, amount = 1) {
   refreshQuestsIfNewDay();
+  refreshWeeklyQuestsIfNewWeek();
   state.quests.progress[key] = (state.quests.progress[key] || 0) + amount;
+  state.weeklyQuests.progress[key] = (state.weeklyQuests.progress[key] || 0) + amount;
 }
 
 function questsForToday() {
@@ -492,48 +594,121 @@ function questsForToday() {
     }));
 }
 
-// Évalue les quêtes du jour, crédite les récompenses des quêtes tout juste
-// terminées et retourne leur liste (pour affichage de toasts).
+function weeklyQuestsForToday() {
+  refreshWeeklyQuestsIfNewWeek();
+  return state.weeklyQuests.assigned
+    .map((id) => WEEKLY_QUEST_POOL.find((q) => q.id === id))
+    .filter(Boolean)
+    .map((quest) => ({
+      ...quest,
+      progress: Math.min(state.weeklyQuests.progress[quest.key] || 0, quest.need),
+      done: state.weeklyQuests.completed.includes(quest.id),
+    }));
+}
+
+function permanentQuestsView() {
+  return PERMANENT_QUEST_POOL.map((quest) => ({
+    ...quest,
+    progress: Math.min(quest.progress(state), quest.need),
+    done: state.permanentQuests.completed.includes(quest.id),
+  }));
+}
+
+// Évalue les trois bassins de quêtes, crédite les récompenses de celles tout
+// juste terminées et retourne la liste fusionnée (pour affichage de toasts).
 function checkQuests() {
   refreshQuestsIfNewDay();
+  refreshWeeklyQuestsIfNewWeek();
   const completedNow = [];
+
   for (const qid of state.quests.assigned) {
     if (state.quests.completed.includes(qid)) continue;
     const quest = QUEST_POOL.find((q) => q.id === qid);
     if (!quest) continue;
-    const progress = state.quests.progress[quest.key] || 0;
-    if (progress >= quest.need) {
+    if ((state.quests.progress[quest.key] || 0) >= quest.need) {
       state.quests.completed.push(qid);
+      grantCoins(quest.reward);
+      state.dailyQuestsCompletedTotal = (state.dailyQuestsCompletedTotal || 0) + 1;
+      completedNow.push(quest);
+    }
+  }
+
+  for (const qid of state.weeklyQuests.assigned) {
+    if (state.weeklyQuests.completed.includes(qid)) continue;
+    const quest = WEEKLY_QUEST_POOL.find((q) => q.id === qid);
+    if (!quest) continue;
+    if ((state.weeklyQuests.progress[quest.key] || 0) >= quest.need) {
+      state.weeklyQuests.completed.push(qid);
+      grantCoins(quest.reward);
+      state.weeklyQuestsCompletedTotal = (state.weeklyQuestsCompletedTotal || 0) + 1;
+      completedNow.push(quest);
+    }
+  }
+
+  for (const quest of PERMANENT_QUEST_POOL) {
+    if (state.permanentQuests.completed.includes(quest.id)) continue;
+    if (quest.progress(state) >= quest.need) {
+      state.permanentQuests.completed.push(quest.id);
       grantCoins(quest.reward);
       completedNow.push(quest);
     }
   }
+
   if (completedNow.length > 0) saveState();
   return completedNow;
 }
 
 /* ---------------- Succès ---------------- */
 
+function countInRarity(rarity) {
+  return NORMAL_BANANAS.filter((b) => b.rarity === rarity).length;
+}
+
 const ACHIEVEMENTS = [
   { id: "first_harvest", icon: "🍌", name: "Première récolte", desc: "Récolte ta toute première banane", reward: 30, check: (s) => s.totalRolls >= 1 },
   { id: "rolls_100", icon: "🧺", name: "Cueilleur assidu", desc: "Récolte 100 bananes au total", reward: 100, check: (s) => s.totalRolls >= 100 },
   { id: "rolls_500", icon: "🚜", name: "Récolte industrielle", desc: "Récolte 500 bananes au total", reward: 300, check: (s) => s.totalRolls >= 500 },
   { id: "rolls_1000", icon: "🏭", name: "Empire de la banane", desc: "Récolte 1000 bananes au total", reward: 800, check: (s) => s.totalRolls >= 1000 },
-  { id: "set_commune", icon: "🟢", name: "Collection commune complète", desc: "Découvre les 12 bananes communes", reward: 80, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "commune").every((b) => s.discovered.includes(b.id)) },
-  { id: "set_peu_commune", icon: "🔵", name: "Collection peu commune complète", desc: "Découvre les 10 bananes peu communes", reward: 120, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "peu_commune").every((b) => s.discovered.includes(b.id)) },
-  { id: "set_rare", icon: "🟣", name: "Collection rare complète", desc: "Découvre les 10 bananes rares", reward: 250, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "rare").every((b) => s.discovered.includes(b.id)) },
-  { id: "set_epique", icon: "🟠", name: "Collection épique complète", desc: "Découvre les 8 bananes épiques", reward: 500, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "epique").every((b) => s.discovered.includes(b.id)) },
-  { id: "set_legendaire", icon: "🟡", name: "Collection légendaire complète", desc: "Découvre les 6 bananes légendaires", reward: 900, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "legendaire").every((b) => s.discovered.includes(b.id)) },
-  { id: "set_mythique", icon: "🌈", name: "Collection mythique complète", desc: "Découvre les 4 bananes mythiques", reward: 2000, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "mythique").every((b) => s.discovered.includes(b.id)) },
+  { id: "rolls_5000", icon: "🏗️", name: "Plantation géante", desc: "Récolte 5000 bananes au total", reward: 2000, check: (s) => s.totalRolls >= 5000 },
+  { id: "rolls_10000", icon: "🌴", name: "Maître planteur", desc: "Récolte 10 000 bananes au total", reward: 4000, check: (s) => s.totalRolls >= 10000 },
+  { id: "rolls_50000", icon: "🌋", name: "Légende de la récolte", desc: "Récolte 50 000 bananes au total", reward: 15000, check: (s) => s.totalRolls >= 50000 },
+  { id: "set_commune", icon: "🟢", name: "Collection commune complète", desc: `Découvre les ${countInRarity("commune")} bananes communes`, reward: 80, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "commune").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_peu_commune", icon: "🔵", name: "Collection peu commune complète", desc: `Découvre les ${countInRarity("peu_commune")} bananes peu communes`, reward: 120, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "peu_commune").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_rare", icon: "🟣", name: "Collection rare complète", desc: `Découvre les ${countInRarity("rare")} bananes rares`, reward: 250, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "rare").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_epique", icon: "🟠", name: "Collection épique complète", desc: `Découvre les ${countInRarity("epique")} bananes épiques`, reward: 500, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "epique").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_legendaire", icon: "🟡", name: "Collection légendaire complète", desc: `Découvre les ${countInRarity("legendaire")} bananes légendaires`, reward: 900, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "legendaire").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_mythique", icon: "🌈", name: "Collection mythique complète", desc: `Découvre les ${countInRarity("mythique")} bananes mythiques`, reward: 2000, check: (s) => NORMAL_BANANAS.filter((b) => b.rarity === "mythique").every((b) => s.discovered.includes(b.id)) },
+  { id: "set_normal_all", icon: "📖", name: "Bananapédia", desc: `Découvre les ${TOTAL_NORMAL} bananes normales (toutes raretés confondues)`, reward: 6000, check: (s) => NORMAL_BANANAS.every((b) => s.discovered.includes(b.id)) },
   { id: "first_secret", icon: "🕵️", name: "Secret dévoilé", desc: "Découvre ta première banane secrète", reward: 1500, check: (s) => SECRET_BANANAS.some((b) => s.discovered.includes(b.id)) },
-  { id: "set_secret", icon: "👑", name: "Maître des secrets", desc: "Découvre les 10 bananes secrètes", reward: 5000, check: (s) => SECRET_BANANAS.every((b) => s.discovered.includes(b.id)) },
+  { id: "secret_half", icon: "🔦", name: "Chasseur de secrets", desc: `Découvre au moins ${Math.ceil(TOTAL_SECRET / 2)} bananes secrètes`, reward: 3000, check: (s) => SECRET_BANANAS.filter((b) => s.discovered.includes(b.id)).length >= Math.ceil(TOTAL_SECRET / 2) },
+  { id: "set_secret", icon: "👑", name: "Maître des secrets", desc: `Découvre les ${TOTAL_SECRET} bananes secrètes`, reward: 5000, check: (s) => SECRET_BANANAS.every((b) => s.discovered.includes(b.id)) },
+  { id: "mythic_5", icon: "💎", name: "Collectionneur mythique", desc: "Obtiens 5 bananes mythiques au total (doublons compris)", reward: 600, check: (s) => s.mythicCount >= 5 },
+  { id: "mythic_25", icon: "💠", name: "Aimant à mythiques", desc: "Obtiens 25 bananes mythiques au total (doublons compris)", reward: 2500, check: (s) => s.mythicCount >= 25 },
   { id: "catch_30", icon: "🎯", name: "Bon réflexe", desc: "Attrape au moins 30 bananes en un round", reward: 150, check: (s) => s.catchGame.bestScore >= 30 },
   { id: "catch_60", icon: "⚡", name: "Réflexes de jungle", desc: "Attrape au moins 60 bananes en un round", reward: 400, check: (s) => s.catchGame.bestScore >= 60 },
+  { id: "catch_coins_500", icon: "💰", name: "Panier plein", desc: "Gagne au moins 500 pièces en un seul round d'Attrape les bananes", reward: 350, check: (s) => s.catchGame.bestCoins >= 500 },
   { id: "streak_7", icon: "🔥", name: "Semaine parfaite", desc: "Connecte-toi 7 jours d'affilée", reward: 500, check: (s) => s.streak.count >= 7 },
+  { id: "streak_30", icon: "🔥", name: "Habitué de la jungle", desc: "Connecte-toi 30 jours d'affilée", reward: 3000, check: (s) => s.streak.count >= 30 },
+  { id: "streak_100", icon: "🔥", name: "Increvable", desc: "Connecte-toi 100 jours d'affilée", reward: 12000, check: (s) => s.streak.count >= 100 },
   { id: "shop_maxed", icon: "🛒", name: "Boutique dévalisée", desc: "Monte une amélioration à son niveau maximum", reward: 300, check: (s) => UPGRADES.some((u) => (s.upgrades[u.id] || 0) >= u.maxLevel) },
+  { id: "shop_maxed_all", icon: "🏬", name: "Boutique à sec", desc: "Monte toutes les améliorations de la boutique au niveau maximum", reward: 8000, check: (s) => UPGRADES.every((u) => (s.upgrades[u.id] || 0) >= u.maxLevel) },
+  { id: "ads_10", icon: "📺", name: "Spectateur assidu", desc: "Regarde 10 pubs au total", reward: 400, check: (s) => (s.ads.totalWatched || 0) >= 10 },
+  { id: "ads_100", icon: "📡", name: "Accro à la pub", desc: "Regarde 100 pubs au total", reward: 3000, check: (s) => (s.ads.totalWatched || 0) >= 100 },
+  { id: "wheel_7", icon: "🎡", name: "Roue chanceuse", desc: "Tourne la roue quotidienne 7 fois au total", reward: 300, check: (s) => (s.wheelSpinsTotal || 0) >= 7 },
+  { id: "wheel_30", icon: "🎰", name: "Reine/roi de la roue", desc: "Tourne la roue quotidienne 30 fois au total", reward: 1500, check: (s) => (s.wheelSpinsTotal || 0) >= 30 },
+  { id: "coins_earned_10k", icon: "🪙", name: "Petit trésor", desc: "Gagne 10 000 pièces au total (toutes sources)", reward: 500, check: (s) => s.totalCoinsEarned >= 10000 },
+  { id: "coins_earned_100k", icon: "💵", name: "Coffre-fort", desc: "Gagne 100 000 pièces au total (toutes sources)", reward: 4000, check: (s) => s.totalCoinsEarned >= 100000 },
+  { id: "coins_earned_1m", icon: "🏦", name: "Fortune bananière", desc: "Gagne 1 000 000 de pièces au total (toutes sources)", reward: 25000, check: (s) => s.totalCoinsEarned >= 1000000 },
+  { id: "clicks_1000", icon: "👆", name: "Doigt agile", desc: "Clique 1000 fois pour récolter", reward: 200, check: (s) => s.clicks >= 1000 },
+  { id: "clicks_10000", icon: "🖱️", name: "Doigt increvable", desc: "Clique 10 000 fois pour récolter", reward: 2000, check: (s) => s.clicks >= 10000 },
+  { id: "quests_daily_100", icon: "📜", name: "Bon élève", desc: "Termine 100 quêtes quotidiennes au total", reward: 1000, check: (s) => (s.dailyQuestsCompletedTotal || 0) >= 100 },
+  { id: "quests_weekly_20", icon: "🗓️", name: "Planificateur", desc: "Termine 20 quêtes hebdomadaires au total", reward: 2000, check: (s) => (s.weeklyQuestsCompletedTotal || 0) >= 20 },
   { id: "pve_first_win", icon: "⚔️", name: "Premier combat", desc: "Remporte ta première victoire contre un ananas", reward: 100, check: (s) => s.pve.wins >= 1 },
+  { id: "pve_wins_25", icon: "🗡️", name: "Guerrier de l'arène", desc: "Remporte 25 combats dans l'Arène solo", reward: 700, check: (s) => s.pve.wins >= 25 },
+  { id: "pve_wins_100", icon: "🛡️", name: "Champion de l'arène", desc: "Remporte 100 combats dans l'Arène solo", reward: 3000, check: (s) => s.pve.wins >= 100 },
   { id: "pve_ananas_king", icon: "🍍", name: "Vainqueur du Roi Ananas", desc: "Bats le Roi Ananas et ouvre la voie vers les autres familles de fruits", reward: 800, check: (s) => s.pve.stage >= 5 },
   { id: "pve_king", icon: "🏆", name: "Empereur vaincu", desc: "Bats l'Empereur Fruit du Dragon, le boss final de l'arène à 60 niveaux", reward: 5000, check: (s) => s.pve.stage >= FRUIT_ENEMIES.length - 1 },
+  { id: "pve_no_loss", icon: "🥇", name: "Invaincu", desc: "Remporte 10 combats d'Arène sans jamais perdre", reward: 1200, check: (s) => s.pve.wins >= 10 && s.pve.losses === 0 },
 ];
 
 // Évalue tous les succès, débloque les nouveaux, crédite leur récompense.
