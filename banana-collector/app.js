@@ -91,7 +91,107 @@ const UPGRADES = [
     priceMult: 2.3,
     maxLevel: 2,
   },
+  {
+    id: "questbonushebdo",
+    name: "🗓️ Planning hebdo",
+    desc: "+1 quête hebdomadaire disponible par niveau",
+    targets: [],
+    basePrice: 6000,
+    priceMult: 2.4,
+    maxLevel: 2,
+  },
+  {
+    id: "chercheur",
+    name: "🔮 Chercheur de trésors",
+    desc: "+0.04% de chance d'obtenir une banane secrète",
+    targets: ["secrete"],
+    bonusPerLevel: 0.04,
+    basePrice: 6000,
+    priceMult: 2.6,
+    maxLevel: 5,
+  },
+  {
+    id: "recycleur",
+    name: "♻️ Recycleur de doublons",
+    desc: "+5% de pièces sur les bananes déjà découvertes (doublons) par niveau",
+    targets: [],
+    basePrice: 1500,
+    priceMult: 1.7,
+    maxLevel: 6,
+  },
+  {
+    id: "trefle",
+    name: "🍀 Trèfle porte-bonheur",
+    desc: "+8% de pièces gagnées à la roue de la fortune par niveau",
+    targets: [],
+    basePrice: 1000,
+    priceMult: 1.6,
+    maxLevel: 5,
+  },
+  {
+    id: "filet",
+    name: "🥅 Filet renforcé",
+    desc: "+6% de pièces gagnées à Attrape les bananes par niveau",
+    targets: [],
+    basePrice: 1200,
+    priceMult: 1.6,
+    maxLevel: 5,
+  },
+  {
+    id: "butin",
+    name: "💪 Butin de guerre",
+    desc: "+10% de pièces gagnées lors des combats d'Arène par niveau",
+    targets: [],
+    basePrice: 2000,
+    priceMult: 1.8,
+    maxLevel: 5,
+  },
 ];
+
+/* ---------------- Profil & avatars ---------------- */
+
+// Avatars = image d'une banane déjà présente dans le jeu. unlock: null =
+// débloqué dès le début pour tout le monde ; sinon, id d'un succès de
+// ACHIEVEMENTS qui débloque cet avatar une fois obtenu.
+const AVATARS = [
+  { id: "av_verte", bananaId: 1, unlock: null },
+  { id: "av_rouge", bananaId: 2, unlock: null },
+  { id: "av_bleue", bananaId: 3, unlock: null },
+  { id: "av_orange", bananaId: 4, unlock: null },
+  { id: "av_noire", bananaId: 5, unlock: null },
+  { id: "av_petite", bananaId: 6, unlock: null },
+  { id: "av_mure", bananaId: 7, unlock: null },
+  { id: "av_petitdej", bananaId: 8, unlock: null },
+  { id: "av_xxl", bananaId: 30, unlock: "set_peu_commune" },
+  { id: "av_ninja", bananaId: 48, unlock: "set_rare" },
+  { id: "av_licorne", bananaId: 72, unlock: "set_epique" },
+  { id: "av_kraken", bananaId: 87, unlock: "set_legendaire" },
+  { id: "av_cosmique", bananaId: 94, unlock: "set_mythique" },
+  { id: "av_blanche", bananaId: 102, unlock: "set_secret" },
+  { id: "av_titan", bananaId: 85, unlock: "pve_king" },
+  { id: "av_doree", bananaId: 65, unlock: "coins_earned_1m" },
+];
+
+function isAvatarUnlocked(avatar, s) {
+  return avatar.unlock == null || s.achievements.unlocked.includes(avatar.unlock);
+}
+
+function unlockedAvatars(s) {
+  return AVATARS.filter((a) => isAvatarUnlocked(a, s));
+}
+
+function currentAvatar() {
+  return AVATARS.find((a) => a.id === state.profile.avatarId) || AVATARS[0];
+}
+
+function setAvatar(avatarId) {
+  const avatar = AVATARS.find((a) => a.id === avatarId);
+  if (!avatar) return { ok: false, reason: "inconnu" };
+  if (!isAvatarUnlocked(avatar, state)) return { ok: false, reason: "verrouille" };
+  state.profile.avatarId = avatarId;
+  saveState();
+  return { ok: true };
+}
 
 function defaultState() {
   return {
@@ -103,7 +203,7 @@ function defaultState() {
     discovered: [], // bananaId[]
     pityRare: 0,
     pityLegendary: 0,
-    upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0 },
+    upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0, questbonushebdo: 0, chercheur: 0, recycleur: 0, trefle: 0, filet: 0, butin: 0 },
     lastBananaId: null,
     mythicCount: 0,
     rarestId: null,
@@ -114,8 +214,10 @@ function defaultState() {
     dailyQuestsCompletedTotal: 0,
     weeklyQuestsCompletedTotal: 0,
     catchGame: { bestScore: 0, bestCoins: 0 },
+    memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0 },
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
+    profile: { avatarId: "av_verte" },
     pve: { stage: 0, wins: 0, losses: 0 },
     quests: { date: null, assigned: [], progress: {}, completed: [] },
     weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
@@ -267,7 +369,8 @@ function rollBanana() {
   if (isNew) state.discovered.push(banana.id);
   state.counts[banana.id] = (state.counts[banana.id] || 0) + 1;
 
-  const coinsEarned = grantCoins(banana.value);
+  const duplicateBonus = isNew ? 1 : 1 + (state.upgrades.recycleur || 0) * 0.05;
+  const coinsEarned = grantCoins(Math.round(banana.value * duplicateBonus));
   state.clicks += 1;
   state.totalRolls += 1;
   state.lastBananaId = banana.id;
@@ -398,7 +501,8 @@ function spinWheel() {
   const prize = WHEEL_PRIZES[index];
   state.wheel.lastSpinDate = todayKey();
   state.wheelSpinsTotal = (state.wheelSpinsTotal || 0) + 1;
-  const coinsEarned = grantCoins(prize.coins);
+  const wheelBonus = 1 + (state.upgrades.trefle || 0) * 0.08;
+  const coinsEarned = grantCoins(Math.round(prize.coins * wheelBonus));
   bumpQuestProgress("wheel");
   saveState();
   return { ok: true, index, coins: coinsEarned };
@@ -420,10 +524,38 @@ const CATCH_ROTTEN_PENALTY = 6;
 
 function awardCatchGameResult(goodCaught, rottenCaught) {
   const rawCoins = Math.max(0, goodCaught * CATCH_GOOD_COINS - rottenCaught * CATCH_ROTTEN_PENALTY);
-  const coinsEarned = grantCoins(rawCoins);
+  const netBonus = 1 + (state.upgrades.filet || 0) * 0.06;
+  const coinsEarned = grantCoins(Math.round(rawCoins * netBonus));
   if (goodCaught > state.catchGame.bestScore) state.catchGame.bestScore = goodCaught;
   if (coinsEarned > state.catchGame.bestCoins) state.catchGame.bestCoins = coinsEarned;
   bumpQuestProgress("catchRounds");
+  saveState();
+  return coinsEarned;
+}
+
+/* ---------------- Mini-jeu : Mémoire des bananes ---------------- */
+
+// Jeu de paires classique : on retourne les cartes deux par deux, il faut
+// retrouver les 8 paires de bananes en un minimum de coups. Les images
+// utilisées sont piochées parmi les bananes déjà découvertes par le joueur
+// (ou, à défaut de 8 découvertes, parmi les bananes normales du jeu).
+const MEMORY_PAIRS_COUNT = 8;
+const MEMORY_BASE_REWARD = 220;
+
+function pickMemoryBananaIds() {
+  const pool = state.discovered.length >= MEMORY_PAIRS_COUNT ? state.discovered.slice() : NORMAL_BANANAS.map((b) => b.id);
+  const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, MEMORY_PAIRS_COUNT);
+}
+
+function awardMemoryGameResult(moves, timeMs) {
+  state.memoryGame.gamesPlayed = (state.memoryGame.gamesPlayed || 0) + 1;
+  if (state.memoryGame.bestMoves == null || moves < state.memoryGame.bestMoves) state.memoryGame.bestMoves = moves;
+  if (state.memoryGame.bestTimeMs == null || timeMs < state.memoryGame.bestTimeMs) state.memoryGame.bestTimeMs = timeMs;
+  const extraMoves = Math.max(0, moves - MEMORY_PAIRS_COUNT);
+  const rawCoins = Math.max(40, MEMORY_BASE_REWARD - extraMoves * 6);
+  const coinsEarned = grantCoins(rawCoins);
+  bumpQuestProgress("memoryRounds");
   saveState();
   return coinsEarned;
 }
@@ -468,6 +600,7 @@ const QUEST_POOL = [
   { id: "win1Fight", desc: "Gagne 1 combat dans l'Arène", need: 1, reward: 150, key: "wins" },
   { id: "win3Fight", desc: "Gagne 3 combats dans l'Arène", need: 3, reward: 350, key: "wins" },
   { id: "catchRound", desc: "Termine un round d'Attrape les bananes", need: 1, reward: 130, key: "catchRounds" },
+  { id: "memoryRound", desc: "Termine une partie de Mémoire des bananes", need: 1, reward: 130, key: "memoryRounds" },
   { id: "rarePlus", desc: "Obtiens une banane rare ou mieux", need: 1, reward: 180, key: "rarePlus" },
   { id: "rarePlus3", desc: "Obtiens 3 bananes rares ou mieux", need: 3, reward: 400, key: "rarePlus" },
   { id: "buyUpgrade", desc: "Achète une amélioration en boutique", need: 1, reward: 150, key: "upgradesBought" },
@@ -481,6 +614,7 @@ const WEEKLY_QUEST_POOL = [
   { id: "w_wheel5", desc: "Tourne la roue 5 jours cette semaine", need: 5, reward: 900, key: "wheel" },
   { id: "w_win15", desc: "Gagne 15 combats d'Arène cette semaine", need: 15, reward: 1600, key: "wins" },
   { id: "w_catch10", desc: "Termine 10 rounds d'Attrape les bananes", need: 10, reward: 1100, key: "catchRounds" },
+  { id: "w_memory10", desc: "Termine 10 parties de Mémoire des bananes", need: 10, reward: 1100, key: "memoryRounds" },
   { id: "w_rarePlus10", desc: "Obtiens 10 bananes rares ou mieux", need: 10, reward: 1800, key: "rarePlus" },
   { id: "w_legendaryPlus2", desc: "Obtiens 2 bananes légendaires ou mieux", need: 2, reward: 2500, key: "legendaryPlus" },
   { id: "w_newDiscoveries10", desc: "Découvre 10 nouvelles bananes", need: 10, reward: 2000, key: "newDiscoveries" },
@@ -528,7 +662,7 @@ function questCountToday() {
 }
 
 function weeklyQuestCountToday() {
-  return 3 + (state.upgrades.questbonus || 0);
+  return 3 + (state.upgrades.questbonushebdo || 0);
 }
 
 // Vérifie si on a changé de jour depuis le dernier tirage de quêtes et, si
@@ -687,6 +821,9 @@ const ACHIEVEMENTS = [
   { id: "catch_30", icon: "🎯", name: "Bon réflexe", desc: "Attrape au moins 30 bananes en un round", reward: 150, check: (s) => s.catchGame.bestScore >= 30 },
   { id: "catch_60", icon: "⚡", name: "Réflexes de jungle", desc: "Attrape au moins 60 bananes en un round", reward: 400, check: (s) => s.catchGame.bestScore >= 60 },
   { id: "catch_coins_500", icon: "💰", name: "Panier plein", desc: "Gagne au moins 500 pièces en un seul round d'Attrape les bananes", reward: 350, check: (s) => s.catchGame.bestCoins >= 500 },
+  { id: "memory_first", icon: "🧠", name: "Bonne mémoire", desc: "Termine ta première partie de Mémoire des bananes", reward: 100, check: (s) => (s.memoryGame.gamesPlayed || 0) >= 1 },
+  { id: "memory_100", icon: "🧩", name: "Mémoire d'éléphant", desc: "Termine 100 parties de Mémoire des bananes", reward: 1500, check: (s) => (s.memoryGame.gamesPlayed || 0) >= 100 },
+  { id: "memory_perfect", icon: "⚡", name: "Mémoire parfaite", desc: `Termine une partie de Mémoire des bananes en ${MEMORY_PAIRS_COUNT} coups (le minimum possible)`, reward: 800, check: (s) => s.memoryGame.bestMoves != null && s.memoryGame.bestMoves <= MEMORY_PAIRS_COUNT },
   { id: "streak_7", icon: "🔥", name: "Semaine parfaite", desc: "Connecte-toi 7 jours d'affilée", reward: 500, check: (s) => s.streak.count >= 7 },
   { id: "streak_30", icon: "🔥", name: "Habitué de la jungle", desc: "Connecte-toi 30 jours d'affilée", reward: 3000, check: (s) => s.streak.count >= 30 },
   { id: "streak_100", icon: "🔥", name: "Increvable", desc: "Connecte-toi 100 jours d'affilée", reward: 12000, check: (s) => s.streak.count >= 100 },
@@ -828,7 +965,8 @@ function fightFruitEnemy(bananaId, stageIndex) {
 
   let coinsEarned;
   const stageAdvanced = won && stageIndex === state.pve.stage + 1;
-  const winReward = Math.round(enemy.reward * PVE_WIN_REWARD_MULT);
+  const lootBonus = 1 + (state.upgrades.butin || 0) * 0.1;
+  const winReward = Math.round(enemy.reward * PVE_WIN_REWARD_MULT * lootBonus);
   if (won) {
     coinsEarned = grantCoins(winReward);
     state.pve.wins += 1;
