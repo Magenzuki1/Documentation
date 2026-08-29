@@ -2028,11 +2028,18 @@ function bananaCombatStats(banana) {
 }
 
 // Multiplicateur appliqué à enemy.reward pour la victoire en Arène solo.
-// Déjà réduit une première fois à 0.75, puis baissé de 30% (0.75*0.7=0.525),
-// puis encore baissé de 30% ici (0.525*0.7=0.3675) — partagé avec ui.js pour
-// l'aperçu affiché avant le combat, qui doit toujours annoncer le même gain
-// que celui réellement accordé.
-const PVE_WIN_REWARD_MULT = 0.3675;
+// Déjà réduit trois fois (0.75 -> 0.525 -> 0.3675) sans que ça suffise : la
+// courbe de reward brute est exponentielle sur les stades 6-89 (de 800 à
+// 960 000, x1200) alors que la puissance des ennemis ne monte que d'environ
+// x800 sur la même plage — un joueur atteignant les dernières familles
+// gagnait des centaines de milliers de pièces par victoire, largement de
+// quoi tout acheter d'un coup. Baissé fortement ici (0.3675 -> 0.04, environ
+// /9) pour ramener le gain maximal (dernier stade) à ~38 000 pièces par
+// victoire au lieu de ~353 000, tout en gardant au moins 1 pièce dès le
+// tout premier combat. Partagé avec ui.js pour l'aperçu affiché avant le
+// combat, qui doit toujours annoncer le même gain que celui réellement
+// accordé.
+const PVE_WIN_REWARD_MULT = 0.04;
 
 // Chance de victoire = fonction du RATIO de puissance (attaque + défense),
 // pas d'une simple moyenne de ratios additifs — un écart de puissance x2
