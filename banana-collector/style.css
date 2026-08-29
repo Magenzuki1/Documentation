@@ -106,6 +106,18 @@ h1, h2, h3,
   transition: transform 0.3s ease;
 }
 .settings-gear-btn:hover { transform: rotate(45deg); }
+.settings-gear-btn.has-badge { position: relative; }
+.settings-gear-btn.has-badge::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--card-bg);
+}
 
 .inline-avatar-icon { display: inline-flex; vertical-align: middle; }
 .inline-avatar-icon .banana-icon { margin: 0; }
@@ -2720,6 +2732,27 @@ h1, h2, h3,
 .admin-log-reason { color: #5c4a1a; }
 .admin-log-date { color: #9c8b5e; margin-left: auto; }
 
+.admin-support-thread-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.admin-support-thread-row:hover { background: #fff6d5; border-radius: 8px; }
+.admin-support-unread-badge {
+  display: inline-block;
+  background: var(--danger);
+  color: white;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  margin-left: 4px;
+}
+
 .admin-search-input {
   width: 100%;
   font-family: inherit;
@@ -2824,6 +2857,60 @@ h1, h2, h3,
 .admin-rewards-form select { max-width: 340px; }
 .admin-rewards-form input[type="number"] { width: 150px; }
 
+/* --- Support (messagerie bugs/questions/suggestions) --- */
+
+.support-thread {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+  padding-right: 4px;
+}
+
+.support-message {
+  max-width: 85%;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.support-message-player {
+  align-self: flex-end;
+  background: linear-gradient(160deg, #ffd23f, var(--accent));
+  color: #2b1a00;
+}
+
+.support-message-admin {
+  align-self: flex-start;
+  background: #fff6d5;
+  border: 2px solid #f0dfa8;
+}
+
+.support-message-meta { font-size: 0.68rem; font-weight: 700; opacity: 0.75; margin-bottom: 3px; }
+.support-message-category { font-style: italic; }
+.support-message-body { white-space: pre-wrap; word-break: break-word; }
+
+.support-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.support-form select, .support-form textarea {
+  font-family: inherit;
+  font-size: 0.85rem;
+  border: 2px solid #f0dfa8;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.support-form textarea { min-height: 80px; resize: vertical; }
+
+#admin-support-thread-view .support-thread { max-height: 320px; }
 
 /* --- Responsive --- */
 
@@ -2878,5 +2965,10 @@ h1, h2, h3,
 :root[data-theme="dark"] .settings-section,
 :root[data-theme="dark"] .profile-section,
 :root[data-theme="dark"] .settings-toggle-btn {
+  border-color: #3a3f52;
+}
+
+:root[data-theme="dark"] .support-message-admin {
+  background: #2b3040;
   border-color: #3a3f52;
 }

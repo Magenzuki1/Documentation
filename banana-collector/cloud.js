@@ -324,6 +324,46 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  // --- Messagerie de support (bug/question/suggestion) ---
+
+  async function submitSupportMessage(category, body) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("submit_support_message", { p_category: category, p_body: body });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchMySupportThread() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("fetch_my_support_thread");
+    return error || !data ? [] : data;
+  }
+
+  async function hasUnreadSupportReply() {
+    if (!supabase) return false;
+    const { data, error } = await supabase.rpc("has_unread_support_reply");
+    return error ? false : !!data;
+  }
+
+  async function adminListSupportThreads() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_list_support_threads");
+    return error || !data ? [] : data;
+  }
+
+  async function adminFetchSupportThread(username) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_fetch_support_thread", { target_username: username });
+    return error || !data ? [] : data;
+  }
+
+  async function adminReplySupport(username, body) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_reply_support", { target_username: username, p_body: body });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -836,6 +876,12 @@ const CLOUD = (() => {
     fetchRewardOverrides,
     adminSetRewardOverride,
     adminClearRewardOverride,
+    submitSupportMessage,
+    fetchMySupportThread,
+    hasUnreadSupportReply,
+    adminListSupportThreads,
+    adminFetchSupportThread,
+    adminReplySupport,
     init,
   };
 })();
