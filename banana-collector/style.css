@@ -2015,10 +2015,12 @@ h1, h2, h3,
   border: 2px solid #f0dfa8;
   border-radius: 12px;
   padding: 6px 10px;
+  cursor: pointer;
 }
 
 .pvp-slot-name { font-weight: 700; font-size: 0.85rem; }
 .pvp-slot-stats { font-size: 0.75rem; color: #5c4a1a; }
+.pvp-slot-upgrade-hint { font-size: 0.7rem; opacity: 0.75; margin-left: -2px; }
 
 .pvp-opponent-card {
   background: var(--card-bg);
