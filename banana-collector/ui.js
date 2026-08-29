@@ -165,10 +165,15 @@ document.addEventListener("DOMContentLoaded", () => {
     progressionMinijeuxView: document.getElementById("progression-minijeux-view"),
     economieTabBoutique: document.getElementById("economie-tab-boutique"),
     economieTabMarche: document.getElementById("economie-tab-marche"),
+    economieTabCosmetiques: document.getElementById("economie-tab-cosmetiques"),
     economieTabPub: document.getElementById("economie-tab-pub"),
     economieBoutiqueView: document.getElementById("economie-boutique-view"),
     economieMarcheView: document.getElementById("economie-marche-view"),
+    economieCosmetiquesView: document.getElementById("economie-cosmetiques-view"),
     economiePubView: document.getElementById("economie-pub-view"),
+    cosmeticFramesList: document.getElementById("cosmetic-frames-list"),
+    cosmeticTitlesList: document.getElementById("cosmetic-titles-list"),
+    cosmeticEffectsList: document.getElementById("cosmetic-effects-list"),
     bilanTabClassement: document.getElementById("bilan-tab-classement"),
     bilanTabStats: document.getElementById("bilan-tab-stats"),
     bilanClassementView: document.getElementById("bilan-classement-view"),
@@ -178,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------------- Onglets ---------------- */
 
   let progressionView = "collection"; // "collection" | "quetes" | "minijeux"
-  let economieView = "boutique"; // "boutique" | "marche" | "pub"
+  let economieView = "boutique"; // "boutique" | "marche" | "cosmetiques" | "pub"
   let bilanView = "classement"; // "classement" | "stats"
   let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def"
   let collectionRarityFilter = "toutes"; // "toutes" | une valeur de RARITY_ORDER (hors "secrete")
@@ -205,15 +210,19 @@ document.addEventListener("DOMContentLoaded", () => {
     economieView = view;
     els.economieTabBoutique.classList.toggle("active", view === "boutique");
     els.economieTabMarche.classList.toggle("active", view === "marche");
+    els.economieTabCosmetiques.classList.toggle("active", view === "cosmetiques");
     els.economieTabPub.classList.toggle("active", view === "pub");
     els.economieBoutiqueView.classList.toggle("hidden", view !== "boutique");
     els.economieMarcheView.classList.toggle("hidden", view !== "marche");
+    els.economieCosmetiquesView.classList.toggle("hidden", view !== "cosmetiques");
     els.economiePubView.classList.toggle("hidden", view !== "pub");
     if (view === "boutique") renderShop();
     if (view === "marche") renderMarketTab();
+    if (view === "cosmetiques") renderCosmeticsShop();
     if (view === "pub") renderAdTab();
   }
 
+  els.economieTabCosmetiques.addEventListener("click", () => showEconomieView("cosmetiques"));
   els.economieTabBoutique.addEventListener("click", () => showEconomieView("boutique"));
   els.economieTabMarche.addEventListener("click", () => showEconomieView("marche"));
   els.economieTabPub.addEventListener("click", () => showEconomieView("pub"));
@@ -350,6 +359,20 @@ document.addEventListener("DOMContentLoaded", () => {
   function avatarIconHTML(avatarId, sizeRem) {
     const avatar = AVATARS.find((a) => a.id === avatarId) || AVATARS[0];
     return `<span class="inline-avatar-icon">${bananaIconHTML(BANANAS_BY_ID[avatar.bananaId], sizeRem)}</span>`;
+  }
+
+  // Réservée à la vue "Profil" (celle où cadre + effet + titre + médaille +
+  // banane favorite se combinent) : ailleurs (bouton compte, classement...),
+  // l'avatar reste affiché sans ces habillages, pour rester léger.
+  function profileAvatarWithFrameHTML(banana, sizeRem) {
+    const frameId = state.cosmetics.equippedFrame || "frame_none";
+    const effectId = state.cosmetics.equippedEffect || "effect_none";
+    return `
+      <div class="profile-avatar-frame ${frameId}">
+        <div class="profile-avatar-effect ${effectId}"></div>
+        ${bananaIconHTML(banana, sizeRem)}
+      </div>
+    `;
   }
 
   /* ---------------- Récolte ---------------- */
@@ -999,6 +1022,69 @@ document.addEventListener("DOMContentLoaded", () => {
             renderHeader();
             showQuestToasts(questsDone);
           }
+        }
+      });
+    });
+  }
+
+  /* ---------------- Cosmétiques (cadres, titres, effets de profil) ---------------- */
+
+  function cosmeticCardHTML(item, kind, equippedId) {
+    const owned = isCosmeticOwned(item, state);
+    const equipped = equippedId === item.id;
+    let actionHTML;
+    if (!owned) {
+      if (item.cost != null) {
+        const canBuy = state.coins >= item.cost;
+        actionHTML = `<button class="btn cosmetic-buy-btn" data-kind="${kind}" data-id="${item.id}" ${canBuy ? "" : "disabled"}>🪙 ${item.cost}</button>`;
+      } else {
+        actionHTML = `<span class="cosmetic-locked-hint">🔒 Verrouillé</span>`;
+      }
+    } else if (equipped) {
+      actionHTML = `<span class="cosmetic-equipped-badge">✅ Équipé</span>`;
+    } else {
+      actionHTML = `<button class="btn cosmetic-equip-btn" data-kind="${kind}" data-id="${item.id}">Équiper</button>`;
+    }
+    return `
+      <div class="cosmetic-card ${owned ? "" : "locked"}">
+        <div class="cosmetic-card-name">${item.icon ? item.icon + " " : ""}${item.name}</div>
+        ${item.rarity ? `<div class="cosmetic-card-rarity">${item.rarity}</div>` : ""}
+        ${actionHTML}
+      </div>
+    `;
+  }
+
+  function renderCosmeticsShop() {
+    els.cosmeticFramesList.innerHTML = COSMETIC_FRAMES.map((f) => cosmeticCardHTML(f, "frame", state.cosmetics.equippedFrame)).join("");
+    els.cosmeticEffectsList.innerHTML = COSMETIC_EFFECTS.map((e) => cosmeticCardHTML(e, "effect", state.cosmetics.equippedEffect)).join("");
+
+    const autoTitleCardHTML = `
+      <div class="cosmetic-card">
+        <div class="cosmetic-card-name">🎯 Automatique (titre de niveau)</div>
+        ${state.cosmetics.equippedTitle == null
+          ? `<span class="cosmetic-equipped-badge">✅ Équipé</span>`
+          : `<button class="btn cosmetic-equip-btn" data-kind="title" data-id="">Équiper</button>`}
+      </div>
+    `;
+    els.cosmeticTitlesList.innerHTML = autoTitleCardHTML + COSMETIC_TITLES.map((t) => cosmeticCardHTML(t, "title", state.cosmetics.equippedTitle)).join("");
+
+    els.economieCosmetiquesView.querySelectorAll(".cosmetic-buy-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = buyCosmetic(btn.dataset.id);
+        if (res.ok) {
+          SFX.buy();
+          renderHeader();
+          renderCosmeticsShop();
+        }
+      });
+    });
+    els.economieCosmetiquesView.querySelectorAll(".cosmetic-equip-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = equipCosmetic(btn.dataset.kind, btn.dataset.id || null);
+        if (res.ok) {
+          SFX.click();
+          renderCosmeticsShop();
+          if (!els.accountModal.classList.contains("hidden")) renderAccountModal();
         }
       });
     });
@@ -2674,7 +2760,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function levelPanelHTML() {
     const progress = playerLevelProgress();
-    const title = titleForLevel(progress.level);
+    const title = currentDisplayTitle();
     const xpText = progress.xpForLevel > 0
       ? `${progress.xpIntoLevel} / ${progress.xpForLevel} XP`
       : "Niveau maximum atteint !";
@@ -2764,7 +2850,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="profile-section">
         <h3>🎭 Profil</h3>
         <div class="profile-current">
-          ${bananaIconHTML(BANANAS_BY_ID[currentAvatar().bananaId], 3)}
+          ${profileAvatarWithFrameHTML(BANANAS_BY_ID[currentAvatar().bananaId], 3)}
           <div class="profile-current-name">${displayName}</div>
           ${medalHTML}
         </div>

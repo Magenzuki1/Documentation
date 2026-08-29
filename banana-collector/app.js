@@ -223,6 +223,7 @@ function defaultState() {
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     medals: { unlocked: [] }, // voir MEDALS : conditions volontairement secrètes, jamais affichées au joueur
+    cosmetics: { unlocked: [], equippedFrame: "frame_none", equippedTitle: null, equippedEffect: "effect_none" },
     profile: { avatarId: "av_verte", favoriteBananaId: null }, // null = auto (banane la plus rare possédée)
     prestige: { level: 0 },
     pve: { stage: 0, wins: 0, losses: 0, lossStreak: 0 },
@@ -1339,6 +1340,92 @@ function setFavoriteBanana(bananaId) {
   return { ok: true };
 }
 
+/* ---------------- Cosmétiques (cadres, titres, effets de profil) ----------------
+   Trois catégories librement combinables entre elles (+ médaille + banane
+   favorite, déjà vues plus haut) : cadres autour de l'avatar, titre affiché
+   sur le profil (indépendant du titre de niveau, sauf s'il n'y en a pas
+   d'équipé), effets visuels autour de l'avatar. Certains s'achètent avec des
+   pièces (cost défini), d'autres se débloquent via une condition (unlock). */
+const COSMETIC_FRAMES = [
+  { id: "frame_none", name: "Aucun cadre", rarity: "Commun", cost: 0 },
+  { id: "frame_bronze", name: "Cadre bronze", rarity: "Commun", cost: 500 },
+  { id: "frame_argent", name: "Cadre argent", rarity: "Peu commun", cost: 2000 },
+  { id: "frame_or", name: "Cadre or", rarity: "Rare", cost: 8000 },
+  { id: "frame_epique", name: "Cadre épique", rarity: "Épique", unlock: (s) => s.achievements.unlocked.includes("set_epique") },
+  { id: "frame_legendaire", name: "Cadre légendaire", rarity: "Légendaire", unlock: (s) => (s.prestige.level || 0) >= 1 },
+  { id: "frame_anime", name: "Cadre animé", rarity: "Animé", unlock: (s) => s.medals.unlocked.length >= 3 },
+  { id: "frame_veteran", name: "Cadre vétéran", rarity: "Très rare", unlock: (s) => playerLevel() >= 50 },
+];
+
+const COSMETIC_TITLES = [
+  { id: "title_ami_fruits", name: "Ami des Fruits", cost: 500 },
+  { id: "title_insomniaque", name: "Insomniaque", cost: 1000 },
+  { id: "title_collectionneur_fou", name: "Collectionneur Fou", cost: 3000 },
+  { id: "title_maitre_marche", name: "Maître du Marché", cost: 5000 },
+  { id: "title_bras_casse", name: "Bras Cassé de l'Arène", unlock: (s) => (s.pve.losses || 0) >= 20 },
+  { id: "title_roi_banane", name: "Roi de la Banane", unlock: (s) => (s.prestige.level || 0) >= 3 },
+  { id: "title_veteran_prestige", name: "Vétéran du Prestige", unlock: (s) => (s.prestige.level || 0) >= 5 },
+  { id: "title_chasseur_secrets", name: "Chasseur de Secrets", unlock: (s) => s.achievements.unlocked.includes("secret_half") },
+  { id: "title_machine_jackpot", name: "Machine à Jackpot", unlock: (s) => (s.slotGame.jackpotsHit || 0) >= 1 },
+  { id: "title_legende_vivante", name: "Légende Vivante", unlock: (s) => playerLevel() >= 100 },
+];
+
+const COSMETIC_EFFECTS = [
+  { id: "effect_none", name: "Aucun effet", icon: "🚫", cost: 0 },
+  { id: "effect_sparkle", name: "Étincelles", icon: "✨", cost: 3000 },
+  { id: "effect_stars", name: "Pluie d'étoiles", icon: "⭐", cost: 6000 },
+  { id: "effect_aura", name: "Aura", icon: "🔥", unlock: (s) => s.medals.unlocked.length >= 1 },
+  { id: "effect_spin", name: "Bananes tournantes", icon: "🌀", unlock: (s) => s.achievements.unlocked.includes("banana_level_100") },
+  { id: "effect_rainbow", name: "Halo arc-en-ciel", icon: "🌈", unlock: (s) => (s.prestige.level || 0) >= 10 },
+];
+
+function isCosmeticOwned(item, s) {
+  if (item.cost === 0) return true;
+  if (item.cost != null) return s.cosmetics.unlocked.includes(item.id);
+  return item.unlock ? !!item.unlock(s) : false;
+}
+
+function buyCosmetic(id) {
+  const item = [...COSMETIC_FRAMES, ...COSMETIC_TITLES, ...COSMETIC_EFFECTS].find((c) => c.id === id);
+  if (!item) return { ok: false, reason: "inconnu" };
+  if (item.cost == null) return { ok: false, reason: "non_achetable" };
+  if (state.cosmetics.unlocked.includes(id)) return { ok: false, reason: "deja_possede" };
+  if (state.coins < item.cost) return { ok: false, reason: "pauvre" };
+  state.coins -= item.cost;
+  state.cosmetics.unlocked.push(id);
+  saveState();
+  return { ok: true };
+}
+
+function equipCosmetic(kind, id) {
+  if (kind === "title" && id == null) {
+    state.cosmetics.equippedTitle = null;
+    saveState();
+    return { ok: true };
+  }
+  const list = kind === "frame" ? COSMETIC_FRAMES : kind === "title" ? COSMETIC_TITLES : kind === "effect" ? COSMETIC_EFFECTS : null;
+  if (!list) return { ok: false, reason: "type_inconnu" };
+  const item = list.find((c) => c.id === id);
+  if (!item) return { ok: false, reason: "inconnu" };
+  if (!isCosmeticOwned(item, state)) return { ok: false, reason: "non_possede" };
+  if (kind === "frame") state.cosmetics.equippedFrame = id;
+  else if (kind === "title") state.cosmetics.equippedTitle = id;
+  else state.cosmetics.equippedEffect = id;
+  saveState();
+  return { ok: true };
+}
+
+// Le titre équipé (achetable/débloqué) remplace le titre de niveau sur le
+// profil, tant qu'il reste possédé — sinon le titre de niveau reste le
+// filet de sécurité par défaut (jamais d'affichage vide).
+function currentDisplayTitle() {
+  if (state.cosmetics.equippedTitle) {
+    const t = COSMETIC_TITLES.find((x) => x.id === state.cosmetics.equippedTitle);
+    if (t && isCosmeticOwned(t, state)) return t.name;
+  }
+  return titleForLevel(playerLevel());
+}
+
 /* ---------------- Combat : l'Arène contre les Ananas ---------------- */
 
 // Statistiques d'attaque/défense dérivées de la rareté (+ variation propre
@@ -1629,9 +1716,15 @@ function doPrestige() {
   const newLevel = (state.prestige.level || 0) + 1;
   const keepAchievements = state.achievements;
   const keepMedals = state.medals;
+  const keepCosmetics = state.cosmetics;
   const keepProfile = state.profile;
   const keepSettings = state.settings;
   const keepCloud = state.cloud;
+  // Le niveau du joueur (XP cumulée) est une progression méta permanente, au
+  // même titre que les succès ou les médailles — le remettre à zéro à chaque
+  // Prestige romprait le sens même du système de niveau/titre (viser le
+  // niveau 100 deviendrait impossible dès le premier Prestige).
+  const keepPlayerXp = state.playerXp;
   // Les niveaux de banane (fusion de doublons) sont conservés : les remettre
   // à zéro à chaque Prestige serait trop frustrant pour un joueur qui vient
   // de passer du temps à monter ses bananes en niveau.
@@ -1641,9 +1734,11 @@ function doPrestige() {
   state.prestige.level = newLevel;
   state.achievements = keepAchievements;
   state.medals = keepMedals;
+  state.cosmetics = keepCosmetics;
   state.profile = keepProfile;
   state.settings = keepSettings;
   state.cloud = keepCloud;
+  state.playerXp = keepPlayerXp;
   state.bananaLevels = keepBananaLevels;
   saveState();
   return { ok: true, level: newLevel };
