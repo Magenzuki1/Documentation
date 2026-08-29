@@ -1419,6 +1419,99 @@ const MEDALS = [
 ];
 const MEDALS_BY_ID = Object.fromEntries(MEDALS.map((m) => [m.id, m]));
 
+/* Médailles créées par un admin (voir le panneau admin) : ajoutées EN PLUS
+   de MEDALS ci-dessus, jamais à sa place. La condition secrète est un
+   simple seuil sur une métrique déjà suivie par le jeu — ni code arbitraire,
+   ni description exacte affichée au joueur (publicDesc reste volontairement
+   vague, comme les médailles conçues par le développeur). Toujours un id
+   préfixé "admin_" pour ne jamais entrer en collision avec un id "en dur".
+   Mises en cache dans localStorage et fusionnées au chargement, comme les
+   bananes et quêtes admin. */
+const ADMIN_MEDAL_METRIC_WHITELIST = [
+  "totalRolls", "totalCoinsEarned", "pveWins", "adsWatched", "streakCount",
+  "prestigeLevel", "discoveredCount", "secretDiscoveredCount",
+  "biggestSlotWin", "biggestBjWin", "medalsUnlockedCount",
+];
+const ADMIN_MEDAL_ICON_WHITELIST = [
+  "🏆", "🥇", "🥈", "🥉", "🎖️", "👑", "💎", "🔥", "⭐", "🌟",
+  "🦄", "🐉", "⚡", "🎯", "🧠", "🍀", "👻", "🎩", "🌙", "💫",
+];
+const ADMIN_MEDALS_CACHE_KEY = "banana-collector-admin-medals-v1";
+
+function adminMedalMetricValue(s, metric) {
+  switch (metric) {
+    case "totalRolls": return s.totalRolls;
+    case "totalCoinsEarned": return s.totalCoinsEarned;
+    case "pveWins": return s.pve.wins;
+    case "adsWatched": return s.ads.totalWatched || 0;
+    case "streakCount": return s.streak.count;
+    case "prestigeLevel": return s.prestige.level || 0;
+    case "discoveredCount": return s.discovered.length;
+    case "secretDiscoveredCount": return s.discovered.filter((id) => BANANAS_BY_ID[id]?.secret).length;
+    case "biggestSlotWin": return s.slotGame.biggestWin || 0;
+    case "biggestBjWin": return s.blackjackGame.biggestWin || 0;
+    case "medalsUnlockedCount": return s.medals.unlocked.length;
+    default: return 0;
+  }
+}
+
+function mergeAdminMedals(rows) {
+  const validIds = new Set();
+  for (const row of rows || []) {
+    if (!row || !Number.isInteger(row.id)) continue;
+    if (!ADMIN_MEDAL_METRIC_WHITELIST.includes(row.metric)) continue;
+    if (!ADMIN_MEDAL_ICON_WHITELIST.includes(row.icon)) continue;
+    if (!Number.isFinite(row.threshold) || row.threshold < 1) continue;
+    if (typeof row.name !== "string" || !row.name.trim()) continue;
+    if (typeof row.public_desc !== "string" || !row.public_desc.trim()) continue;
+
+    // Préfixe "medal_" obligatoire : sync_medals() côté serveur valide tout
+    // id de médaille poussé avec ^medal_[a-z0-9_]{1,40}$ avant de l'accepter.
+    const id = `medal_admin_${row.id}`;
+    const medal = {
+      id,
+      icon: row.icon,
+      image: null,
+      name: row.name.trim(),
+      publicDesc: row.public_desc.trim(),
+      check: (s) => adminMedalMetricValue(s, row.metric) >= row.threshold,
+    };
+    const existingIndex = MEDALS.findIndex((m) => m.id === id);
+    if (existingIndex >= 0) {
+      MEDALS[existingIndex] = medal;
+    } else {
+      MEDALS.push(medal);
+    }
+    MEDALS_BY_ID[id] = medal;
+    validIds.add(id);
+  }
+  for (let i = MEDALS.length - 1; i >= 0; i--) {
+    if (MEDALS[i].id.startsWith("medal_admin_") && !validIds.has(MEDALS[i].id)) {
+      delete MEDALS_BY_ID[MEDALS[i].id];
+      MEDALS.splice(i, 1);
+    }
+  }
+}
+
+function loadAdminMedalsCache() {
+  try {
+    const raw = localStorage.getItem(ADMIN_MEDALS_CACHE_KEY);
+    if (raw) mergeAdminMedals(JSON.parse(raw));
+  } catch (e) {
+    // Cache corrompu/absent : on retombe sur les médailles statiques.
+  }
+}
+loadAdminMedalsCache();
+
+function setAdminMedalsCache(rows) {
+  mergeAdminMedals(rows);
+  try {
+    localStorage.setItem(ADMIN_MEDALS_CACHE_KEY, JSON.stringify(rows));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
+}
+
 function checkMedals(context) {
   const unlockedNow = [];
   for (const medal of MEDALS) {

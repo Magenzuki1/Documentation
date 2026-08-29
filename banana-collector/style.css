@@ -2576,6 +2576,17 @@ body {
 .admin-quests-form input[type="text"] { width: 220px; }
 .admin-quests-form input[type="number"] { width: 130px; }
 
+.admin-medals-form { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.admin-medals-form input, .admin-medals-form select {
+  font-family: inherit;
+  font-size: 0.85rem;
+  border: 2px solid #f0dfa8;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.admin-medals-form input[type="text"] { width: 200px; }
+.admin-medals-form input[type="number"] { width: 130px; }
+
 .activity-feed-announcement {
   background: #fff3d6;
   border: 2px solid var(--accent);
