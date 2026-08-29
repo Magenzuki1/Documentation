@@ -288,11 +288,22 @@ const CLOUD = (() => {
     return error || !data ? null : data;
   }
 
-  async function adminCreateMedal(name, icon, publicDesc, metric, threshold, reward) {
+  // opts: { name, icon, publicDesc, reward, conditionType, metric, threshold,
+  //         eventType, startHour, endHour } — les champs non pertinents pour
+  // le conditionType choisi peuvent être omis (le serveur les valide).
+  async function adminCreateMedal(opts) {
     if (!supabase) return unavailable;
     const { data, error } = await supabase.rpc("admin_create_medal", {
-      p_name: name, p_icon: icon, p_public_desc: publicDesc, p_metric: metric, p_threshold: threshold,
-      p_reward: reward || null,
+      p_name: opts.name,
+      p_icon: opts.icon,
+      p_public_desc: opts.publicDesc,
+      p_condition_type: opts.conditionType || "counter",
+      p_metric: opts.metric || null,
+      p_threshold: opts.threshold || null,
+      p_event_type: opts.eventType || null,
+      p_start_hour: opts.startHour != null ? opts.startHour : null,
+      p_end_hour: opts.endHour != null ? opts.endHour : null,
+      p_reward: opts.reward || null,
     });
     if (error) return { ok: false, reason: error.message };
     return { ok: true, id: data };

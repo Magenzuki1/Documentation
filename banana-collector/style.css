@@ -2929,6 +2929,7 @@ h1, h2, h3,
 }
 .admin-medals-form input[type="text"] { width: 200px; }
 .admin-medals-form input[type="number"] { width: 130px; }
+.admin-medal-condition-fields { display: contents; }
 
 .admin-rewards-form { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .admin-rewards-form select, .admin-rewards-form input {

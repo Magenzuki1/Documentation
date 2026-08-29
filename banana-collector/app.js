@@ -1472,6 +1472,12 @@ const ADMIN_MEDAL_ICON_WHITELIST = [
   "🏆", "🥇", "🥈", "🥉", "🎖️", "👑", "💎", "🔥", "⭐", "🌟",
   "🦄", "🐉", "⚡", "🎯", "🧠", "🍀", "👻", "🎩", "🌙", "💫",
 ];
+const ADMIN_MEDAL_CONDITION_TYPES = ["counter", "hour_window"];
+// Points d'entrée où checkMedals() reçoit un eventType — voir les appels
+// dans ui.js (récolte, machine à sous, black jack, arène, prestige).
+const ADMIN_MEDAL_EVENT_TYPE_WHITELIST = [
+  "banana_roll", "slot_win", "slot_bonus_prize", "blackjack_win", "arena_win", "prestige",
+];
 const ADMIN_MEDALS_CACHE_KEY = "banana-collector-admin-medals-v1";
 
 function adminMedalMetricValue(s, metric) {
@@ -1496,12 +1502,36 @@ function mergeAdminMedals(rows) {
   const validIds = new Set();
   for (const row of rows || []) {
     if (!row || !Number.isInteger(row.id)) continue;
-    if (!ADMIN_MEDAL_METRIC_WHITELIST.includes(row.metric)) continue;
     if (!ADMIN_MEDAL_ICON_WHITELIST.includes(row.icon)) continue;
-    if (!Number.isFinite(row.threshold) || row.threshold < 1) continue;
     if (typeof row.name !== "string" || !row.name.trim()) continue;
     if (typeof row.public_desc !== "string" || !row.public_desc.trim()) continue;
+    const conditionType = ADMIN_MEDAL_CONDITION_TYPES.includes(row.condition_type) ? row.condition_type : "counter";
     const reward = Number.isFinite(row.reward) && row.reward > 0 ? Math.round(row.reward) : 0;
+
+    let check;
+    if (conditionType === "hour_window") {
+      if (!ADMIN_MEDAL_EVENT_TYPE_WHITELIST.includes(row.event_type)) continue;
+      if (!Number.isInteger(row.start_hour) || row.start_hour < 0 || row.start_hour > 23) continue;
+      if (!Number.isInteger(row.end_hour) || row.end_hour < 0 || row.end_hour > 23) continue;
+      const eventType = row.event_type;
+      const startHour = row.start_hour;
+      const endHour = row.end_hour;
+      // Fenêtre horaire avec repli sur l'heure locale de l'appareil (comme
+      // les médailles développeur type medal_ghost/medal_sleepwalker) ;
+      // gère aussi les plages qui traversent minuit (ex: 22h -> 3h).
+      check = (s, ctx) => {
+        if (!ctx || ctx.eventType !== eventType || ctx.hourNow == null) return false;
+        return startHour <= endHour
+          ? ctx.hourNow >= startHour && ctx.hourNow < endHour
+          : ctx.hourNow >= startHour || ctx.hourNow < endHour;
+      };
+    } else {
+      if (!ADMIN_MEDAL_METRIC_WHITELIST.includes(row.metric)) continue;
+      if (!Number.isFinite(row.threshold) || row.threshold < 1) continue;
+      const metric = row.metric;
+      const threshold = row.threshold;
+      check = (s) => adminMedalMetricValue(s, metric) >= threshold;
+    }
 
     // Préfixe "medal_" obligatoire : sync_medals() côté serveur valide tout
     // id de médaille poussé avec ^medal_[a-z0-9_]{1,40}$ avant de l'accepter.
@@ -1513,7 +1543,7 @@ function mergeAdminMedals(rows) {
       name: row.name.trim(),
       publicDesc: row.public_desc.trim(),
       reward,
-      check: (s) => adminMedalMetricValue(s, row.metric) >= row.threshold,
+      check,
     };
     const existingIndex = MEDALS.findIndex((m) => m.id === id);
     if (existingIndex >= 0) {
