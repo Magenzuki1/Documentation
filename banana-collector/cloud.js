@@ -302,8 +302,20 @@ const CLOUD = (() => {
     if (!error) lastPushedPveSnapshot = snapshotKey;
   }
 
+  // Pousse la banane favorite et les médailles en une fois — utile en plus
+  // des mises à jour ponctuelles (voir ui.js) pour couvrir le cas d'un
+  // joueur qui avait déjà des médailles/une favorite en local avant même de
+  // lier un compte cloud pour la première fois.
+  async function pushShowcase() {
+    if (!isLinked()) return;
+    await Promise.all([
+      setFavoriteBananaCloud(state.profile.favoriteBananaId),
+      syncMedals(state.medals.unlocked),
+    ]);
+  }
+
   async function pushAll() {
-    await Promise.all([pushBalance(), pushBananas(), pushPve()]);
+    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase()]);
   }
 
   // Le bouton "Réinitialiser la sauvegarde" ne touchait que le local — un
@@ -361,6 +373,33 @@ const CLOUD = (() => {
     const { error } = await supabase.rpc("set_avatar", { p_avatar_id: avatarId });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
+  }
+
+  /* ---------------- Vitrine publique (banane favorite + médailles) ----------------
+     Comme l'avatar : la banane favorite et les médailles sont d'abord des
+     champs locaux (app.js), poussés vers le profil public pour que les
+     autres joueurs puissent consulter la vitrine (voir getPlayerShowcase). */
+  async function setFavoriteBananaCloud(bananaId) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("set_favorite_banana", { p_banana_id: bananaId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function syncMedals(medalIds) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("sync_medals", { p_medal_ids: medalIds || [] });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  // Lecture publique par pseudo (comme le classement) : ne nécessite aucun
+  // compte pour être consultée. Retourne null si le joueur n'existe pas, est
+  // banni, ou en cas d'erreur réseau.
+  async function fetchPlayerShowcase(username) {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("get_player_showcase", { p_username: username });
+    return error || !data || data.length === 0 ? null : data[0];
   }
 
   /* ---------------- Marché ---------------- */
@@ -573,6 +612,9 @@ const CLOUD = (() => {
     publishNotableEvent,
     fetchRecentNotableEvents,
     setAvatar,
+    setFavoriteBananaCloud,
+    syncMedals,
+    fetchPlayerShowcase,
     fetchActiveListings,
     fetchMyListings,
     createListing,

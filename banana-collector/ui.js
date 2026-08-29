@@ -105,6 +105,9 @@ document.addEventListener("DOMContentLoaded", () => {
     accountModal: document.getElementById("account-modal"),
     accountModalContent: document.getElementById("account-modal-content"),
     accountModalClose: document.getElementById("account-modal-close"),
+    publicShowcaseModal: document.getElementById("public-showcase-modal"),
+    publicShowcaseContent: document.getElementById("public-showcase-content"),
+    publicShowcaseClose: document.getElementById("public-showcase-close"),
     adminModal: document.getElementById("admin-modal"),
     adminModalClose: document.getElementById("admin-modal-close"),
     adminTabPlayers: document.getElementById("admin-tab-players"),
@@ -362,6 +365,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function avatarIconHTML(avatarId, sizeRem) {
     const avatar = AVATARS.find((a) => a.id === avatarId) || AVATARS[0];
     return `<span class="inline-avatar-icon">${bananaIconHTML(BANANAS_BY_ID[avatar.bananaId], sizeRem)}</span>`;
+  }
+
+  // Pseudo cliquable d'un AUTRE joueur (classement, marché, arène PVP, fil
+  // d'actualité) : ouvre sa vitrine publique. Jamais utilisé pour son propre
+  // pseudo (le bouton "Compte" ouvre déjà son propre profil complet).
+  function clickableUsernameHTML(username) {
+    return `<span class="clickable-username" data-username="${username}">${username}</span>`;
   }
 
   // Réservée à la vue "Profil" (celle où cadre + effet + titre + médaille +
@@ -624,6 +634,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // l'instant", donc pas de publication dans le fil d'actualité.
       if (playSound) publishNotableEvent("medal_unlocked", { medalName: medal.name, medalIcon: medal.icon });
     });
+    if (medals.length > 0 && CLOUD.available && CLOUD.isLinked()) {
+      CLOUD.syncMedals(state.medals.unlocked);
+    }
   }
 
   function showQuestToasts(quests, playSound = true) {
@@ -1183,7 +1196,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="market-listing-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         ${bananaIconHTML(banana, 2.2)}
         <div class="banana-name">${banana.name}</div>
-        ${mode === "buy" ? `<div class="market-listing-seller">par ${avatarIconHTML(listing.sellerAvatarId, 1.1)} ${listing.sellerUsername}</div>` : ""}
+        ${mode === "buy" ? `<div class="market-listing-seller">par ${avatarIconHTML(listing.sellerAvatarId, 1.1)} ${clickableUsernameHTML(listing.sellerUsername)}</div>` : ""}
         <div class="market-listing-qty">x${listing.quantity}</div>
         <div class="market-listing-price">🪙 ${listing.unit_price} / unité</div>
         ${mode === "sell" ? `<div class="market-listing-status ${listing.status}">${statusLabel}</div>` : ""}
@@ -2532,7 +2545,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pvpOpponentCard.classList.remove("hidden");
     els.pvpAttackBtn.classList.remove("hidden");
     els.pvpOpponentCard.innerHTML = `
-      <div class="pvp-opponent-name">${avatarIconHTML(pvpOpponent.avatarId, 1.4)} ${pvpOpponent.username}</div>
+      <div class="pvp-opponent-name">${avatarIconHTML(pvpOpponent.avatarId, 1.4)} ${clickableUsernameHTML(pvpOpponent.username)}</div>
       <div class="pvp-opponent-power">Puissance totale : ${pvpOpponent.power}</div>
     `;
   }
@@ -2660,7 +2673,7 @@ document.addEventListener("DOMContentLoaded", () => {
      les seuils/limites côté Supabase) pour ne jamais devenir un flux spam. */
 
   function notableEventMessage(ev) {
-    const u = ev.username;
+    const u = clickableUsernameHTML(ev.username);
     const p = ev.payload || {};
     switch (ev.event_type) {
       case "legendary_pull":
@@ -2809,7 +2822,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ${sorted.map((r, i) => `
             <tr class="${r.username === myUsername ? "leaderboard-me" : ""}">
               <td>${i + 1}</td>
-              <td class="leaderboard-player-cell">${avatarIconHTML(r.avatar_id, 1.3)} ${r.username}</td>
+              <td class="leaderboard-player-cell">${avatarIconHTML(r.avatar_id, 1.3)} ${clickableUsernameHTML(r.username)}</td>
               ${cfg.columns.map((c) => `<td>${c.value(r)}</td>`).join("")}
             </tr>
           `).join("")}
@@ -2835,6 +2848,70 @@ document.addEventListener("DOMContentLoaded", () => {
   function closeAccountModal() {
     els.accountModal.classList.add("hidden");
   }
+
+  /* ---------------- Vitrine publique d'un autre joueur ----------------
+     Ouverte en cliquant le pseudo de n'importe quel joueur (classement,
+     marché, arène PVP, fil d'actualité) — voir clickableUsernameHTML() et le
+     listener délégué plus bas. Volontairement minimal, comme demandé : la
+     vitrine (banane favorite + médailles, identique à la sienne) et une
+     seule statistique, le nombre de bananes possédées. */
+  function closePublicShowcase() {
+    els.publicShowcaseModal.classList.add("hidden");
+  }
+
+  async function openPublicShowcase(username) {
+    els.publicShowcaseContent.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    els.publicShowcaseModal.classList.remove("hidden");
+
+    const showcase = CLOUD.available ? await CLOUD.fetchPlayerShowcase(username) : null;
+    if (!showcase) {
+      els.publicShowcaseContent.innerHTML = `
+        <div class="profile-section">
+          <h3>🎭 ${username}</h3>
+          <p class="secret-hint">Profil introuvable ou indisponible pour le moment.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const favorite = showcase.favorite_banana_id != null ? BANANAS_BY_ID[showcase.favorite_banana_id] : null;
+    const favoriteHTML = favorite
+      ? `${bananaIconHTML(favorite, 3)}<div class="showcase-favorite-name">${favorite.name}</div>`
+      : `<div class="showcase-favorite-empty">🍌<div>Aucune banane</div></div>`;
+    const medalIds = (showcase.medals || []).slice(-3).reverse();
+    const medalSlotsHTML = [0, 1, 2].map((i) => {
+      const medal = medalIds[i] ? MEDALS_BY_ID[medalIds[i]] : null;
+      return medal
+        ? `<div class="showcase-medal" title="${medal.name} — ${medal.publicDesc}">${medal.icon}</div>`
+        : `<div class="showcase-medal showcase-medal-empty">?</div>`;
+    }).join("");
+
+    els.publicShowcaseContent.innerHTML = `
+      <div class="profile-section">
+        <h3>🎭 ${avatarIconHTML(showcase.avatar_id, 1.3)} ${showcase.username}</h3>
+        <div class="showcase-section">
+          <h4>🌟 Vitrine</h4>
+          <div class="showcase-row">
+            <div class="showcase-favorite">${favoriteHTML}</div>
+            <div class="showcase-medals">${medalSlotsHTML}</div>
+          </div>
+        </div>
+        <div class="profile-level-panel">
+          <div class="profile-level-title">🍌 ${showcase.banana_count} banane${showcase.banana_count > 1 ? "s" : ""} au total</div>
+        </div>
+      </div>
+    `;
+  }
+
+  els.publicShowcaseClose.addEventListener("click", closePublicShowcase);
+  els.publicShowcaseModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.publicShowcaseModal) closePublicShowcase();
+  });
+
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest(".clickable-username");
+    if (el) openPublicShowcase(el.dataset.username);
+  });
 
   /* ---------------- Profil & avatars ---------------- */
 
@@ -2990,6 +3067,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         SFX.click();
         renderAccountModal();
+        if (CLOUD.available && CLOUD.isLinked()) {
+          CLOUD.setFavoriteBananaCloud(val === "" ? null : Number(val));
+        }
       });
     }
     container.querySelectorAll(".profile-avatar-option:not(.locked)").forEach((btn) => {
