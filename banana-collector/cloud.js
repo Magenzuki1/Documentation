@@ -780,6 +780,116 @@ const CLOUD = (() => {
     await supabase.rpc("mark_listings_seen", { p_ids: ids });
   }
 
+  /* ---------------- Marché : demandes (buy orders) ----------------
+     Un joueur qui manque de peu d'une banane peut annoncer combien de
+     pièces il offre par exemplaire ; un autre joueur peut la lui vendre
+     directement. Les pièces sont mises en dépôt dès la création (voir
+     create_banana_request côté serveur), remboursées si annulée. */
+
+  // Demandes actives de tout le monde à combler — même principe que
+  // fetchActiveListings : le pseudo du demandeur est récupéré séparément
+  // via la vue publique (pas d'embedding PostgREST sur une vue).
+  async function fetchActiveRequests() {
+    if (!supabase) return [];
+    const { data: requests, error } = await supabase
+      .from("banana_requests")
+      .select("id, requester_id, banana_id, quantity, unit_price, created_at")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error || !requests) return [];
+
+    const requesterIds = [...new Set(requests.map((r) => r.requester_id))];
+    let profilesById = {};
+    if (requesterIds.length > 0) {
+      const { data: profiles } = await supabase.from("public_profiles").select("id, username, avatar_id").in("id", requesterIds);
+      if (profiles) profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    }
+    return requests.map((r) => ({
+      ...r,
+      requesterUsername: profilesById[r.requester_id]?.username || "?",
+      requesterAvatarId: profilesById[r.requester_id]?.avatar_id || null,
+    }));
+  }
+
+  // Historique complet (actives/comblées/annulées) des demandes du joueur
+  // connecté. original_quantity conserve le total initial de la demande —
+  // quantity retombe à 0 une fois comblée/annulée (c'est le champ "combien
+  // reste-t-il à combler"), donc c'est original_quantity qu'il faut
+  // afficher pour une demande qui n'est plus active.
+  async function fetchMyRequests() {
+    if (!supabase || !isLinked() || !cachedUserId) return [];
+    const { data, error } = await supabase
+      .from("banana_requests")
+      .select("id, banana_id, quantity, original_quantity, unit_price, status, created_at")
+      .eq("requester_id", cachedUserId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    return error || !data ? [] : data;
+  }
+
+  async function createBananaRequest(bananaId, quantity, unitPrice) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("create_banana_request", {
+      p_banana_id: bananaId,
+      p_quantity: quantity,
+      p_unit_price: unitPrice,
+    });
+    if (error) return { ok: false, reason: error.message };
+    const row = data && data[0];
+    return { ok: true, requestId: row ? row.request_id : null, newCoins: row ? Number(row.new_coins) : null };
+  }
+
+  async function cancelBananaRequest(requestId) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("cancel_banana_request", { p_request_id: requestId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, newCoins: data && data[0] ? Number(data[0].new_coins) : null };
+  }
+
+  async function fulfillBananaRequest(requestId, quantityOffered) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("fulfill_banana_request", {
+      p_request_id: requestId,
+      p_quantity_offered: quantityOffered,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, newCoins: data && data[0] ? Number(data[0].new_coins) : null };
+  }
+
+  // Demandes comblées pas encore consultées (côté demandeur) — même
+  // principe que fetchUnseenSales. quantity:original_quantity car quantity
+  // est déjà retombé à 0 (voir fetchMyRequests ci-dessus).
+  async function fetchUnseenFulfilledRequests() {
+    if (!supabase || !isLinked() || !cachedUserId) return [];
+    const { data, error } = await supabase
+      .from("banana_requests")
+      .select("id, banana_id, quantity:original_quantity, unit_price, fulfiller_id, fulfilled_at")
+      .eq("requester_id", cachedUserId)
+      .eq("status", "fulfilled")
+      .eq("seen_by_requester", false)
+      .order("fulfilled_at", { ascending: true })
+      .limit(50);
+    if (error || !data || data.length === 0) return [];
+
+    const fulfillerIds = [...new Set(data.map((r) => r.fulfiller_id))];
+    let profilesById = {};
+    if (fulfillerIds.length > 0) {
+      const { data: profiles } = await supabase.from("public_profiles").select("id, username, avatar_id").in("id", fulfillerIds);
+      if (profiles) profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    }
+    return data.map((r) => ({
+      ...r,
+      fulfillerUsername: profilesById[r.fulfiller_id]?.username || "?",
+      fulfillerAvatarId: profilesById[r.fulfiller_id]?.avatar_id || null,
+    }));
+  }
+
+  async function markRequestsSeen(ids) {
+    if (!supabase || ids.length === 0) return;
+    await supabase.rpc("mark_requests_seen", { p_ids: ids });
+  }
+
   /* ---------------- Arène PVP ---------------- */
 
   async function setDefenseTeam(bananaIds) {
@@ -976,6 +1086,13 @@ const CLOUD = (() => {
     buyListing,
     fetchUnseenSales,
     markListingsSeen,
+    fetchActiveRequests,
+    fetchMyRequests,
+    createBananaRequest,
+    cancelBananaRequest,
+    fulfillBananaRequest,
+    fetchUnseenFulfilledRequests,
+    markRequestsSeen,
     setDefenseTeam,
     fetchMyDefenseTeam,
     findOpponent,

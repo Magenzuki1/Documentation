@@ -224,6 +224,15 @@ document.addEventListener("DOMContentLoaded", () => {
     marketSellSubmitBtn: document.getElementById("market-sell-submit-btn"),
     marketSellError: document.getElementById("market-sell-error"),
     marketMyListings: document.getElementById("market-my-listings"),
+    marketTabRequests: document.getElementById("market-tab-requests"),
+    marketRequestsView: document.getElementById("market-requests-view"),
+    marketRequestPicker: document.getElementById("market-request-picker"),
+    marketRequestQuantity: document.getElementById("market-request-quantity"),
+    marketRequestPrice: document.getElementById("market-request-price"),
+    marketRequestSubmitBtn: document.getElementById("market-request-submit-btn"),
+    marketRequestError: document.getElementById("market-request-error"),
+    marketOpenRequests: document.getElementById("market-open-requests"),
+    marketMyRequests: document.getElementById("market-my-requests"),
     combatTabSolo: document.getElementById("combat-tab-solo"),
     combatTabPvp: document.getElementById("combat-tab-pvp"),
     combatSoloView: document.getElementById("combat-solo-view"),
@@ -1347,7 +1356,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Marché ---------------- */
 
-  let marketView = "buy"; // "buy" | "sell"
+  let marketView = "buy"; // "buy" | "sell" | "requests"
   let marketSelectedBananaId = null;
 
   function sellableBananas() {
@@ -1486,13 +1495,19 @@ document.addEventListener("DOMContentLoaded", () => {
     marketView = view;
     els.marketTabBuy.classList.toggle("active", view === "buy");
     els.marketTabSell.classList.toggle("active", view === "sell");
+    els.marketTabRequests.classList.toggle("active", view === "requests");
     els.marketBuyView.classList.toggle("hidden", view !== "buy");
     els.marketSellView.classList.toggle("hidden", view !== "sell");
+    els.marketRequestsView.classList.toggle("hidden", view !== "requests");
     if (view === "buy") {
       renderMarketBuyView();
-    } else {
+    } else if (view === "sell") {
       renderMarketSellPicker();
       renderMarketMyListings();
+    } else {
+      renderMarketRequestPicker();
+      renderMarketOpenRequests();
+      renderMarketMyRequests();
     }
   }
 
@@ -1513,6 +1528,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.marketTabBuy.addEventListener("click", () => showMarketView("buy"));
   els.marketTabSell.addEventListener("click", () => showMarketView("sell"));
+  els.marketTabRequests.addEventListener("click", () => showMarketView("requests"));
 
   els.marketSellSubmitBtn.addEventListener("click", async () => {
     els.marketSellError.textContent = "";
@@ -1555,6 +1571,187 @@ document.addEventListener("DOMContentLoaded", () => {
     els.marketSellPrice.value = "";
     renderMarketSellPicker();
     renderMarketMyListings();
+    CLOUD.scheduleSync();
+  });
+
+  /* ---------------- Marché : demandes (buy orders) ---------------- */
+
+  // Contrairement à sellableBananas(), pas de filtre sur le nombre possédé :
+  // on peut demander une banane qu'on n'a plus (ou pas assez de doublons)
+  // tant qu'on l'a déjà découverte — c'est tout l'intérêt de la demande.
+  function requestableBananas() {
+    return state.discovered
+      .map((id) => BANANAS_BY_ID[id])
+      .sort((a, b) => rarityIndex(b.rarity) - rarityIndex(a.rarity) || b.value - a.value);
+  }
+
+  let marketRequestSelectedBananaId = null;
+
+  function renderMarketRequestPicker() {
+    const options = requestableBananas();
+    if (options.length === 0) {
+      els.marketRequestPicker.innerHTML = `<p class="secret-hint">Découvre des bananes avant de pouvoir en demander !</p>`;
+      marketRequestSelectedBananaId = null;
+      return;
+    }
+    if (!marketRequestSelectedBananaId || !options.some((b) => b.id === marketRequestSelectedBananaId)) {
+      marketRequestSelectedBananaId = options[0].id;
+    }
+    els.marketRequestPicker.innerHTML = options.map((b) => {
+      const selected = b.id === marketRequestSelectedBananaId;
+      return `
+        <button class="market-sell-option ${selected ? "selected" : ""}" data-id="${b.id}" title="${b.name}">
+          ${bananaIconHTML(b, 2)}
+          <span class="market-sell-option-count">x${state.counts[b.id] || 0}</span>
+        </button>
+      `;
+    }).join("");
+    els.marketRequestPicker.querySelectorAll(".market-sell-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        marketRequestSelectedBananaId = Number(btn.dataset.id);
+        renderMarketRequestPicker();
+      });
+    });
+  }
+
+  // mode "open" : demande d'un autre joueur, avec un bouton pour la combler
+  // en totalité (comme le bouton "Acheter tout" côté annonces — pas de
+  // saisie de quantité partielle, pour rester simple). mode "mine" : sa
+  // propre demande, avec un bouton d'annulation tant qu'elle est ouverte.
+  function marketRequestCardHTML(request, mode) {
+    const banana = BANANAS_BY_ID[request.banana_id];
+    if (!banana) return "";
+    const rarity = RARITIES[banana.rarity];
+    // Comme sold_quantity pour les annonces : quantity retombe à 0 une fois
+    // comblée, original_quantity garde le total initial à afficher.
+    const displayQty = request.status !== "active" ? (request.original_quantity ?? request.quantity) : request.quantity;
+    const total = displayQty * request.unit_price;
+    const statusLabel = request.status === "active" ? "Ouverte" : request.status === "fulfilled" ? "Comblée" : "Annulée";
+    const owned = state.counts[request.banana_id] || 0;
+    const canFulfill = mode === "open" && owned >= request.quantity;
+    return `
+      <div class="market-listing-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        ${bananaIconHTML(banana, 2.2)}
+        <div class="banana-name">${banana.name}</div>
+        ${mode === "open" ? `<div class="market-listing-seller">par ${avatarIconHTML(request.requesterAvatarId, 1.1)} ${clickableUsernameHTML(request.requesterUsername)}</div>` : ""}
+        <div class="market-listing-qty">x${displayQty}</div>
+        <div class="market-listing-price">🪙 ${request.unit_price} / unité</div>
+        ${mode === "mine" ? `<div class="market-listing-status ${request.status}">${statusLabel}</div>` : ""}
+        ${mode === "open" ? `<button class="btn market-buy-btn" data-request="${request.id}" data-qty="${request.quantity}" data-banana="${request.banana_id}" ${canFulfill ? "" : "disabled"}>${canFulfill ? `🪙 Vendre tout (+${total})` : `Il te manque ${request.quantity - owned}`}</button>` : ""}
+        ${mode === "mine" && request.status === "active" ? `<button class="btn danger market-cancel-btn" data-request="${request.id}">Annuler</button>` : ""}
+      </div>
+    `;
+  }
+
+  async function renderMarketOpenRequests() {
+    els.marketOpenRequests.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    const requests = await CLOUD.fetchActiveRequests();
+    const others = requests.filter((r) => r.requester_id !== CLOUD.currentUserId());
+    if (others.length === 0) {
+      els.marketOpenRequests.innerHTML = `<p class="secret-hint">Aucune demande ouverte pour le moment.</p>`;
+      return;
+    }
+    els.marketOpenRequests.innerHTML = others.map((r) => marketRequestCardHTML(r, "open")).join("");
+    els.marketOpenRequests.querySelectorAll(".market-buy-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "⏳...";
+        const requestId = btn.dataset.request;
+        const qty = Number(btn.dataset.qty);
+        const bananaId = Number(btn.dataset.banana);
+        const result = await CLOUD.fulfillBananaRequest(requestId, qty);
+        if (!result.ok) {
+          showBanner("❌ Vente impossible", { emoji: "🚫", name: result.reason || "Erreur" }, 1800);
+          renderMarketOpenRequests();
+          return;
+        }
+        state.counts[bananaId] -= qty;
+        if (result.newCoins != null) state.coins = result.newCoins;
+        grantXp(6);
+        saveState();
+        SFX.buy();
+        renderHeader();
+        showBanner("🙋 DEMANDE COMBLÉE !", { emoji: "🪙", name: `${BANANAS_BY_ID[bananaId].name} x${qty}` }, 1800);
+        CLOUD.scheduleSync();
+        renderMarketOpenRequests();
+      });
+    });
+  }
+
+  async function renderMarketMyRequests() {
+    els.marketMyRequests.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    // Comme pour les annonces annulées, on ne garde pas les demandes
+    // annulées à l'affichage — leur remboursement est déjà acté côté pièces.
+    const requests = (await CLOUD.fetchMyRequests()).filter((r) => r.status !== "cancelled");
+    if (requests.length === 0) {
+      els.marketMyRequests.innerHTML = `<p class="secret-hint">Tu n'as pas encore de demande.</p>`;
+    } else {
+      els.marketMyRequests.innerHTML = requests.map((r) => marketRequestCardHTML(r, "mine")).join("");
+      els.marketMyRequests.querySelectorAll(".market-cancel-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          const requestId = btn.dataset.request;
+          const result = await CLOUD.cancelBananaRequest(requestId);
+          if (!result.ok) {
+            showBanner("❌ Impossible d'annuler", { emoji: "🚫", name: result.reason || "Erreur" }, 1800);
+            btn.disabled = false;
+            return;
+          }
+          if (result.newCoins != null) state.coins = result.newCoins;
+          saveState();
+          renderHeader();
+          renderMarketMyRequests();
+          CLOUD.scheduleSync();
+        });
+      });
+    }
+    // Le joueur vient de consulter "Mes demandes" — inutile de garder
+    // l'alerte du toast active après ce passage (même principe que
+    // renderMarketMyListings côté annonces).
+    const unseenFulfilled = await CLOUD.fetchUnseenFulfilledRequests();
+    if (unseenFulfilled.length > 0) CLOUD.markRequestsSeen(unseenFulfilled.map((r) => r.id));
+  }
+
+  els.marketRequestSubmitBtn.addEventListener("click", async () => {
+    els.marketRequestError.textContent = "";
+    if (!marketRequestSelectedBananaId) {
+      els.marketRequestError.textContent = "Choisis une banane à demander.";
+      return;
+    }
+    const quantity = Math.floor(Number(els.marketRequestQuantity.value));
+    const price = Math.floor(Number(els.marketRequestPrice.value));
+    if (!quantity || quantity <= 0) {
+      els.marketRequestError.textContent = "Quantité invalide.";
+      return;
+    }
+    if (!price || price <= 0) {
+      els.marketRequestError.textContent = "Prix invalide.";
+      return;
+    }
+    const total = quantity * price;
+    if (total > state.coins) {
+      els.marketRequestError.textContent = `Il te faut 🪙 ${total} (tu as ${state.coins}).`;
+      return;
+    }
+
+    els.marketRequestSubmitBtn.disabled = true;
+    els.marketRequestSubmitBtn.textContent = "⏳...";
+    const result = await CLOUD.createBananaRequest(marketRequestSelectedBananaId, quantity, price);
+    els.marketRequestSubmitBtn.disabled = false;
+    els.marketRequestSubmitBtn.textContent = "Faire une demande";
+
+    if (!result.ok) {
+      els.marketRequestError.textContent = result.reason || "Impossible de créer la demande.";
+      return;
+    }
+
+    if (result.newCoins != null) state.coins = result.newCoins;
+    saveState();
+    SFX.buy();
+    renderHeader();
+    els.marketRequestQuantity.value = "";
+    els.marketRequestPrice.value = "";
+    renderMarketMyRequests();
     CLOUD.scheduleSync();
   });
 
@@ -2827,6 +3024,29 @@ document.addEventListener("DOMContentLoaded", () => {
       showMarketNotifyToast(
         "🏪 Marché",
         `${sales.length} ventes conclues pendant ton absence — +${totalCoins} 🪙`
+      );
+    }
+  }
+
+  // Même principe côté demandes : signale qu'une demande a été entièrement
+  // comblée pendant l'absence du joueur. Ne marque jamais les demandes
+  // comme vues elle-même — c'est renderMarketMyRequests ("Mes demandes"),
+  // consulté naturellement pour voir le statut "Comblée", qui s'en charge.
+  async function checkRequestFulfilledNotifications() {
+    if (!CLOUD.available || !CLOUD.isLinked()) return;
+    const fulfilled = await CLOUD.fetchUnseenFulfilledRequests();
+    if (fulfilled.length === 0) return;
+    if (fulfilled.length === 1) {
+      const r = fulfilled[0];
+      const banana = BANANAS_BY_ID[r.banana_id];
+      showMarketNotifyToast(
+        "🙋 Demande comblée",
+        `${banana ? banana.name : "Banane"} x${r.quantity} livrée par ${r.fulfillerUsername} !`
+      );
+    } else {
+      showMarketNotifyToast(
+        "🙋 Marché",
+        `${fulfilled.length} demandes comblées pendant ton absence !`
       );
     }
   }
@@ -4919,6 +5139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshAllSupportBadges();
     checkPvpAttackNotifications();
     checkMarketSaleNotifications();
+    checkRequestFulfilledNotifications();
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });
