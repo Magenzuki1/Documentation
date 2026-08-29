@@ -1354,6 +1354,27 @@ document.addEventListener("DOMContentLoaded", () => {
     renderQuestList(els.permanentQuestsList, permanentQuestsView());
   }
 
+  // Toute action Marché (vente, achat, demande créée/comblée...) fait
+  // progresser les succès/quêtes dédiés — comme les actions purement
+  // locales (buyUpgrade...), mais depuis ui.js puisque ces actions sont
+  // asynchrones/passent par le serveur (voir cloud.js) plutôt que par une
+  // fonction pure d'app.js.
+  function afterMarketAction(marketKey, questKey) {
+    state.market[marketKey] = (state.market[marketKey] || 0) + 1;
+    if (questKey) bumpQuestProgress(questKey);
+    saveState();
+    const unlocked = checkAchievements();
+    if (unlocked.length > 0) {
+      renderHeader();
+      showAchievementToasts(unlocked);
+    }
+    const questsDone = checkQuests();
+    if (questsDone.length > 0) {
+      renderHeader();
+      showQuestToasts(questsDone);
+    }
+  }
+
   /* ---------------- Marché ---------------- */
 
   let marketView = "buy"; // "buy" | "sell" | "requests"
@@ -1448,6 +1469,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderHeader();
         spawnConfetti(10);
         showBanner("🛍️ ACHAT RÉUSSI !", { emoji: "🪙", name: `${BANANAS_BY_ID[bananaId].name} x${qty}` }, 1800);
+        afterMarketAction("purchases", "marketBuy");
         CLOUD.scheduleSync();
         renderMarketBuyView();
       });
@@ -1488,7 +1510,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // "Vendue" pour chaque annonce écoulée — inutile de garder l'alerte du
     // toast active après ce passage, même s'il n'a jamais cliqué dessus.
     const unseenSales = await CLOUD.fetchUnseenSales();
-    if (unseenSales.length > 0) CLOUD.markListingsSeen(unseenSales.map((s) => s.id));
+    if (unseenSales.length > 0) {
+      CLOUD.markListingsSeen(unseenSales.map((s) => s.id));
+      for (let i = 0; i < unseenSales.length; i++) afterMarketAction("itemsSold", null);
+    }
   }
 
   function showMarketView(view) {
@@ -1569,6 +1594,7 @@ document.addEventListener("DOMContentLoaded", () => {
     SFX.buy();
     els.marketSellQuantity.value = "";
     els.marketSellPrice.value = "";
+    afterMarketAction("listingsCreated", "marketSell");
     renderMarketSellPicker();
     renderMarketMyListings();
     CLOUD.scheduleSync();
@@ -1687,6 +1713,7 @@ document.addEventListener("DOMContentLoaded", () => {
         SFX.buy();
         renderHeader();
         showBanner("🙋 DEMANDE COMBLÉE !", { emoji: "🪙", name: `${BANANAS_BY_ID[bananaId].name} x${qty}` }, 1800);
+        afterMarketAction("requestsFulfilledAsSeller", "marketRequestFulfill");
         CLOUD.scheduleSync();
         renderMarketOpenRequests();
       });
@@ -1724,7 +1751,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // l'alerte du toast active après ce passage (même principe que
     // renderMarketMyListings côté annonces).
     const unseenFulfilled = await CLOUD.fetchUnseenFulfilledRequests();
-    if (unseenFulfilled.length > 0) CLOUD.markRequestsSeen(unseenFulfilled.map((r) => r.id));
+    if (unseenFulfilled.length > 0) {
+      CLOUD.markRequestsSeen(unseenFulfilled.map((r) => r.id));
+      for (let i = 0; i < unseenFulfilled.length; i++) afterMarketAction("requestsFulfilledAsRequester", null);
+    }
   }
 
   els.marketRequestSubmitBtn.addEventListener("click", async () => {
@@ -1766,6 +1796,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHeader();
     els.marketRequestQuantity.value = "";
     els.marketRequestPrice.value = "";
+    afterMarketAction("requestsCreated", "marketRequestCreate");
     renderMarketMyRequests();
     CLOUD.scheduleSync();
   });
@@ -3028,7 +3059,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!CLOUD.available || !CLOUD.isLinked()) return;
     const sales = await CLOUD.fetchUnseenSales();
     if (sales.length === 0) return;
-    const markSeen = () => CLOUD.markListingsSeen(sales.map((s) => s.id));
+    const markSeen = () => {
+      CLOUD.markListingsSeen(sales.map((s) => s.id));
+      for (let i = 0; i < sales.length; i++) afterMarketAction("itemsSold", null);
+    };
     if (sales.length === 1) {
       const s = sales[0];
       const banana = BANANAS_BY_ID[s.banana_id];
@@ -3056,7 +3090,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!CLOUD.available || !CLOUD.isLinked()) return;
     const fulfilled = await CLOUD.fetchUnseenFulfilledRequests();
     if (fulfilled.length === 0) return;
-    const markSeen = () => CLOUD.markRequestsSeen(fulfilled.map((r) => r.id));
+    const markSeen = () => {
+      CLOUD.markRequestsSeen(fulfilled.map((r) => r.id));
+      for (let i = 0; i < fulfilled.length; i++) afterMarketAction("requestsFulfilledAsRequester", null);
+    };
     if (fulfilled.length === 1) {
       const r = fulfilled[0];
       const banana = BANANAS_BY_ID[r.banana_id];

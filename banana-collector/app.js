@@ -231,6 +231,19 @@ function defaultState() {
     quests: { date: null, assigned: [], progress: {}, completed: [] },
     weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
     permanentQuests: { completed: [] },
+    // Compteurs cumulatifs (jamais réinitialisés) pour les succès/quêtes liés
+    // au Marché — itemsSold et requestsFulfilledAsRequester ne sont incrémentés
+    // qu'au moment où le joueur découvre la vente/le comblement (voir
+    // checkMarketSaleNotifications/renderMarketMyListings et l'équivalent
+    // côté demandes dans ui.js), les autres dès l'action réussie.
+    market: {
+      listingsCreated: 0,
+      itemsSold: 0,
+      purchases: 0,
+      requestsCreated: 0,
+      requestsFulfilledAsSeller: 0,
+      requestsFulfilledAsRequester: 0,
+    },
     settings: { muted: false, animatedRoll: true, darkMode: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -1046,6 +1059,8 @@ const QUEST_POOL = [
   { id: "rarePlus3", desc: "Obtiens 3 bananes rares ou mieux", need: 3, reward: 400, key: "rarePlus" },
   { id: "buyUpgrade", desc: "Achète une amélioration en boutique", need: 1, reward: 150, key: "upgradesBought" },
   { id: "newDiscovery", desc: "Découvre 1 nouvelle banane", need: 1, reward: 140, key: "newDiscoveries" },
+  { id: "marketSellOne", desc: "Mets une banane en vente au Marché", need: 1, reward: 140, key: "marketSell" },
+  { id: "marketBuyOne", desc: "Achète une banane au Marché", need: 1, reward: 140, key: "marketBuy" },
 ];
 
 const WEEKLY_QUEST_POOL = [
@@ -1060,6 +1075,10 @@ const WEEKLY_QUEST_POOL = [
   { id: "w_legendaryPlus2", desc: "Obtiens 2 bananes légendaires ou mieux", need: 2, reward: 2500, key: "legendaryPlus" },
   { id: "w_newDiscoveries10", desc: "Découvre 10 nouvelles bananes", need: 10, reward: 2000, key: "newDiscoveries" },
   { id: "w_buyUpgrade3", desc: "Achète 3 améliorations en boutique", need: 3, reward: 1300, key: "upgradesBought" },
+  { id: "w_marketSell5", desc: "Mets 5 bananes en vente au Marché cette semaine", need: 5, reward: 1200, key: "marketSell" },
+  { id: "w_marketBuy5", desc: "Achète 5 bananes au Marché cette semaine", need: 5, reward: 1200, key: "marketBuy" },
+  { id: "w_marketRequest3", desc: "Fais 3 demandes de banane cette semaine", need: 3, reward: 1000, key: "marketRequestCreate" },
+  { id: "w_marketFulfill3", desc: "Comble 3 demandes d'autres joueurs cette semaine", need: 3, reward: 1400, key: "marketRequestFulfill" },
 ];
 
 /* Quêtes créées par un admin (voir le panneau admin) : ajoutées EN PLUS des
@@ -1074,6 +1093,7 @@ const WEEKLY_QUEST_POOL = [
 const ADMIN_QUEST_KEY_WHITELIST = [
   "ads", "catchRounds", "legendaryPlus", "memoryRounds", "newDiscoveries",
   "rarePlus", "rolls", "upgradesBought", "wheel", "wins",
+  "marketSell", "marketBuy", "marketRequestCreate", "marketRequestFulfill",
 ];
 const ADMIN_QUESTS_CACHE_KEY = "banana-collector-admin-quests-v1";
 
@@ -1167,6 +1187,9 @@ const PERMANENT_QUEST_POOL = [
     progress: (s) => UPGRADES.filter((u) => (s.upgrades[u.id] || 0) >= u.maxLevel).length,
   },
   { id: "p_prestige10", desc: "Atteins le niveau de Prestige 10", need: 10, reward: 15000, progress: (s) => s.prestige.level || 0 },
+  { id: "p_market_sales_200", desc: "Vends 200 bananes au Marché au total", need: 200, reward: 6000, progress: (s) => s.market.itemsSold || 0 },
+  { id: "p_market_purchases_100", desc: "Achète 100 bananes au Marché au total", need: 100, reward: 4000, progress: (s) => s.market.purchases || 0 },
+  { id: "p_market_help_50", desc: "Comble 50 demandes d'autres joueurs au total", need: 50, reward: 5000, progress: (s) => s.market.requestsFulfilledAsSeller || 0 },
 ];
 
 function questCountToday() {
@@ -1373,6 +1396,15 @@ const ACHIEVEMENTS = [
   { id: "banana_level_10", icon: "🔗", name: "Fusion réussie", desc: "Monte une banane au niveau 10 en combinant des doublons", reward: 500, check: (s) => maxBananaLevelIn(s) >= 10 },
   { id: "banana_level_50", icon: "🔗", name: "Maître fusionneur", desc: "Monte une banane au niveau 50", reward: 3000, check: (s) => maxBananaLevelIn(s) >= 50 },
   { id: "banana_level_100", icon: "🔗", name: "Fusion ultime", desc: "Monte une banane au niveau 100 (le maximum)", reward: 15000, check: (s) => maxBananaLevelIn(s) >= MAX_BANANA_LEVEL },
+  { id: "market_first_listing", icon: "🏷️", name: "Premier arrivage", desc: "Mets ta première banane en vente au Marché", reward: 100, check: (s) => (s.market.listingsCreated || 0) >= 1 },
+  { id: "market_sales_10", icon: "💹", name: "Petit commerçant", desc: "Vends 10 bananes au Marché", reward: 400, check: (s) => (s.market.itemsSold || 0) >= 10 },
+  { id: "market_sales_100", icon: "🏪", name: "Marchand chevronné", desc: "Vends 100 bananes au Marché", reward: 3000, check: (s) => (s.market.itemsSold || 0) >= 100 },
+  { id: "market_first_purchase", icon: "🛍️", name: "Premier achat", desc: "Achète ta première banane au Marché", reward: 100, check: (s) => (s.market.purchases || 0) >= 1 },
+  { id: "market_purchases_50", icon: "🛒", name: "Chineur assidu", desc: "Achète 50 bananes au Marché", reward: 1500, check: (s) => (s.market.purchases || 0) >= 50 },
+  { id: "market_first_request", icon: "🙋", name: "Petite annonce", desc: "Fais ta première demande de banane", reward: 100, check: (s) => (s.market.requestsCreated || 0) >= 1 },
+  { id: "market_request_fulfilled_own", icon: "🎁", name: "Demande comblée", desc: "Reçois ta première banane via une demande", reward: 200, check: (s) => (s.market.requestsFulfilledAsRequester || 0) >= 1 },
+  { id: "market_helper_25", icon: "🤝", name: "Bon samaritain", desc: "Comble 25 demandes d'autres joueurs", reward: 2000, check: (s) => (s.market.requestsFulfilledAsSeller || 0) >= 25 },
+  { id: "market_tycoon", icon: "💰", name: "Magnat du Marché", desc: "Vends 500 bananes ET en achète 200 au Marché", reward: 8000, check: (s) => (s.market.itemsSold || 0) >= 500 && (s.market.purchases || 0) >= 200 },
 ];
 
 // Évalue tous les succès, débloque les nouveaux, crédite leur récompense.
