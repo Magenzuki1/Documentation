@@ -301,6 +301,28 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  async function fetchAdminMedals() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("list_admin_medals");
+    return error || !data ? null : data;
+  }
+
+  async function adminCreateMedal(name, icon, publicDesc, metric, threshold) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("admin_create_medal", {
+      p_name: name, p_icon: icon, p_public_desc: publicDesc, p_metric: metric, p_threshold: threshold,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, id: data };
+  }
+
+  async function adminDeleteMedal(id) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_delete_medal", { p_id: id });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -706,6 +728,13 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde le dernier lot de quêtes admin connu en cache local.
     }
+    // Médailles créées par un admin : même logique, contenu global public.
+    try {
+      const adminMedals = await fetchAdminMedals();
+      if (adminMedals) setAdminMedalsCache(adminMedals);
+    } catch (e) {
+      // Hors ligne : on garde le dernier lot de médailles admin connu en cache local.
+    }
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const meta = data.session.user.user_metadata || {};
@@ -789,6 +818,9 @@ const CLOUD = (() => {
     fetchAdminQuests,
     adminCreateQuest,
     adminDeleteQuest,
+    fetchAdminMedals,
+    adminCreateMedal,
+    adminDeleteMedal,
     init,
   };
 })();

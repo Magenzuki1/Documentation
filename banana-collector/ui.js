@@ -113,6 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTabPlayers: document.getElementById("admin-tab-players"),
     adminTabBananas: document.getElementById("admin-tab-bananas"),
     adminTabQuests: document.getElementById("admin-tab-quests"),
+    adminTabMedals: document.getElementById("admin-tab-medals"),
     adminTabStats: document.getElementById("admin-tab-stats"),
     adminTabNews: document.getElementById("admin-tab-news"),
     adminTabEvents: document.getElementById("admin-tab-events"),
@@ -121,6 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminPlayersView: document.getElementById("admin-players-view"),
     adminBananasView: document.getElementById("admin-bananas-view"),
     adminQuestsView: document.getElementById("admin-quests-view"),
+    adminMedalsView: document.getElementById("admin-medals-view"),
     adminStatsView: document.getElementById("admin-stats-view"),
     adminNewsView: document.getElementById("admin-news-view"),
     adminEventsView: document.getElementById("admin-events-view"),
@@ -148,6 +150,15 @@ document.addEventListener("DOMContentLoaded", () => {
     adminQuestsError: document.getElementById("admin-quests-error"),
     adminQuestsSuccess: document.getElementById("admin-quests-success"),
     adminQuestsList: document.getElementById("admin-quests-list"),
+    adminMedalName: document.getElementById("admin-medal-name"),
+    adminMedalIcon: document.getElementById("admin-medal-icon"),
+    adminMedalDesc: document.getElementById("admin-medal-desc"),
+    adminMedalMetric: document.getElementById("admin-medal-metric"),
+    adminMedalThreshold: document.getElementById("admin-medal-threshold"),
+    adminMedalCreateBtn: document.getElementById("admin-medal-create-btn"),
+    adminMedalsError: document.getElementById("admin-medals-error"),
+    adminMedalsSuccess: document.getElementById("admin-medals-success"),
+    adminMedalsList: document.getElementById("admin-medals-list"),
     adminNewsMessage: document.getElementById("admin-news-message"),
     adminNewsSendBtn: document.getElementById("admin-news-send-btn"),
     adminNewsError: document.getElementById("admin-news-error"),
@@ -3740,6 +3751,102 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminQuestsList();
   });
 
+  /* ---------------- Panneau admin : Médailles ---------------- */
+
+  const ADMIN_MEDAL_METRIC_LABELS = {
+    totalRolls: "Bananes récoltées (total)",
+    totalCoinsEarned: "Pièces gagnées (total)",
+    pveWins: "Victoires en Arène solo",
+    adsWatched: "Pubs regardées (total)",
+    streakCount: "Jours de connexion d'affilée",
+    prestigeLevel: "Niveau de Prestige",
+    discoveredCount: "Bananes découvertes",
+    secretDiscoveredCount: "Bananes secrètes découvertes",
+    biggestSlotWin: "Plus gros gain à la Machine à sous",
+    biggestBjWin: "Plus gros gain au Black Jack",
+    medalsUnlockedCount: "Médailles débloquées",
+  };
+
+  // Remplis une seule fois : icônes et métriques disponibles sont fixes.
+  els.adminMedalIcon.innerHTML = ADMIN_MEDAL_ICON_WHITELIST.map((e) => `<option value="${e}">${e}</option>`).join("");
+  els.adminMedalMetric.innerHTML = ADMIN_MEDAL_METRIC_WHITELIST
+    .map((m) => `<option value="${m}">${ADMIN_MEDAL_METRIC_LABELS[m] || m}</option>`)
+    .join("");
+
+  async function renderAdminMedalsList() {
+    els.adminMedalsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.fetchAdminMedals();
+    if (!rows || rows.length === 0) {
+      els.adminMedalsList.innerHTML = `<p class="account-hint">Aucune médaille créée pour l'instant.</p>`;
+      return;
+    }
+    els.adminMedalsList.innerHTML = rows.map((m) => `
+      <div class="admin-log-row" data-id="${m.id}">
+        <span class="admin-log-user">${m.icon} ${m.name}</span>
+        <span class="admin-log-reason">${m.public_desc} — ${ADMIN_MEDAL_METRIC_LABELS[m.metric] || m.metric} ≥ ${m.threshold}</span>
+        <button class="btn danger admin-medal-delete-btn">Supprimer</button>
+      </div>
+    `).join("");
+    els.adminMedalsList.querySelectorAll(".admin-medal-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest(".admin-log-row");
+        const res = await CLOUD.adminDeleteMedal(Number(row.dataset.id));
+        if (!res.ok) {
+          els.adminMedalsError.textContent = res.reason || "Erreur inconnue.";
+          els.adminMedalsError.classList.remove("hidden");
+          return;
+        }
+        els.adminMedalsError.classList.add("hidden");
+        renderAdminMedalsList();
+      });
+    });
+  }
+
+  function renderAdminMedals() {
+    els.adminMedalsError.classList.add("hidden");
+    els.adminMedalsSuccess.classList.add("hidden");
+    renderAdminMedalsList();
+  }
+
+  els.adminMedalCreateBtn.addEventListener("click", async () => {
+    const name = els.adminMedalName.value.trim();
+    const icon = els.adminMedalIcon.value;
+    const description = els.adminMedalDesc.value.trim();
+    const metric = els.adminMedalMetric.value;
+    const threshold = Math.floor(Number(els.adminMedalThreshold.value));
+    els.adminMedalsError.classList.add("hidden");
+    els.adminMedalsSuccess.classList.add("hidden");
+    if (!name) {
+      els.adminMedalsError.textContent = "Donne un nom à la médaille.";
+      els.adminMedalsError.classList.remove("hidden");
+      return;
+    }
+    if (!description) {
+      els.adminMedalsError.textContent = "Donne une description publique (vague) à la médaille.";
+      els.adminMedalsError.classList.remove("hidden");
+      return;
+    }
+    if (!threshold || threshold < 1) {
+      els.adminMedalsError.textContent = "Indique un seuil d'au moins 1.";
+      els.adminMedalsError.classList.remove("hidden");
+      return;
+    }
+    els.adminMedalCreateBtn.disabled = true;
+    const res = await CLOUD.adminCreateMedal(name, icon, description, metric, threshold);
+    els.adminMedalCreateBtn.disabled = false;
+    if (!res.ok) {
+      els.adminMedalsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminMedalsError.classList.remove("hidden");
+      return;
+    }
+    els.adminMedalName.value = "";
+    els.adminMedalDesc.value = "";
+    els.adminMedalThreshold.value = "";
+    els.adminMedalsSuccess.textContent = "Médaille créée !";
+    els.adminMedalsSuccess.classList.remove("hidden");
+    renderAdminMedalsList();
+  });
+
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
   function flashAdminRowSaved(saveBtn) {
@@ -3811,6 +3918,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
     els.adminBananasView.classList.toggle("hidden", view !== "bananas");
     els.adminQuestsView.classList.toggle("hidden", view !== "quests");
+    els.adminMedalsView.classList.toggle("hidden", view !== "medals");
     els.adminStatsView.classList.toggle("hidden", view !== "stats");
     els.adminNewsView.classList.toggle("hidden", view !== "news");
     els.adminEventsView.classList.toggle("hidden", view !== "events");
@@ -3819,6 +3927,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminTabPlayers.classList.toggle("active", view === "players");
     els.adminTabBananas.classList.toggle("active", view === "bananas");
     els.adminTabQuests.classList.toggle("active", view === "quests");
+    els.adminTabMedals.classList.toggle("active", view === "medals");
     els.adminTabStats.classList.toggle("active", view === "stats");
     els.adminTabNews.classList.toggle("active", view === "news");
     els.adminTabEvents.classList.toggle("active", view === "events");
@@ -3844,6 +3953,7 @@ document.addEventListener("DOMContentLoaded", () => {
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
   els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); });
   els.adminTabQuests.addEventListener("click", () => { showAdminView("quests"); renderAdminQuests(); });
+  els.adminTabMedals.addEventListener("click", () => { showAdminView("medals"); renderAdminMedals(); });
   els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
   els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
   els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });

@@ -508,6 +508,7 @@
         <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
         <button class="market-subtab-btn" id="admin-tab-bananas" data-adminview="bananas">🍌 Bananes</button>
         <button class="market-subtab-btn" id="admin-tab-quests" data-adminview="quests">📜 Quêtes</button>
+        <button class="market-subtab-btn" id="admin-tab-medals" data-adminview="medals">🎖️ Médailles</button>
         <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
         <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
         <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
@@ -554,6 +555,22 @@
         <p id="admin-quests-success" class="account-hint hidden"></p>
         <h3 class="admin-news-history-title">Quêtes créées</h3>
         <div id="admin-quests-list" class="admin-log-list"></div>
+      </div>
+
+      <div id="admin-medals-view" class="hidden">
+        <p class="shop-hint">Crée une médaille secrète : la condition (métrique + seuil) n'est jamais montrée au joueur, seule une description vague l'est, comme les médailles du jeu.</p>
+        <div class="admin-news-form admin-medals-form">
+          <input type="text" id="admin-medal-name" placeholder="Nom" maxlength="40" />
+          <select id="admin-medal-icon"></select>
+          <input type="text" id="admin-medal-desc" placeholder="Description publique (vague)" maxlength="140" />
+          <select id="admin-medal-metric"></select>
+          <input type="number" id="admin-medal-threshold" placeholder="Seuil" min="1" max="100000000" />
+          <button class="btn" id="admin-medal-create-btn">🎖️ Créer</button>
+        </div>
+        <p id="admin-medals-error" class="account-error hidden"></p>
+        <p id="admin-medals-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Médailles créées</h3>
+        <div id="admin-medals-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-stats-view" class="hidden">
