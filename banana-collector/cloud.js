@@ -248,33 +248,14 @@ const CLOUD = (() => {
     return map;
   }
 
-  async function fetchAdminBananas() {
-    if (!supabase) return null;
-    const { data, error } = await supabase.rpc("list_admin_bananas");
-    return error || !data ? null : data;
-  }
-
-  async function adminCreateBanana(name, rarity, emoji, hue, value) {
+  // Offre N exemplaires d'une banane existante du catalogue à un joueur
+  // ("looter" une banane) — l'admin ne crée jamais de nouvelle banane, le
+  // catalogue reste figé, conçu par le développeur.
+  async function adminGrantBanana(username, bananaId, quantity) {
     if (!supabase) return unavailable;
-    const { data, error } = await supabase.rpc("admin_create_banana", {
-      p_name: name, p_rarity: rarity, p_emoji: emoji, p_hue: hue, p_value: value,
+    const { error } = await supabase.rpc("admin_grant_banana", {
+      target_username: username, p_banana_id: bananaId, p_quantity: quantity,
     });
-    if (error) return { ok: false, reason: error.message };
-    return { ok: true, id: data };
-  }
-
-  async function adminUpdateBanana(id, name, rarity, emoji, hue, value) {
-    if (!supabase) return unavailable;
-    const { error } = await supabase.rpc("admin_update_banana", {
-      p_id: id, p_name: name, p_rarity: rarity, p_emoji: emoji, p_hue: hue, p_value: value,
-    });
-    if (error) return { ok: false, reason: error.message };
-    return { ok: true };
-  }
-
-  async function adminSetBananaActive(id, active) {
-    if (!supabase) return unavailable;
-    const { error } = await supabase.rpc("admin_set_banana_active", { p_id: id, p_active: active });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
   }
@@ -747,14 +728,6 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde la dernière planification connue en cache local.
     }
-    // Bananes créées par un admin : même logique, contenu global public,
-    // synchronisé indépendamment d'un compte lié et mis en cache localement.
-    try {
-      const adminBananas = await fetchAdminBananas();
-      if (adminBananas) setAdminBananasCache(adminBananas);
-    } catch (e) {
-      // Hors ligne : on garde le dernier catalogue admin connu en cache local.
-    }
     // Quêtes créées par un admin : même logique, contenu global public.
     try {
       const adminQuests = await fetchAdminQuests();
@@ -853,10 +826,7 @@ const CLOUD = (() => {
     adminUnscheduleEvent,
     adminListScheduledEvents,
     fetchEventOverrides,
-    fetchAdminBananas,
-    adminCreateBanana,
-    adminUpdateBanana,
-    adminSetBananaActive,
+    adminGrantBanana,
     fetchAdminQuests,
     adminCreateQuest,
     adminDeleteQuest,
