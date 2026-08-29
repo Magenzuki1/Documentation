@@ -1779,6 +1779,14 @@ body {
 
 .leaderboard-player-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
+.clickable-username {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.clickable-username:hover { color: var(--accent-dark); }
+
 .leaderboard-table tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.03); }
 
 .leaderboard-table tbody tr.leaderboard-me {
