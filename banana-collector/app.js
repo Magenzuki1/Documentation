@@ -140,7 +140,7 @@ const UPGRADES = [
   {
     id: "butin",
     name: "💪 Butin de guerre",
-    desc: "+10% de pièces gagnées lors des combats d'Arène par niveau",
+    desc: "+5% de pièces gagnées lors des combats d'Arène par niveau",
     targets: [],
     basePrice: 2000,
     priceMult: 1.8,
@@ -1930,11 +1930,11 @@ function levelUpBanana(bananaId) {
 // Combien de niveaux pleins peut-on gagner avec les doublons ET les pièces
 // actuellement possédés, sans rien dépenser (utilisé pour afficher/activer
 // le bouton "Monter au maximum" et le badge "peut être améliorée").
-function levelsGainableFromDuplicates(bananaId) {
+function levelsGainableFromDuplicates(bananaId, availableCoins = state.coins) {
   const banana = BANANAS_BY_ID[bananaId];
   let level = bananaLevel(bananaId);
   let duplicates = bananaDuplicatesOwned(bananaId);
-  let coins = state.coins;
+  let coins = availableCoins;
   let gained = 0;
   while (level < MAX_BANANA_LEVEL) {
     const cost = bananaLevelUpCost(level);
@@ -2001,18 +2001,28 @@ function levelUpAllBananas() {
 }
 
 // Aperçu pur (aucune dépense) de ce que ferait "Augmenter tout" — utilisé
-// pour afficher le coût total et activer/désactiver le bouton.
+// pour afficher le coût total et activer/désactiver le bouton. Doit
+// simuler exactement la même cascade que levelUpAllBananas() : les pièces
+// forment un seul pot partagé entre toutes les bananes, donc chacune ne
+// doit être jugée "éligible" qu'avec ce qu'il reste APRÈS les précédentes,
+// pas avec le solde plein à chaque fois — sinon deux bananes qui coûtent
+// chacune 6000 pièces sur un solde de 6500 s'annoncent toutes les deux
+// affordables indépendamment, gonflant le total affiché à 12000 alors que
+// la cascade réelle n'en dépensera jamais plus de 6500.
 function levelUpAllBananasPreview() {
   let bananasEligible = 0;
   let totalLevelsGainable = 0;
   let totalCoinsNeeded = 0;
+  let simulatedCoins = state.coins;
   for (const banana of BANANAS) {
     if (!state.discovered.includes(banana.id)) continue;
-    const levelsGained = levelsGainableFromDuplicates(banana.id);
+    const levelsGained = levelsGainableFromDuplicates(banana.id, simulatedCoins);
     if (levelsGained === 0) continue;
+    const coinsSpent = bananaLevelUpSpendPreview(banana.id, levelsGained).coinsSpent;
     bananasEligible += 1;
     totalLevelsGainable += levelsGained;
-    totalCoinsNeeded += bananaLevelUpSpendPreview(banana.id, levelsGained).coinsSpent;
+    totalCoinsNeeded += coinsSpent;
+    simulatedCoins -= coinsSpent;
   }
   return { bananasEligible, totalLevelsGainable, totalCoinsNeeded };
 }
@@ -2168,7 +2178,7 @@ function fightFruitEnemy(bananaId, stageIndex) {
 
   let coinsEarned;
   const stageAdvanced = won && stageIndex === state.pve.stage + 1;
-  const lootBonus = 1 + (state.upgrades.butin || 0) * 0.1;
+  const lootBonus = 1 + (state.upgrades.butin || 0) * 0.05;
   const winReward = Math.round(enemy.reward * PVE_WIN_REWARD_MULT * lootBonus);
   if (won) {
     coinsEarned = grantCoins(winReward);
