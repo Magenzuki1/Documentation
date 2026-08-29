@@ -2578,17 +2578,35 @@ h1, h2, h3,
   max-width: 260px;
   background: var(--card-bg);
   border-radius: var(--radius);
-  padding: 10px 14px;
+  padding: 10px 30px 10px 14px;
   box-shadow: var(--shadow);
   border-left: 4px solid var(--accent);
   z-index: 90;
   transform: translateX(140%);
   transition: transform 0.35s ease;
+  /* .toast-layer (son parent) est pointer-events:none — les autres bannières
+     de ce conteneur ne sont que des affichages passifs qui se ferment
+     seules, mais ce toast a un vrai bouton de fermeture à cliquer. */
+  pointer-events: auto;
 }
 .pvp-notify-toast.show { transform: translateX(0); }
 .pvp-notify-toast.lost { border-left-color: var(--danger); }
 .pvp-notify-toast-title { font-weight: 800; font-size: 0.85rem; }
 .pvp-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
+.pvp-notify-toast-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  color: #5c4a1a;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
 
 @media (max-width: 520px) {
   .pvp-notify-toast { left: 16px; right: 16px; max-width: none; top: 12px; }
