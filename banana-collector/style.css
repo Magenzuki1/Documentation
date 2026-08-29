@@ -2234,6 +2234,7 @@ body {
   margin-bottom: 10px;
 }
 .profile-current-name { font-weight: 800; font-size: 1.05rem; }
+.profile-current-title { font-size: 0.85rem; font-weight: 700; color: #9c7a1a; }
 
 .profile-medal {
   display: flex;

@@ -446,9 +446,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Réservée à la vue "Profil" (celle où cadre + effet + titre + médaille +
   // banane favorite se combinent) : ailleurs (bouton compte, classement...),
   // l'avatar reste affiché sans ces habillages, pour rester léger.
-  function profileAvatarWithFrameHTML(banana, sizeRem) {
-    const frameId = state.cosmetics.equippedFrame || "frame_none";
-    const effectId = state.cosmetics.equippedEffect || "effect_none";
+  // frameId/effectId optionnels : par défaut ceux du joueur courant, mais la
+  // vitrine publique d'un AUTRE joueur passe explicitement les siens.
+  function profileAvatarWithFrameHTML(banana, sizeRem, frameId, effectId) {
+    // Distinguer "argument omis" (son propre profil) de "explicitement null"
+    // (la vitrine d'un AUTRE joueur sans cosmétique équipé) : sinon un
+    // joueur sans cadre/effet hériterait par erreur du cadre/effet du
+    // joueur qui consulte sa vitrine.
+    frameId = frameId === undefined ? (state.cosmetics.equippedFrame || "frame_none") : (frameId || "frame_none");
+    effectId = effectId === undefined ? (state.cosmetics.equippedEffect || "effect_none") : (effectId || "effect_none");
     return `
       <div class="profile-avatar-frame ${frameId}">
         <div class="profile-avatar-effect ${effectId}"></div>
@@ -1187,6 +1193,9 @@ document.addEventListener("DOMContentLoaded", () => {
           SFX.click();
           renderCosmeticsShop();
           if (!els.accountModal.classList.contains("hidden")) renderAccountModal();
+          // Pousse vers la vitrine publique : sans ça, le cadre/effet/titre
+          // équipé resterait invisible pour les autres joueurs.
+          if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushCosmetics();
         }
       });
     });
@@ -2819,6 +2828,19 @@ document.addEventListener("DOMContentLoaded", () => {
     activityFeedPollTimer = null;
   }
 
+  // La plupart des navigateurs (surtout mobile) ralentissent ou suspendent
+  // complètement setInterval() pendant qu'un onglet est en arrière-plan —
+  // sans ce correctif, revenir sur l'onglet après un moment affichait un
+  // fil d'actualité périmé jusqu'au prochain tick (parfois très tardif),
+  // donnant l'impression qu'il fallait recharger la page pour le mettre à
+  // jour. On force un rafraîchissement immédiat dès que la page redevient
+  // visible, mais seulement si le fil est censé être actif (onglet Accueil).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && activityFeedPollTimer !== null) {
+      renderActivityFeed();
+    }
+  });
+
   /* ---------------- Récolteur automatique ---------------- */
 
   let autoHarvestTimer = null;
@@ -2980,9 +3002,17 @@ document.addEventListener("DOMContentLoaded", () => {
         : `<div class="showcase-medal showcase-medal-empty">?</div>`;
     }).join("");
 
+    const targetAvatar = AVATARS.find((a) => a.id === showcase.avatar_id) || AVATARS[0];
+    const targetTitle = showcase.equipped_title ? COSMETIC_TITLES.find((t) => t.id === showcase.equipped_title) : null;
+
     els.publicShowcaseContent.innerHTML = `
       <div class="profile-section">
-        <h3>🎭 ${avatarIconHTML(showcase.avatar_id, 1.3)} ${showcase.username}</h3>
+        <h3>🎭 Profil</h3>
+        <div class="profile-current">
+          ${profileAvatarWithFrameHTML(BANANAS_BY_ID[targetAvatar.bananaId], 4.5, showcase.equipped_frame, showcase.equipped_effect)}
+          <div class="profile-current-name">${showcase.username}</div>
+          ${targetTitle ? `<div class="profile-current-title">🏷️ ${targetTitle.name}</div>` : ""}
+        </div>
         <div class="showcase-section">
           <h4>🌟 Vitrine</h4>
           <div class="showcase-row">
@@ -3121,8 +3151,9 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="profile-section">
         <h3>🎭 Profil</h3>
         <div class="profile-current">
-          ${profileAvatarWithFrameHTML(BANANAS_BY_ID[currentAvatar().bananaId], 3)}
+          ${profileAvatarWithFrameHTML(BANANAS_BY_ID[currentAvatar().bananaId], 4.5)}
           <div class="profile-current-name">${displayName}</div>
+          <div class="profile-current-title">🏷️ ${currentDisplayTitle()}</div>
           ${medalHTML}
         </div>
         ${showcaseSectionHTML()}

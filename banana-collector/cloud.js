@@ -469,6 +469,7 @@ const CLOUD = (() => {
     await Promise.all([
       setFavoriteBananaCloud(state.profile.favoriteBananaId),
       syncMedals(state.medals.unlocked),
+      pushCosmetics(),
     ]);
   }
 
@@ -540,6 +541,19 @@ const CLOUD = (() => {
   async function setFavoriteBananaCloud(bananaId) {
     if (!supabase || !isLinked()) return unavailable;
     const { error } = await supabase.rpc("set_favorite_banana", { p_banana_id: bananaId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  // Pousse le cadre/effet/titre équipés, pour qu'ils apparaissent sur la
+  // vitrine publique vue par les autres joueurs (jusque-là 100% locaux).
+  async function pushCosmetics() {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("set_cosmetics", {
+      p_frame: state.cosmetics.equippedFrame,
+      p_effect: state.cosmetics.equippedEffect,
+      p_title: state.cosmetics.equippedTitle,
+    });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
   }
@@ -810,6 +824,7 @@ const CLOUD = (() => {
     setAvatar,
     setFavoriteBananaCloud,
     syncMedals,
+    pushCosmetics,
     fetchPlayerShowcase,
     fetchActiveListings,
     fetchMyListings,
