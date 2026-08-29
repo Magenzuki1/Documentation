@@ -2552,19 +2552,9 @@ body {
   border-radius: 8px;
   padding: 6px 8px;
 }
-.admin-bananas-form input[type="number"] { width: 130px; }
-.admin-banana-hue-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #7a6224; }
-
-.admin-banana-fields { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
-.admin-banana-fields input, .admin-banana-fields select {
-  font-family: inherit;
-  font-size: 0.8rem;
-  border: 2px solid #f0dfa8;
-  border-radius: 8px;
-  padding: 4px 6px;
-}
-.admin-banana-edit-name { width: 130px; }
-.admin-banana-edit-value { width: 90px; }
+.admin-bananas-form input[type="text"] { width: 160px; }
+.admin-bananas-form select { max-width: 260px; }
+.admin-bananas-form input[type="number"] { width: 110px; }
 
 .admin-quests-form { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .admin-quests-form input, .admin-quests-form select {

@@ -524,19 +524,15 @@
       </div>
 
       <div id="admin-bananas-view" class="hidden">
-        <p class="shop-hint">Crée de nouvelles bananes (jamais de rareté secrète, réservée au contenu du jeu). Une banane désactivée disparaît du tirage mais reste visible pour les joueurs qui en possèdent déjà.</p>
+        <p class="shop-hint">Offre un lot d'une banane existante du catalogue à un joueur (loot manuel) — n'ajoute jamais de nouvelle banane au jeu.</p>
         <div class="admin-news-form admin-bananas-form">
-          <input type="text" id="admin-banana-name" placeholder="Nom" maxlength="40" />
-          <select id="admin-banana-rarity"></select>
-          <select id="admin-banana-emoji"></select>
-          <label class="admin-banana-hue-label">Teinte <input type="range" id="admin-banana-hue" min="0" max="359" value="0" /></label>
-          <input type="number" id="admin-banana-value" placeholder="Valeur (pièces)" min="1" max="10000" />
-          <button class="btn" id="admin-banana-create-btn">🍌 Créer</button>
+          <input type="text" id="admin-banana-username" placeholder="Pseudo du joueur" maxlength="20" />
+          <select id="admin-banana-select"></select>
+          <input type="number" id="admin-banana-quantity" placeholder="Quantité" min="1" max="9999" value="1" />
+          <button class="btn" id="admin-banana-grant-btn">🎁 Looter</button>
         </div>
         <p id="admin-bananas-error" class="account-error hidden"></p>
         <p id="admin-bananas-success" class="account-hint hidden"></p>
-        <h3 class="admin-news-history-title">Bananes créées</h3>
-        <div id="admin-bananas-list" class="admin-players-list"></div>
       </div>
 
       <div id="admin-quests-view" class="hidden">

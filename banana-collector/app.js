@@ -502,10 +502,7 @@ function pickRarity(weights) {
 }
 
 function pickBananaOfRarity(rarityKey) {
-  // b.active est undefined pour toutes les bananes statiques (voir data.js) :
-  // seule une banane créée par un admin peut valoir explicitement false ici,
-  // pour la retirer du tirage sans effacer les exemplaires déjà possédés.
-  const pool = BANANAS.filter((b) => b.rarity === rarityKey && b.active !== false);
+  const pool = BANANAS.filter((b) => b.rarity === rarityKey);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

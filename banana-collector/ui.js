@@ -134,15 +134,12 @@ document.addEventListener("DOMContentLoaded", () => {
     adminPlayersError: document.getElementById("admin-players-error"),
     adminPlayersSearch: document.getElementById("admin-players-search"),
     adminStatsList: document.getElementById("admin-stats-list"),
-    adminBananaName: document.getElementById("admin-banana-name"),
-    adminBananaRarity: document.getElementById("admin-banana-rarity"),
-    adminBananaEmoji: document.getElementById("admin-banana-emoji"),
-    adminBananaHue: document.getElementById("admin-banana-hue"),
-    adminBananaValue: document.getElementById("admin-banana-value"),
-    adminBananaCreateBtn: document.getElementById("admin-banana-create-btn"),
+    adminBananaUsername: document.getElementById("admin-banana-username"),
+    adminBananaSelect: document.getElementById("admin-banana-select"),
+    adminBananaQuantity: document.getElementById("admin-banana-quantity"),
+    adminBananaGrantBtn: document.getElementById("admin-banana-grant-btn"),
     adminBananasError: document.getElementById("admin-bananas-error"),
     adminBananasSuccess: document.getElementById("admin-bananas-success"),
-    adminBananasList: document.getElementById("admin-bananas-list"),
     adminQuestScope: document.getElementById("admin-quest-scope"),
     adminQuestDesc: document.getElementById("admin-quest-desc"),
     adminQuestKey: document.getElementById("admin-quest-key"),
@@ -3583,117 +3580,50 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminEventsHistory();
   });
 
-  /* ---------------- Panneau admin : Bananes ---------------- */
+  /* ---------------- Panneau admin : Bananes (loot) ---------------- */
 
-  // Remplis une seule fois : la rareté et la palette d'émojis sont fixes.
-  els.adminBananaRarity.innerHTML = RARITY_ORDER
-    .filter((r) => r !== "secrete")
-    .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
+  // Rempli une seule fois : le catalogue de bananes est fixe. Triées par
+  // rareté puis par nom pour rester navigable malgré les ~160 entrées.
+  els.adminBananaSelect.innerHTML = BANANAS
+    .slice()
+    .sort((a, b) => rarityIndex(a.rarity) - rarityIndex(b.rarity) || a.name.localeCompare(b.name))
+    .map((b) => `<option value="${b.id}">${b.name} — ${RARITIES[b.rarity].label}</option>`)
     .join("");
-  els.adminBananaEmoji.innerHTML = ADMIN_BANANA_EMOJI_WHITELIST.map((e) => `<option value="${e}">${e}</option>`).join("");
-
-  function adminBananaRowHTML(b) {
-    const rarityOptions = RARITY_ORDER.filter((r) => r !== "secrete")
-      .map((r) => `<option value="${r}" ${r === b.rarity ? "selected" : ""}>${RARITIES[r].label}</option>`).join("");
-    const emojiOptions = ADMIN_BANANA_EMOJI_WHITELIST
-      .map((e) => `<option value="${e}" ${e === b.emoji ? "selected" : ""}>${e}</option>`).join("");
-    return `
-      <div class="admin-player-row admin-banana-row ${b.active ? "" : "banned"}" data-id="${b.id}" data-hue="${Number.isInteger(b.hue) ? b.hue : 0}">
-        <div class="admin-player-main admin-banana-fields">
-          <input type="text" class="admin-banana-edit-name" value="${b.name}" maxlength="40" />
-          <select class="admin-banana-edit-rarity">${rarityOptions}</select>
-          <select class="admin-banana-edit-emoji">${emojiOptions}</select>
-          <input type="number" class="admin-banana-edit-value" value="${b.value}" min="1" max="10000" />
-          ${!b.active ? `<span class="admin-player-ban-reason">Désactivée</span>` : ""}
-        </div>
-        <div class="admin-player-actions">
-          <button class="btn admin-banana-save-btn" title="Enregistrer">💾</button>
-          <button class="btn ${b.active ? "danger" : ""} admin-banana-toggle-btn">${b.active ? "Désactiver" : "Activer"}</button>
-        </div>
-      </div>
-    `;
-  }
-
-  async function renderAdminBananasList() {
-    els.adminBananasList.innerHTML = `<p class="account-hint">Chargement…</p>`;
-    const rows = await CLOUD.fetchAdminBananas();
-    if (!rows || rows.length === 0) {
-      els.adminBananasList.innerHTML = `<p class="account-hint">Aucune banane créée pour l'instant.</p>`;
-      return;
-    }
-    els.adminBananasList.innerHTML = rows.map(adminBananaRowHTML).join("");
-
-    els.adminBananasList.querySelectorAll(".admin-banana-row").forEach((row) => {
-      const id = Number(row.dataset.id);
-      const hue = Number(row.dataset.hue) || 0;
-
-      row.querySelector(".admin-banana-save-btn").addEventListener("click", async (e) => {
-        const name = row.querySelector(".admin-banana-edit-name").value.trim();
-        const rarity = row.querySelector(".admin-banana-edit-rarity").value;
-        const emoji = row.querySelector(".admin-banana-edit-emoji").value;
-        const value = Math.max(1, Math.min(10000, Math.floor(Number(row.querySelector(".admin-banana-edit-value").value))));
-        const res = await CLOUD.adminUpdateBanana(id, name, rarity, emoji, hue, value);
-        if (!res.ok) {
-          els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
-          els.adminBananasError.classList.remove("hidden");
-          return;
-        }
-        els.adminBananasError.classList.add("hidden");
-        flashAdminRowSaved(e.currentTarget);
-      });
-
-      row.querySelector(".admin-banana-toggle-btn").addEventListener("click", async () => {
-        const currentlyActive = !row.classList.contains("banned");
-        const res = await CLOUD.adminSetBananaActive(id, !currentlyActive);
-        if (!res.ok) {
-          els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
-          els.adminBananasError.classList.remove("hidden");
-          return;
-        }
-        els.adminBananasError.classList.add("hidden");
-        renderAdminBananasList();
-      });
-    });
-  }
 
   function renderAdminBananas() {
     els.adminBananasError.classList.add("hidden");
     els.adminBananasSuccess.classList.add("hidden");
-    renderAdminBananasList();
   }
 
-  els.adminBananaCreateBtn.addEventListener("click", async () => {
-    const name = els.adminBananaName.value.trim();
-    const rarity = els.adminBananaRarity.value;
-    const emoji = els.adminBananaEmoji.value;
-    const hue = Number(els.adminBananaHue.value);
-    const value = Math.floor(Number(els.adminBananaValue.value));
+  els.adminBananaGrantBtn.addEventListener("click", async () => {
+    const username = els.adminBananaUsername.value.trim().toLowerCase();
+    const bananaId = Number(els.adminBananaSelect.value);
+    const quantity = Math.floor(Number(els.adminBananaQuantity.value));
     els.adminBananasError.classList.add("hidden");
     els.adminBananasSuccess.classList.add("hidden");
-    if (!name) {
-      els.adminBananasError.textContent = "Donne un nom à la banane.";
+    if (!username) {
+      els.adminBananasError.textContent = "Indique le pseudo du joueur.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    if (!value || value < 1 || value > 10000) {
-      els.adminBananasError.textContent = "Indique une valeur en pièces entre 1 et 10 000.";
+    if (!quantity || quantity < 1) {
+      els.adminBananasError.textContent = "Indique une quantité d'au moins 1.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    els.adminBananaCreateBtn.disabled = true;
-    const res = await CLOUD.adminCreateBanana(name, rarity, emoji, hue, value);
-    els.adminBananaCreateBtn.disabled = false;
+    els.adminBananaGrantBtn.disabled = true;
+    const res = await CLOUD.adminGrantBanana(username, bananaId, quantity);
+    els.adminBananaGrantBtn.disabled = false;
     if (!res.ok) {
       els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    els.adminBananaName.value = "";
-    els.adminBananaValue.value = "";
-    els.adminBananaHue.value = 0;
-    els.adminBananasSuccess.textContent = "Banane créée !";
+    const bananaName = BANANAS_BY_ID[bananaId]?.name || "banane";
+    els.adminBananasSuccess.textContent = `${quantity} × ${bananaName} offerte${quantity > 1 ? "s" : ""} à ${username} !`;
     els.adminBananasSuccess.classList.remove("hidden");
-    renderAdminBananasList();
+    els.adminBananaUsername.value = "";
+    els.adminBananaQuantity.value = 1;
   });
 
   /* ---------------- Panneau admin : Quêtes ---------------- */
