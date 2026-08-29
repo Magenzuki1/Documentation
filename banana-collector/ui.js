@@ -1447,29 +1447,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const listings = (await CLOUD.fetchMyListings()).filter((l) => l.status !== "cancelled");
     if (listings.length === 0) {
       els.marketMyListings.innerHTML = `<p class="secret-hint">Tu n'as pas encore d'annonce.</p>`;
-      return;
-    }
-    els.marketMyListings.innerHTML = listings.map((l) => marketListingCardHTML(l, "sell")).join("");
-    els.marketMyListings.querySelectorAll(".market-cancel-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        const listingId = btn.dataset.listing;
-        const listing = listings.find((l) => l.id === listingId);
-        const result = await CLOUD.cancelListing(listingId);
-        if (!result.ok) {
-          showBanner("❌ Impossible d'annuler", { emoji: "🚫", name: result.reason || "Erreur" }, 1800);
-          btn.disabled = false;
-          return;
-        }
-        if (listing) {
-          state.counts[listing.banana_id] = (state.counts[listing.banana_id] || 0) + listing.quantity;
-          saveState();
-        }
-        renderMarketSellPicker();
-        renderMarketMyListings();
-        CLOUD.scheduleSync();
+    } else {
+      els.marketMyListings.innerHTML = listings.map((l) => marketListingCardHTML(l, "sell")).join("");
+      els.marketMyListings.querySelectorAll(".market-cancel-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          const listingId = btn.dataset.listing;
+          const listing = listings.find((l) => l.id === listingId);
+          const result = await CLOUD.cancelListing(listingId);
+          if (!result.ok) {
+            showBanner("❌ Impossible d'annuler", { emoji: "🚫", name: result.reason || "Erreur" }, 1800);
+            btn.disabled = false;
+            return;
+          }
+          if (listing) {
+            state.counts[listing.banana_id] = (state.counts[listing.banana_id] || 0) + listing.quantity;
+            saveState();
+          }
+          renderMarketSellPicker();
+          renderMarketMyListings();
+          CLOUD.scheduleSync();
+        });
       });
-    });
+    }
+    // Le joueur vient de consulter "Mes annonces", qui affiche déjà le statut
+    // "Vendue" pour chaque annonce écoulée — inutile de garder l'alerte du
+    // toast active après ce passage, même s'il n'a jamais cliqué dessus.
+    const unseenSales = await CLOUD.fetchUnseenSales();
+    if (unseenSales.length > 0) CLOUD.markListingsSeen(unseenSales.map((s) => s.id));
   }
 
   function showMarketView(view) {
@@ -2742,6 +2747,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Conteneur commun (créé une seule fois) pour empiler les toasts discrets
+  // dans le même coin sans jamais qu'ils se chevauchent — une attaque PVP et
+  // une vente au Marché peuvent toutes deux être en attente à la connexion.
+  function getNotifyToastStack() {
+    let stack = document.getElementById("notify-toast-stack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = "notify-toast-stack";
+      stack.className = "notify-toast-stack";
+      els.toastLayer.appendChild(stack);
+    }
+    return stack;
+  }
+
   // Petit toast discret (coin de l'écran, pas de son ni de confettis) pour
   // signaler une attaque PVP subie hors ligne dès la connexion — même si le
   // joueur ne va jamais ouvrir l'onglet Arène PVP de lui-même. Ne marque
@@ -2756,7 +2775,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="pvp-notify-toast-title">${title}</div>
       <div class="pvp-notify-toast-line">${line}</div>
     `;
-    els.toastLayer.appendChild(toast);
+    getNotifyToastStack().appendChild(toast);
     requestAnimationFrame(() => toast.classList.add("show"));
     // Reste affiché tant que le joueur n'a pas cliqué la croix lui-même —
     // pas de disparition automatique, pour lui laisser le temps de tout lire.
@@ -2764,6 +2783,47 @@ document.addEventListener("DOMContentLoaded", () => {
       toast.classList.remove("show");
       setTimeout(() => toast.remove(), 400);
     });
+  }
+
+  // Même principe côté Marché : signale qu'une annonce a été entièrement
+  // vendue pendant l'absence du joueur. Ne marque jamais les ventes comme
+  // vues elle-même — c'est renderMarketMyListings ("Mes annonces"), consulté
+  // naturellement pour voir le statut "Vendue", qui s'en charge.
+  function showMarketNotifyToast(title, line) {
+    const toast = document.createElement("div");
+    toast.className = "market-notify-toast";
+    toast.innerHTML = `
+      <button class="market-notify-toast-close" aria-label="Fermer">✕</button>
+      <div class="market-notify-toast-title">${title}</div>
+      <div class="market-notify-toast-line">${line}</div>
+    `;
+    getNotifyToastStack().appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    toast.querySelector(".market-notify-toast-close").addEventListener("click", () => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 400);
+    });
+  }
+
+  async function checkMarketSaleNotifications() {
+    if (!CLOUD.available || !CLOUD.isLinked()) return;
+    const sales = await CLOUD.fetchUnseenSales();
+    if (sales.length === 0) return;
+    if (sales.length === 1) {
+      const s = sales[0];
+      const banana = BANANAS_BY_ID[s.banana_id];
+      const total = s.quantity * s.unit_price;
+      showMarketNotifyToast(
+        "🏪 Vente conclue",
+        `${banana ? banana.name : "Banane"} x${s.quantity} vendue à ${s.buyerUsername} — +${total} 🪙`
+      );
+    } else {
+      const totalCoins = sales.reduce((sum, s) => sum + s.quantity * s.unit_price, 0);
+      showMarketNotifyToast(
+        "🏪 Marché",
+        `${sales.length} ventes conclues pendant ton absence — +${totalCoins} 🪙`
+      );
+    }
   }
 
   async function checkPvpAttackNotifications() {
@@ -4831,6 +4891,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHeader();
     refreshAllSupportBadges();
     checkPvpAttackNotifications();
+    checkMarketSaleNotifications();
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });

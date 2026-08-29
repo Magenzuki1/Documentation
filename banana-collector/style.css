@@ -2569,33 +2569,50 @@ h1, h2, h3,
 .rare-banner-title { display: block; font-weight: 900; font-size: 1.2rem; }
 .rare-banner-name { display: block; font-size: 0.95rem; margin-top: 4px; }
 
-/* --- Toast discret : attaque PVP subie hors ligne, détectée à la connexion.
-   Volontairement plus sobre que .rare-banner (pas de dégradé vif, pas de
-   confettis) : un coin de l'écran plutôt qu'un centre-écran, une couleur
-   neutre — ce n'est pas une célébration, juste une information. --- */
-.pvp-notify-toast {
+/* --- Toasts discrets : attaque PVP subie / vente conclue au Marché hors
+   ligne, détectées à la connexion. Volontairement plus sobres qu'un
+   .rare-banner (pas de dégradé vif, pas de confettis) : un coin de l'écran
+   plutôt qu'un centre-écran, une couleur neutre — ce n'est pas une
+   célébration, juste une information. Empilés dans un conteneur commun pour
+   ne jamais se chevaucher si plusieurs sont en attente à la fois. --- */
+.notify-toast-stack {
   position: fixed;
   top: 16px;
   right: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  /* Le conteneur lui-même ne capte rien : seuls les toasts qu'il contient
+     (avec leur propre bouton de fermeture) sont cliquables. */
+  pointer-events: none;
+}
+.pvp-notify-toast,
+.market-notify-toast {
+  position: relative;
   max-width: 260px;
   background: var(--card-bg);
   border-radius: var(--radius);
   padding: 10px 30px 10px 14px;
   box-shadow: var(--shadow);
   border-left: 4px solid var(--accent);
-  z-index: 90;
   transform: translateX(140%);
   transition: transform 0.35s ease;
-  /* .toast-layer (son parent) est pointer-events:none — les autres bannières
+  /* .toast-layer (l'ancêtre) est pointer-events:none — les autres bannières
      de ce conteneur ne sont que des affichages passifs qui se ferment
-     seules, mais ce toast a un vrai bouton de fermeture à cliquer. */
+     seules, mais ces toasts ont un vrai bouton de fermeture à cliquer. */
   pointer-events: auto;
 }
-.pvp-notify-toast.show { transform: translateX(0); }
+.pvp-notify-toast.show,
+.market-notify-toast.show { transform: translateX(0); }
 .pvp-notify-toast.lost { border-left-color: var(--danger); }
-.pvp-notify-toast-title { font-weight: 800; font-size: 0.85rem; }
-.pvp-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
-.pvp-notify-toast-close {
+.pvp-notify-toast-title,
+.market-notify-toast-title { font-weight: 800; font-size: 0.85rem; }
+.pvp-notify-toast-line,
+.market-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
+.pvp-notify-toast-close,
+.market-notify-toast-close {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -2611,7 +2628,9 @@ h1, h2, h3,
 }
 
 @media (max-width: 520px) {
-  .pvp-notify-toast { left: 16px; right: 16px; max-width: none; top: 12px; }
+  .notify-toast-stack { left: 16px; right: 16px; top: 12px; align-items: stretch; }
+  .pvp-notify-toast,
+  .market-notify-toast { max-width: none; }
 }
 
 /* --- Confettis --- */

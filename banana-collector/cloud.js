@@ -733,6 +733,39 @@ const CLOUD = (() => {
     return { ok: true, newCoins: data && data[0] ? Number(data[0].new_coins) : null };
   }
 
+  // Ventes complètes (annonce entièrement écoulée) pas encore consultées —
+  // même principe que fetchUnseenCombatReports côté PVP : flux "pendant ton
+  // absence" affiché à l'ouverture du Marché.
+  async function fetchUnseenSales() {
+    if (!supabase || !isLinked() || !cachedUserId) return [];
+    const { data, error } = await supabase
+      .from("listings")
+      .select("id, banana_id, quantity, unit_price, buyer_id, sold_at")
+      .eq("seller_id", cachedUserId)
+      .eq("status", "sold")
+      .eq("seen_by_seller", false)
+      .order("sold_at", { ascending: true })
+      .limit(50);
+    if (error || !data || data.length === 0) return [];
+
+    const buyerIds = [...new Set(data.map((r) => r.buyer_id))];
+    let profilesById = {};
+    if (buyerIds.length > 0) {
+      const { data: profiles } = await supabase.from("public_profiles").select("id, username, avatar_id").in("id", buyerIds);
+      if (profiles) profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    }
+    return data.map((r) => ({
+      ...r,
+      buyerUsername: profilesById[r.buyer_id]?.username || "?",
+      buyerAvatarId: profilesById[r.buyer_id]?.avatar_id || null,
+    }));
+  }
+
+  async function markListingsSeen(ids) {
+    if (!supabase || ids.length === 0) return;
+    await supabase.rpc("mark_listings_seen", { p_ids: ids });
+  }
+
   /* ---------------- Arène PVP ---------------- */
 
   async function setDefenseTeam(bananaIds) {
@@ -927,6 +960,8 @@ const CLOUD = (() => {
     createListing,
     cancelListing,
     buyListing,
+    fetchUnseenSales,
+    markListingsSeen,
     setDefenseTeam,
     fetchMyDefenseTeam,
     findOpponent,
