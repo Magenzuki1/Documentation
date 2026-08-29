@@ -1529,6 +1529,8 @@ body {
 .medal-card.locked { opacity: 0.6; }
 
 .medal-icon { font-size: 1.8rem; margin-bottom: 4px; }
+
+.medal-icon-img { display: inline-block; width: auto; object-fit: contain; vertical-align: middle; }
 .medal-name { font-weight: 800; font-size: 0.85rem; }
 .medal-desc { font-size: 0.72rem; color: #5c4a1a; margin-top: 2px; font-style: italic; }
 .medal-status { font-size: 0.72rem; font-weight: 700; margin-top: 6px; }

@@ -1260,6 +1260,7 @@ const MEDALS = [
   {
     id: "medal_ghost",
     icon: "👻",
+    image: "images/medals/medal_ghost.png",
     name: "Banane Fantôme",
     publicDesc: "Une rencontre qui n'arrive qu'au cœur de la nuit...",
     check: (s, ctx) => !!(ctx && ctx.hourNow === 2),
@@ -1267,6 +1268,7 @@ const MEDALS = [
   {
     id: "medal_lucky",
     icon: "🍀",
+    image: "images/medals/medal_lucky.png",
     name: "Banane Chanceuse",
     publicDesc: "La chance sourit parfois aux plus audacieux, à la machine à sous.",
     check: (s) => (s.slotGame.jackpotsHit || 0) >= 1,
@@ -1274,6 +1276,7 @@ const MEDALS = [
   {
     id: "medal_doubledown",
     icon: "🎲",
+    image: "images/medals/medal_doubledown.png",
     name: "Quitte ou Double",
     publicDesc: "Un pari risqué, un gain qui change tout.",
     check: (s) => (s.blackjackGame.biggestWin || 0) >= 50000 || (s.slotGame.biggestWin || 0) >= 50000,
@@ -1281,6 +1284,7 @@ const MEDALS = [
   {
     id: "medal_pauper_treasure",
     icon: "🕳️",
+    image: "images/medals/medal_pauper_treasure.png",
     name: "Trésor du désespoir",
     publicDesc: "La fortune trouve parfois les plus démunis.",
     check: (s, ctx) => !!(ctx && ctx.rollRarity === "secrete" && ctx.coinsAtRoll < 1000),
@@ -1288,6 +1292,7 @@ const MEDALS = [
   {
     id: "medal_stubborn",
     icon: "🐴",
+    image: "images/medals/medal_stubborn.png",
     name: "Tête de Mule",
     publicDesc: "La persévérance a parfois un goût amer.",
     check: (s) => (s.pve.lossStreak || 0) >= 10,
@@ -1295,6 +1300,7 @@ const MEDALS = [
   {
     id: "medal_sleepwalker",
     icon: "🌙",
+    image: "images/medals/medal_sleepwalker.png",
     name: "Somnambule",
     publicDesc: "Certaines décisions se prennent à des heures improbables.",
     check: (s, ctx) => !!(ctx && ctx.prestigeHour != null && ctx.prestigeHour >= 0 && ctx.prestigeHour < 5),
