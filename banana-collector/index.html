@@ -586,8 +586,19 @@
           <input type="text" id="admin-medal-name" placeholder="Nom" maxlength="40" />
           <select id="admin-medal-icon"></select>
           <input type="text" id="admin-medal-desc" placeholder="Description publique (vague)" maxlength="140" />
-          <select id="admin-medal-metric"></select>
-          <input type="number" id="admin-medal-threshold" placeholder="Seuil" min="1" max="100000000" />
+          <select id="admin-medal-condition-type">
+            <option value="counter">Type : Compteur (seuil atteint)</option>
+            <option value="hour_window">Type : Heure de la journée</option>
+          </select>
+          <div id="admin-medal-counter-fields" class="admin-medal-condition-fields">
+            <select id="admin-medal-metric"></select>
+            <input type="number" id="admin-medal-threshold" placeholder="Seuil" min="1" max="100000000" />
+          </div>
+          <div id="admin-medal-hour-fields" class="admin-medal-condition-fields hidden">
+            <select id="admin-medal-event-type"></select>
+            <input type="number" id="admin-medal-start-hour" placeholder="Heure de début (0-23)" min="0" max="23" />
+            <input type="number" id="admin-medal-end-hour" placeholder="Heure de fin (0-23)" min="0" max="23" />
+          </div>
           <input type="number" id="admin-medal-reward" placeholder="Récompense en pièces (optionnel)" min="0" max="1000000" />
           <button class="btn" id="admin-medal-create-btn">🎖️ Créer</button>
         </div>

@@ -174,8 +174,14 @@ document.addEventListener("DOMContentLoaded", () => {
     adminMedalName: document.getElementById("admin-medal-name"),
     adminMedalIcon: document.getElementById("admin-medal-icon"),
     adminMedalDesc: document.getElementById("admin-medal-desc"),
+    adminMedalConditionType: document.getElementById("admin-medal-condition-type"),
+    adminMedalCounterFields: document.getElementById("admin-medal-counter-fields"),
+    adminMedalHourFields: document.getElementById("admin-medal-hour-fields"),
     adminMedalMetric: document.getElementById("admin-medal-metric"),
     adminMedalThreshold: document.getElementById("admin-medal-threshold"),
+    adminMedalEventType: document.getElementById("admin-medal-event-type"),
+    adminMedalStartHour: document.getElementById("admin-medal-start-hour"),
+    adminMedalEndHour: document.getElementById("admin-medal-end-hour"),
     adminMedalReward: document.getElementById("admin-medal-reward"),
     adminMedalCreateBtn: document.getElementById("admin-medal-create-btn"),
     adminMedalsError: document.getElementById("admin-medals-error"),
@@ -625,7 +631,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const coinsBeforeRoll = state.coins;
     const result = rollBanana();
     const { banana, isNew, rarity, coinsEarned } = result;
-    const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), rollRarity: rarity, coinsAtRoll: coinsBeforeRoll });
+    const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), eventType: "banana_roll", rollRarity: rarity, coinsAtRoll: coinsBeforeRoll });
 
     renderHeader();
     CLOUD.scheduleSync();
@@ -2118,7 +2124,8 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showQuestToasts(questsDone);
     }
-    const medalsUnlocked = checkMedals();
+    const bjWon = outcome === "victoire" || outcome === "blackjack";
+    const medalsUnlocked = checkMedals(bjWon ? { hourNow: new Date().getHours(), eventType: "blackjack_win" } : undefined);
     if (medalsUnlocked.length > 0) {
       renderHeader();
       showMedalToasts(medalsUnlocked);
@@ -2200,7 +2207,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderHeader();
             showAchievementToasts(unlocked);
           }
-          const medalsUnlocked = checkMedals();
+          const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), eventType: "slot_bonus_prize" });
           if (medalsUnlocked.length > 0) {
             renderHeader();
             showMedalToasts(medalsUnlocked);
@@ -2279,7 +2286,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderHeader();
         showQuestToasts(questsDone);
       }
-      const medalsUnlocked = checkMedals();
+      const medalsUnlocked = checkMedals(netChange > 0 ? { hourNow: new Date().getHours(), eventType: "slot_win" } : undefined);
       if (medalsUnlocked.length > 0) {
         renderHeader();
         showMedalToasts(medalsUnlocked);
@@ -2509,7 +2516,8 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showQuestToasts(questsDone);
     }
-    const medalsUnlocked = checkMedals({ prestigeHour: new Date().getHours() });
+    const prestigeHourNow = new Date().getHours();
+    const medalsUnlocked = checkMedals({ prestigeHour: prestigeHourNow, hourNow: prestigeHourNow, eventType: "prestige" });
     if (medalsUnlocked.length > 0) {
       renderHeader();
       showMedalToasts(medalsUnlocked);
@@ -2581,7 +2589,7 @@ document.addEventListener("DOMContentLoaded", () => {
           renderHeader();
           showQuestToasts(questsDone);
         }
-        const medalsUnlocked = checkMedals();
+        const medalsUnlocked = checkMedals(result.won ? { hourNow: new Date().getHours(), eventType: "arena_win" } : undefined);
         if (medalsUnlocked.length > 0) {
           renderHeader();
           showMedalToasts(medalsUnlocked);
@@ -4131,13 +4139,41 @@ document.addEventListener("DOMContentLoaded", () => {
     biggestSlotWin: "Plus gros gain à la Machine à sous",
     biggestBjWin: "Plus gros gain au Black Jack",
     medalsUnlockedCount: "Médailles débloquées",
+    jackpotsHit: "Jackpots gagnés (machine à sous)",
   };
 
-  // Remplis une seule fois : icônes et métriques disponibles sont fixes.
+  const ADMIN_MEDAL_EVENT_TYPE_LABELS = {
+    banana_roll: "Récolter une banane",
+    slot_win: "Gagner à la machine à sous",
+    slot_bonus_prize: "Gagner le bonus de la machine à sous",
+    blackjack_win: "Gagner au Black Jack",
+    arena_win: "Gagner un combat d'Arène",
+    prestige: "Faire un Prestige",
+  };
+
+  // Remplis une seule fois : icônes, métriques et types d'événement
+  // disponibles sont fixes.
   els.adminMedalIcon.innerHTML = ADMIN_MEDAL_ICON_WHITELIST.map((e) => `<option value="${e}">${e}</option>`).join("");
   els.adminMedalMetric.innerHTML = ADMIN_MEDAL_METRIC_WHITELIST
     .map((m) => `<option value="${m}">${ADMIN_MEDAL_METRIC_LABELS[m] || m}</option>`)
     .join("");
+  els.adminMedalEventType.innerHTML = ADMIN_MEDAL_EVENT_TYPE_WHITELIST
+    .map((e) => `<option value="${e}">${ADMIN_MEDAL_EVENT_TYPE_LABELS[e] || e}</option>`)
+    .join("");
+
+  els.adminMedalConditionType.addEventListener("change", () => {
+    const isHourWindow = els.adminMedalConditionType.value === "hour_window";
+    els.adminMedalCounterFields.classList.toggle("hidden", isHourWindow);
+    els.adminMedalHourFields.classList.toggle("hidden", !isHourWindow);
+  });
+
+  function adminMedalConditionText(m) {
+    if (m.condition_type === "hour_window") {
+      const label = ADMIN_MEDAL_EVENT_TYPE_LABELS[m.event_type] || m.event_type;
+      return `${label} entre ${m.start_hour}h et ${m.end_hour}h`;
+    }
+    return `${ADMIN_MEDAL_METRIC_LABELS[m.metric] || m.metric} ≥ ${m.threshold}`;
+  }
 
   async function renderAdminMedalsList() {
     els.adminMedalsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
@@ -4159,7 +4195,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return `
         <div class="admin-log-row" data-id="${m.id}">
           <span class="admin-log-user">${m.icon} ${m.name}</span>
-          <span class="admin-log-reason">${m.public_desc} — ${ADMIN_MEDAL_METRIC_LABELS[m.metric] || m.metric} ≥ ${m.threshold}${rewardText}</span>
+          <span class="admin-log-reason">${m.public_desc} — ${adminMedalConditionText(m)}${rewardText}</span>
           <span class="admin-log-date">${unlockCount} / ${totalPlayers} joueur${totalPlayers > 1 ? "s" : ""} (${pct}%)</span>
           <button class="btn danger admin-medal-delete-btn">Supprimer</button>
         </div>
@@ -4190,8 +4226,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const name = els.adminMedalName.value.trim();
     const icon = els.adminMedalIcon.value;
     const description = els.adminMedalDesc.value.trim();
-    const metric = els.adminMedalMetric.value;
-    const threshold = Math.floor(Number(els.adminMedalThreshold.value));
+    const conditionType = els.adminMedalConditionType.value;
     const rewardRaw = els.adminMedalReward.value.trim();
     const reward = rewardRaw ? Math.floor(Number(rewardRaw)) : null;
     els.adminMedalsError.classList.add("hidden");
@@ -4206,18 +4241,39 @@ document.addEventListener("DOMContentLoaded", () => {
       els.adminMedalsError.classList.remove("hidden");
       return;
     }
-    if (!threshold || threshold < 1) {
-      els.adminMedalsError.textContent = "Indique un seuil d'au moins 1.";
-      els.adminMedalsError.classList.remove("hidden");
-      return;
-    }
     if (rewardRaw && (!Number.isFinite(reward) || reward < 0 || reward > 1000000)) {
       els.adminMedalsError.textContent = "La récompense doit être un nombre de pièces entre 0 et 1 000 000.";
       els.adminMedalsError.classList.remove("hidden");
       return;
     }
+
+    const opts = { name, icon, publicDesc: description, conditionType, reward };
+    if (conditionType === "hour_window") {
+      const eventType = els.adminMedalEventType.value;
+      const startHour = Math.floor(Number(els.adminMedalStartHour.value));
+      const endHour = Math.floor(Number(els.adminMedalEndHour.value));
+      if (!Number.isInteger(startHour) || startHour < 0 || startHour > 23 || !Number.isInteger(endHour) || endHour < 0 || endHour > 23) {
+        els.adminMedalsError.textContent = "Indique une heure de début et de fin entre 0 et 23.";
+        els.adminMedalsError.classList.remove("hidden");
+        return;
+      }
+      opts.eventType = eventType;
+      opts.startHour = startHour;
+      opts.endHour = endHour;
+    } else {
+      const metric = els.adminMedalMetric.value;
+      const threshold = Math.floor(Number(els.adminMedalThreshold.value));
+      if (!threshold || threshold < 1) {
+        els.adminMedalsError.textContent = "Indique un seuil d'au moins 1.";
+        els.adminMedalsError.classList.remove("hidden");
+        return;
+      }
+      opts.metric = metric;
+      opts.threshold = threshold;
+    }
+
     els.adminMedalCreateBtn.disabled = true;
-    const res = await CLOUD.adminCreateMedal(name, icon, description, metric, threshold, reward);
+    const res = await CLOUD.adminCreateMedal(opts);
     els.adminMedalCreateBtn.disabled = false;
     if (!res.ok) {
       els.adminMedalsError.textContent = res.reason || "Erreur inconnue.";
@@ -4227,6 +4283,8 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminMedalName.value = "";
     els.adminMedalDesc.value = "";
     els.adminMedalThreshold.value = "";
+    els.adminMedalStartHour.value = "";
+    els.adminMedalEndHour.value = "";
     els.adminMedalReward.value = "";
     els.adminMedalsSuccess.textContent = "Médaille créée !";
     els.adminMedalsSuccess.classList.remove("hidden");
