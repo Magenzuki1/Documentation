@@ -663,25 +663,35 @@ function resolveBlackjackBet(totalBet, outcome) {
    symboles identiques sur une ligne rapporte son multiplicateur ; 3 cloches
    🔔 ou plus n'importe où sur la grille (peu importe la ligne, comme un
    symbole "scatter") déclenchent un bonus "Choisis un fruit !" à la manière
-   des vraies machines à sous. Mise plafonnée à 100 000 pièces, comme le
-   Black Jack. */
+   des vraies machines à sous. Le poids de la cloche (11) est calibré pour un
+   taux de déclenchement d'environ 5% des tours (~1 sur 19), plus fréquent
+   qu'un scatter de casino réel, pour rester fun à jouer. Table de paiement
+   calibrée (payout/twoPay/prix de bonus) pour un taux de retour global
+   d'environ 108% et un tour gagnant sur trois (contre ~20% et ~67% avant
+   ajustement) : généreux et amusant, sans être un distributeur de pièces
+   sans limite. Mise plafonnée à 100 000 pièces, comme le Black Jack. */
 
 const SLOT_MAX_BET = 100000;
+// payout : 3 symboles identiques sur la ligne. twoPay : seulement les 2
+// premiers de la ligne identiques (comme le paiement partiel "2 cerises" de
+// beaucoup de vraies machines à sous) — absent (0) pour la cloche (scatter
+// pur, jamais de gain de ligne) et le sept (jackpot réservé au grand
+// alignement complet, pas de lot de consolation).
 const SLOT_SYMBOLS = [
-  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 2 },
-  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 3 },
-  { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 5 },
-  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 8 },
-  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 15 },
-  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 25 },
-  { id: "cloche", emoji: "🔔", name: "Cloche", weight: 5, payout: 0 },
-  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 100 },
+  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 3, twoPay: 0.5 },
+  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 4, twoPay: 0 },
+  { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 6, twoPay: 0 },
+  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 10, twoPay: 0 },
+  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 16, twoPay: 0 },
+  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 28, twoPay: 0 },
+  { id: "cloche", emoji: "🔔", name: "Cloche", weight: 11, payout: 0, twoPay: 0 },
+  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 90, twoPay: 0 },
 ];
 const SLOT_SYMBOLS_BY_ID = Object.fromEntries(SLOT_SYMBOLS.map((s) => [s.id, s]));
 const SLOT_TOTAL_WEIGHT = SLOT_SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
 const SLOT_SCATTER_SYMBOL_ID = "cloche";
 const SLOT_SCATTER_MIN_COUNT = 3;
-const SLOT_BONUS_PRIZE_MULTIPLIERS = [5, 10, 20];
+const SLOT_BONUS_PRIZE_MULTIPLIERS = [2, 3, 6];
 
 // 3 lignes horizontales + les 2 diagonales, en coordonnées [ligne, colonne].
 const SLOT_PAYLINES = [
@@ -722,9 +732,16 @@ function evaluateSlotSpin(grid) {
     if (symbols[0] === symbols[1] && symbols[1] === symbols[2]) {
       const symbol = SLOT_SYMBOLS_BY_ID[symbols[0]];
       if (symbol.payout > 0) {
-        lineWins.push({ paylineIndex: index, symbolId: symbol.id, multiplier: symbol.payout });
+        lineWins.push({ paylineIndex: index, symbolId: symbol.id, multiplier: symbol.payout, kind: "triple" });
         totalMultiplier += symbol.payout;
         if (symbol.id === "sept") hasJackpotLine = true;
+      }
+    } else if (symbols[0] === symbols[1]) {
+      // Paiement partiel : seulement les 2 premiers de la ligne identiques.
+      const symbol = SLOT_SYMBOLS_BY_ID[symbols[0]];
+      if (symbol.twoPay > 0) {
+        lineWins.push({ paylineIndex: index, symbolId: symbol.id, multiplier: symbol.twoPay, kind: "double" });
+        totalMultiplier += symbol.twoPay;
       }
     }
   });
@@ -1386,6 +1403,10 @@ function doPrestige() {
   const keepProfile = state.profile;
   const keepSettings = state.settings;
   const keepCloud = state.cloud;
+  // Les niveaux de banane (fusion de doublons) sont conservés : les remettre
+  // à zéro à chaque Prestige serait trop frustrant pour un joueur qui vient
+  // de passer du temps à monter ses bananes en niveau.
+  const keepBananaLevels = state.bananaLevels;
 
   state = defaultState();
   state.prestige.level = newLevel;
@@ -1393,6 +1414,7 @@ function doPrestige() {
   state.profile = keepProfile;
   state.settings = keepSettings;
   state.cloud = keepCloud;
+  state.bananaLevels = keepBananaLevels;
   saveState();
   return { ok: true, level: newLevel };
 }
