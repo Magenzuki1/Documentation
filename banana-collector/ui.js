@@ -176,6 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminMedalDesc: document.getElementById("admin-medal-desc"),
     adminMedalMetric: document.getElementById("admin-medal-metric"),
     adminMedalThreshold: document.getElementById("admin-medal-threshold"),
+    adminMedalReward: document.getElementById("admin-medal-reward"),
     adminMedalCreateBtn: document.getElementById("admin-medal-create-btn"),
     adminMedalsError: document.getElementById("admin-medals-error"),
     adminMedalsSuccess: document.getElementById("admin-medals-success"),
@@ -724,7 +725,8 @@ document.addEventListener("DOMContentLoaded", () => {
     medals.forEach((medal, i) => {
       setTimeout(() => {
         if (playSound) SFX.achievement();
-        showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { image: medal.image, emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}` }, 2600);
+        const rewardSuffix = medal.reward ? ` (+${medal.reward} 🪙)` : "";
+        showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { image: medal.image, emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}${rewardSuffix}` }, 2600);
         spawnConfetti(20);
       }, i * 900);
       // playSound=false marque un rattrapage au démarrage (médaille déjà
@@ -3085,9 +3087,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const favoriteHTML = favorite
       ? `${bananaIconHTML(favorite, 3)}<div class="showcase-favorite-name">${favorite.name}</div>`
       : `<div class="showcase-favorite-empty">🍌<div>Aucune banane</div></div>`;
-    const medalIds = (showcase.medals || []).slice(-3).reverse();
+    // showcase_medals : les 3 emplacements choisis par LE JOUEUR AFFICHÉ (pas
+    // nous). Repli sur les 3 dernières débloquées si absent (compte pas encore
+    // synchronisé côté serveur, ou aucun choix explicite fait).
+    const chosenMedalIds = Array.isArray(showcase.showcase_medals) && showcase.showcase_medals.some(Boolean)
+      ? showcase.showcase_medals
+      : (showcase.medals || []).slice(-3).reverse();
     const medalSlotsHTML = [0, 1, 2].map((i) => {
-      const medal = medalIds[i] ? MEDALS_BY_ID[medalIds[i]] : null;
+      const medal = chosenMedalIds[i] ? MEDALS_BY_ID[chosenMedalIds[i]] : null;
       return medal
         ? `<div class="showcase-medal" title="${medal.name} — ${medal.publicDesc}">${medalIconHTML(medal, 1.8)}</div>`
         : `<div class="showcase-medal showcase-medal-empty">?</div>`;
@@ -3187,6 +3194,25 @@ document.addEventListener("DOMContentLoaded", () => {
       const selected = state.profile.favoriteBananaId === id ? "selected" : "";
       return `<option value="${id}" ${selected}>${b.name} — ${RARITIES[b.rarity].label}</option>`;
     }).join("");
+    const unlockedMedals = state.medals.unlocked.map((id) => MEDALS_BY_ID[id]).filter(Boolean);
+    // Pré-sélectionne le choix EXPLICITE (pas la valeur affichée par défaut) :
+    // si le joueur n'a encore rien choisi, les 3 menus doivent bien montrer
+    // "Vide", même si l'aperçu au-dessus affiche déjà un repli automatique.
+    const medalPickersHTML = [0, 1, 2].map((i) => {
+      const currentSlotValue = state.profile.showcaseMedals[i];
+      const optionsForSlot = unlockedMedals
+        .map((m) => `<option value="${m.id}" ${m.id === currentSlotValue ? "selected" : ""}>${m.icon || "🎖️"} ${m.name}</option>`)
+        .join("");
+      return `
+        <select class="showcase-medal-slot-select" data-slot="${i}">
+          <option value="" ${currentSlotValue ? "" : "selected"}>— Vide —</option>
+          ${optionsForSlot}
+        </select>
+      `;
+    }).join("");
+    const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id]?.secret).length;
+    const collectionPct = Math.round((discoveredNormal / TOTAL_NORMAL) * 100);
+    const secretCount = state.discovered.filter((id) => BANANAS_BY_ID[id]?.secret).length;
     return `
       <div class="showcase-section">
         <h4>🌟 Vitrine</h4>
@@ -3200,6 +3226,15 @@ document.addEventListener("DOMContentLoaded", () => {
             <option value="">🎲 Automatique (la plus rare)</option>
             ${optionsHTML}
           </select>
+        </div>
+        <div class="favorite-picker-row showcase-medal-picker-row">
+          <label>Médailles de la vitrine</label>
+          <div class="showcase-medal-pickers">${medalPickersHTML}</div>
+          <p class="showcase-medal-picker-hint">Si tu ne choisis rien, tes 3 dernières médailles obtenues s'affichent automatiquement.</p>
+        </div>
+        <div class="showcase-stats-row">
+          <span>📖 Collection : ${discoveredNormal} / ${TOTAL_NORMAL} — ${collectionPct}%</span>
+          <span>🕵️ Secrets découverts : ${secretCount} / ${TOTAL_SECRET}</span>
         </div>
       </div>
     `;
@@ -3297,6 +3332,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     }
+    container.querySelectorAll(".showcase-medal-slot-select").forEach((select) => {
+      select.addEventListener("change", () => {
+        const slot = Number(select.dataset.slot);
+        const medalId = select.value || null;
+        const res = setShowcaseMedalSlot(slot, medalId);
+        if (!res.ok) return;
+        SFX.click();
+        renderAccountModal();
+        if (CLOUD.available && CLOUD.isLinked()) {
+          CLOUD.setShowcaseMedals(state.profile.showcaseMedals);
+        }
+      });
+    });
     container.querySelectorAll(".profile-avatar-option:not(.locked)").forEach((btn) => {
       btn.addEventListener("click", () => {
         const res = setAvatar(btn.dataset.avatarId);
@@ -4093,18 +4141,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function renderAdminMedalsList() {
     els.adminMedalsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
-    const rows = await CLOUD.fetchAdminMedals();
+    const [rows, stats] = await Promise.all([CLOUD.fetchAdminMedals(), CLOUD.adminMedalUnlockStats()]);
     if (!rows || rows.length === 0) {
       els.adminMedalsList.innerHTML = `<p class="account-hint">Aucune médaille créée pour l'instant.</p>`;
       return;
     }
-    els.adminMedalsList.innerHTML = rows.map((m) => `
-      <div class="admin-log-row" data-id="${m.id}">
-        <span class="admin-log-user">${m.icon} ${m.name}</span>
-        <span class="admin-log-reason">${m.public_desc} — ${ADMIN_MEDAL_METRIC_LABELS[m.metric] || m.metric} ≥ ${m.threshold}</span>
-        <button class="btn danger admin-medal-delete-btn">Supprimer</button>
-      </div>
-    `).join("");
+    // Statistiques d'obtention : uniquement les comptes cloud (les parties
+    // 100% solo ne remontent jamais leurs médailles au serveur), donc un
+    // repère indicatif plutôt qu'un chiffre absolu — mais bien réel.
+    const totalPlayers = stats[0]?.total_players || 0;
+    const statsByMedalId = Object.fromEntries(stats.map((s) => [s.medal_id, s.unlock_count]));
+    els.adminMedalsList.innerHTML = rows.map((m) => {
+      const id = `medal_admin_${m.id}`;
+      const unlockCount = statsByMedalId[id] || 0;
+      const pct = totalPlayers > 0 ? Math.round((unlockCount / totalPlayers) * 100) : 0;
+      const rewardText = m.reward ? ` · 🪙 +${m.reward}` : "";
+      return `
+        <div class="admin-log-row" data-id="${m.id}">
+          <span class="admin-log-user">${m.icon} ${m.name}</span>
+          <span class="admin-log-reason">${m.public_desc} — ${ADMIN_MEDAL_METRIC_LABELS[m.metric] || m.metric} ≥ ${m.threshold}${rewardText}</span>
+          <span class="admin-log-date">${unlockCount} / ${totalPlayers} joueur${totalPlayers > 1 ? "s" : ""} (${pct}%)</span>
+          <button class="btn danger admin-medal-delete-btn">Supprimer</button>
+        </div>
+      `;
+    }).join("");
     els.adminMedalsList.querySelectorAll(".admin-medal-delete-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const row = btn.closest(".admin-log-row");
@@ -4132,6 +4192,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const description = els.adminMedalDesc.value.trim();
     const metric = els.adminMedalMetric.value;
     const threshold = Math.floor(Number(els.adminMedalThreshold.value));
+    const rewardRaw = els.adminMedalReward.value.trim();
+    const reward = rewardRaw ? Math.floor(Number(rewardRaw)) : null;
     els.adminMedalsError.classList.add("hidden");
     els.adminMedalsSuccess.classList.add("hidden");
     if (!name) {
@@ -4149,8 +4211,13 @@ document.addEventListener("DOMContentLoaded", () => {
       els.adminMedalsError.classList.remove("hidden");
       return;
     }
+    if (rewardRaw && (!Number.isFinite(reward) || reward < 0 || reward > 1000000)) {
+      els.adminMedalsError.textContent = "La récompense doit être un nombre de pièces entre 0 et 1 000 000.";
+      els.adminMedalsError.classList.remove("hidden");
+      return;
+    }
     els.adminMedalCreateBtn.disabled = true;
-    const res = await CLOUD.adminCreateMedal(name, icon, description, metric, threshold);
+    const res = await CLOUD.adminCreateMedal(name, icon, description, metric, threshold, reward);
     els.adminMedalCreateBtn.disabled = false;
     if (!res.ok) {
       els.adminMedalsError.textContent = res.reason || "Erreur inconnue.";
@@ -4160,6 +4227,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminMedalName.value = "";
     els.adminMedalDesc.value = "";
     els.adminMedalThreshold.value = "";
+    els.adminMedalReward.value = "";
     els.adminMedalsSuccess.textContent = "Médaille créée !";
     els.adminMedalsSuccess.classList.remove("hidden");
     renderAdminMedalsList();

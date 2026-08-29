@@ -1684,6 +1684,24 @@ h1, h2, h3,
   font-size: 0.85rem;
 }
 
+.showcase-medal-picker-row { flex-direction: column; align-items: stretch; }
+.showcase-medal-pickers { display: flex; gap: 6px; flex-wrap: wrap; }
+.showcase-medal-pickers select { flex: 1; min-width: 100px; padding: 6px 8px; border-radius: 8px; border: 2px solid #f0dfa8; font-size: 0.8rem; }
+.showcase-medal-picker-hint { margin: 4px 0 0; font-weight: 400; font-size: 0.72rem; color: #9c8850; font-style: italic; }
+
+.showcase-stats-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0dfa8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7a6224;
+}
+
 .medals-section { margin-top: 16px; }
 .medals-section h4 { margin: 0 0 10px; }
 
