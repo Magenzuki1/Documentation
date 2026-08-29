@@ -2650,8 +2650,8 @@ h1, h2, h3,
 }
 .profile-avatar-effect.effect_stars::after { animation-delay: -1.75s; }
 @keyframes effectOrbit {
-  from { transform: rotate(0deg) translateX(2.2rem) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(2.2rem) rotate(-360deg); }
+  from { transform: translate(-50%, -50%) rotate(0deg) translateX(2.2rem) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg) translateX(2.2rem) rotate(-360deg); }
 }
 
 .profile-avatar-effect.effect_spin::before,
