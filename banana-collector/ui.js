@@ -28,6 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
     weeklyQuestsList: document.getElementById("weekly-quests-list"),
     permanentQuestsList: document.getElementById("permanent-quests-list"),
     muteBtn: document.getElementById("mute-btn"),
+    settingsRollAnimatedBtn: document.getElementById("settings-roll-animated-btn"),
+    settingsRollFastBtn: document.getElementById("settings-roll-fast-btn"),
     watchAdBtn: document.getElementById("watch-ad-btn"),
     adQuota: document.getElementById("ad-quota"),
     statsPanel: document.getElementById("stats-content"),
@@ -362,21 +364,62 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function harvest() {
-    if (busy) return;
-    busy = true;
-    els.harvestBtn.disabled = true;
+  // Roulette de rareté jouée avant la révélation quand le "Mode animé" est
+  // actif (Réglages) : fait défiler les paliers de rareté (dans l'ordre de
+  // RARITY_ORDER) à vitesse décroissante, toujours pile sur la vraie rareté
+  // obtenue au dernier cran — le résultat lui-même est déjà déterminé (par
+  // rollBanana(), appelé avant), l'animation ne fait que le mettre en scène.
+  const ROULETTE_STEP_DELAYS_MS = [70, 80, 95, 110, 130, 155, 185, 220];
 
-    const result = rollBanana();
-    const { banana, isNew, rarity, coinsEarned } = result;
+  function playRarityRoulette(finalRarity, onDone) {
+    const seq = RARITY_ORDER;
+    const finalIndex = rarityIndex(finalRarity);
+    const totalSteps = ROULETTE_STEP_DELAYS_MS.length + 1;
 
-    if (rarity === "mythique" || rarity === "secrete") SFX.harvestMythic();
+    els.lastBanana.innerHTML = `
+      <div class="rarity-roulette" id="rarity-roulette">
+        <div class="rarity-roulette-banana">🍌</div>
+        <div class="rarity-roulette-pill" id="rarity-roulette-pill"></div>
+      </div>
+    `;
+    const wrap = els.lastBanana.querySelector("#rarity-roulette");
+    const pill = els.lastBanana.querySelector("#rarity-roulette-pill");
+
+    function renderFrame(stepIndex) {
+      const offsetFromEnd = totalSteps - 1 - stepIndex;
+      const idx = ((finalIndex - offsetFromEnd) % seq.length + seq.length) % seq.length;
+      const r = seq[idx];
+      pill.textContent = RARITIES[r].label;
+      wrap.style.setProperty("--rarity-color", RARITIES[r].color);
+      wrap.style.setProperty("--rarity-glow", RARITIES[r].glow);
+    }
+
+    renderFrame(0);
+    let step = 0;
+    function next() {
+      if (step >= ROULETTE_STEP_DELAYS_MS.length) {
+        wrap.classList.add("landed");
+        SFX.rouletteLand();
+        setTimeout(onDone, 280);
+        return;
+      }
+      setTimeout(() => {
+        step++;
+        renderFrame(step);
+        SFX.rouletteTick();
+        next();
+      }, ROULETTE_STEP_DELAYS_MS[step]);
+    }
+    next();
+  }
+
+  function finishHarvestReveal(banana, isNew, rarity, coinsEarned) {
+    if (rarity === "secrete") SFX.harvestSecret();
+    else if (rarity === "mythique") SFX.harvestMythic();
     else if (rarity === "legendaire" || rarity === "epique") SFX.harvestEpic();
     else if (rarity === "rare") SFX.harvestRare();
     else SFX.harvestCommon();
 
-    renderHeader();
-    CLOUD.scheduleSync();
     els.lastBanana.innerHTML = bananaCardHTML(banana, state.counts[banana.id], isNew, coinsEarned);
     const card = els.lastBanana.querySelector(".harvest-reveal-card");
     card.classList.add("pop-in");
@@ -388,8 +431,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (rarity === "legendaire") {
       showBanner("⭐ LÉGENDAIRE ! ⭐", banana, 1800);
-    } else if (rarity === "mythique" || rarity === "secrete") {
-      showEpicOverlay(banana, rarity);
+    } else if (rarity === "secrete") {
+      showSecretRevealOverlay(banana);
+    } else if (rarity === "mythique") {
+      showEpicOverlay(banana);
     } else if (isNew) {
       spawnConfetti(10);
     }
@@ -410,6 +455,25 @@ document.addEventListener("DOMContentLoaded", () => {
       busy = false;
       els.harvestBtn.disabled = false;
     }, cooldown);
+  }
+
+  function harvest() {
+    if (busy) return;
+    busy = true;
+    els.harvestBtn.disabled = true;
+
+    const result = rollBanana();
+    const { banana, isNew, rarity, coinsEarned } = result;
+
+    renderHeader();
+    CLOUD.scheduleSync();
+
+    const animated = !!(state.settings && state.settings.animatedRoll);
+    if (animated) {
+      playRarityRoulette(rarity, () => finishHarvestReveal(banana, isNew, rarity, coinsEarned));
+    } else {
+      finishHarvestReveal(banana, isNew, rarity, coinsEarned);
+    }
 
     return rarity;
   }
@@ -432,6 +496,27 @@ document.addEventListener("DOMContentLoaded", () => {
       els.toastLayer.appendChild(piece);
       piece.addEventListener("animationend", () => piece.remove());
     }
+  }
+
+  // Anneau de particules lumineuses radiant depuis le centre de l'écran —
+  // réservé aux moments les plus exceptionnels (banane secrète), en plus du
+  // confetti habituel, pour un effet de lumière que le confetti seul ne rend
+  // pas.
+  function spawnSparkleBurst() {
+    const layer = document.createElement("div");
+    layer.className = "sparkle-burst";
+    const symbols = ["✨", "⭐", "💫"];
+    const count = 14;
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement("span");
+      piece.className = "sparkle-burst-piece";
+      piece.textContent = symbols[i % symbols.length];
+      piece.style.setProperty("--angle", `${(360 / count) * i}deg`);
+      piece.style.setProperty("--delay", `${(i % 5) * 0.03}s`);
+      layer.appendChild(piece);
+    }
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), 1300);
   }
 
   function showBanner(title, banana, duration) {
@@ -471,12 +556,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function showEpicOverlay(banana, rarity) {
-    const label = rarity === "secrete" ? "BANANE SECRÈTE !" : "BANANE MYTHIQUE !";
+  function showEpicOverlay(banana) {
     els.overlayContent.innerHTML = `
       <div class="epic-lines">
         <div class="epic-sparkles">✨✨✨</div>
-        <div class="epic-title">${label}</div>
+        <div class="epic-title">BANANE MYTHIQUE !</div>
         <div class="epic-emoji">${bananaIconHTML(banana, 4)}</div>
         <div class="epic-sub">TU AS TROUVÉ UNE BANANE EXTRÊMEMENT RARE !</div>
         <div class="epic-name">${banana.name}</div>
@@ -502,6 +586,50 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(close, 4500);
   }
 
+  // Réservée à la banane secrète : plus spectaculaire que l'overlay mythique
+  // (suspense avant révélation, flash à l'écran, anneau de particules
+  // lumineuses, message "WOW"), tout en restant courte (~6s au total).
+  function showSecretRevealOverlay(banana) {
+    els.overlayContent.innerHTML = `
+      <div class="epic-lines secret-suspense">
+        <div class="secret-suspense-glyph">❔</div>
+        <div class="secret-suspense-text">Quelque chose d'extraordinaire se prépare...</div>
+      </div>
+    `;
+    els.overlay.classList.remove("hidden");
+    requestAnimationFrame(() => els.overlay.classList.add("show"));
+
+    setTimeout(() => {
+      els.overlayContent.innerHTML = `
+        <div class="epic-lines">
+          <div class="secret-flash"></div>
+          <div class="epic-sparkles">✨✨✨</div>
+          <div class="epic-title secret-title">BANANE SECRÈTE !</div>
+          <div class="epic-emoji secret-emoji">${bananaIconHTML(banana, 4)}</div>
+          <div class="epic-sub">🤯 INCROYABLE ! TU AS DÉCOUVERT UN SECRET DU JEU !</div>
+          <div class="epic-name">${banana.name}</div>
+          <div class="epic-sparkles">✨✨✨</div>
+        </div>
+        <button class="btn epic-close">Encaisser 🪙</button>
+      `;
+      spawnConfetti(55);
+      spawnSparkleBurst();
+
+      const close = () => {
+        els.overlay.classList.remove("show");
+        setTimeout(() => {
+          els.overlay.classList.add("hidden");
+          flushPendingAdBreak();
+        }, 350);
+      };
+      els.overlayContent.querySelector(".epic-close").addEventListener("click", close);
+      els.overlay.addEventListener("pointerdown", (e) => {
+        if (e.target === els.overlay) close();
+      }, { once: true });
+      setTimeout(close, 5500);
+    }, 750);
+  }
+
   /* ---------------- Pause publicitaire (interstitiel) ----------------
      Voir AD_BREAK_EVERY dans app.js. Ne compte que les clics manuels sur
      le bouton "Récolter" (l'appel automatique par le fermier ne passe
@@ -520,9 +648,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     state.adBreak.clicksSinceLast = 0;
     saveState();
-    // Une banane mythique/secrète vient d'ouvrir l'overlay épique : on
-    // n'empile pas deux overlays, la pub s'affichera à sa fermeture.
-    if (!els.overlay.classList.contains("hidden")) {
+    // Une banane mythique/secrète va ouvrir (ou est en train d'ouvrir, en
+    // Mode animé) l'overlay épique : on n'empile pas deux overlays, la pub
+    // s'affichera à sa fermeture. On se base sur la rareté elle-même plutôt
+    // que sur l'état actuel du DOM, car en Mode animé l'overlay ne s'ouvre
+    // qu'après la roulette de rareté, donc après ce point.
+    if (rarity === "mythique" || rarity === "secrete") {
       pendingAdBreak = true;
     } else {
       showAdBreakOverlay();
@@ -2858,6 +2989,28 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!state.settings.muted) SFX.click();
   });
 
+  /* ---------------- Réglages : mode de récolte animé/rapide ---------------- */
+
+  function renderRollModeSettings() {
+    const animated = !!(state.settings && state.settings.animatedRoll);
+    els.settingsRollAnimatedBtn.classList.toggle("active", animated);
+    els.settingsRollFastBtn.classList.toggle("active", !animated);
+  }
+
+  els.settingsRollAnimatedBtn.addEventListener("click", () => {
+    state.settings.animatedRoll = true;
+    saveState();
+    renderRollModeSettings();
+    SFX.click();
+  });
+
+  els.settingsRollFastBtn.addEventListener("click", () => {
+    state.settings.animatedRoll = false;
+    saveState();
+    renderRollModeSettings();
+    SFX.click();
+  });
+
   /* ---------------- Réinitialisation ---------------- */
 
   els.resetBtn.addEventListener("click", () => {
@@ -2879,6 +3032,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderShop();
     renderQuests();
     renderMuteBtn();
+    renderRollModeSettings();
     renderMinigamesMenu();
     renderStats();
     renderAchievements();
@@ -2888,6 +3042,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderHeader();
   renderMuteBtn();
+  renderRollModeSettings();
   if (state.lastBananaId) {
     const banana = BANANAS_BY_ID[state.lastBananaId];
     els.lastBanana.innerHTML = bananaCardHTML(banana, state.counts[banana.id], false);
