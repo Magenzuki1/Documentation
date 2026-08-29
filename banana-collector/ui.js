@@ -106,6 +106,10 @@ document.addEventListener("DOMContentLoaded", () => {
     publicShowcaseModal: document.getElementById("public-showcase-modal"),
     publicShowcaseContent: document.getElementById("public-showcase-content"),
     publicShowcaseClose: document.getElementById("public-showcase-close"),
+    settingsBtn: document.getElementById("settings-btn"),
+    settingsModal: document.getElementById("settings-modal"),
+    settingsModalContent: document.getElementById("settings-modal-content"),
+    settingsModalClose: document.getElementById("settings-modal-close"),
     adminModal: document.getElementById("admin-modal"),
     adminModalClose: document.getElementById("admin-modal-close"),
     adminTabPlayers: document.getElementById("admin-tab-players"),
@@ -3416,6 +3420,58 @@ document.addEventListener("DOMContentLoaded", () => {
   els.accountModal.addEventListener("pointerdown", (e) => {
     if (e.target === els.accountModal) closeAccountModal();
   });
+
+  /* ---------------- Paramètres (mode nuit, contact) ---------------- */
+
+  function applyTheme() {
+    document.documentElement.dataset.theme = state.settings.darkMode ? "dark" : "light";
+  }
+
+  function settingsModalHTML() {
+    return `
+      <h3>⚙️ Paramètres</h3>
+      <div class="settings-row">
+        <span class="settings-row-label">🌗 Thème</span>
+        <div class="settings-toggle-group">
+          <button id="settings-theme-light-btn" class="settings-toggle-btn ${state.settings.darkMode ? "" : "active"}">☀️ Mode jour</button>
+          <button id="settings-theme-dark-btn" class="settings-toggle-btn ${state.settings.darkMode ? "active" : ""}">🌙 Mode nuit</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSettingsModal() {
+    els.settingsModalContent.innerHTML = settingsModalHTML();
+    const lightBtn = els.settingsModalContent.querySelector("#settings-theme-light-btn");
+    const darkBtn = els.settingsModalContent.querySelector("#settings-theme-dark-btn");
+    lightBtn.addEventListener("click", () => {
+      state.settings.darkMode = false;
+      saveState();
+      applyTheme();
+      renderSettingsModal();
+      SFX.click();
+    });
+    darkBtn.addEventListener("click", () => {
+      state.settings.darkMode = true;
+      saveState();
+      applyTheme();
+      renderSettingsModal();
+      SFX.click();
+    });
+  }
+
+  function closeSettingsModal() { els.settingsModal.classList.add("hidden"); }
+
+  els.settingsBtn.addEventListener("click", () => {
+    renderSettingsModal();
+    els.settingsModal.classList.remove("hidden");
+  });
+  els.settingsModalClose.addEventListener("click", closeSettingsModal);
+  els.settingsModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.settingsModal) closeSettingsModal();
+  });
+
+  applyTheme();
 
   /* ---------------- Panneau admin ---------------- */
 
