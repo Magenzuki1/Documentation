@@ -2350,9 +2350,9 @@ h1, h2, h3,
   width: 280px;
   height: 280px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, var(--rarity-color) 0%, var(--rarity-glow) 35%, transparent 70%);
-  filter: blur(4px);
-  opacity: 0.35;
+  background: radial-gradient(circle, var(--rarity-color) 0%, var(--rarity-glow) 45%, transparent 75%);
+  filter: blur(26px);
+  opacity: 0.3;
   pointer-events: none;
   z-index: 0;
 }
@@ -2487,7 +2487,7 @@ h1, h2, h3,
   border-width: 3px;
   box-shadow: 0 0 18px 4px var(--rarity-glow);
 }
-.banana-detail-frame.tier-2 .banana-detail-glow { opacity: 0.5; }
+.banana-detail-frame.tier-2 .banana-detail-glow { opacity: 0.38; }
 
 /* Épique : bordure double, halo net. */
 .banana-detail-frame.tier-3 {
@@ -2495,7 +2495,7 @@ h1, h2, h3,
   border-style: double;
   box-shadow: 0 0 24px 6px var(--rarity-glow);
 }
-.banana-detail-frame.tier-3 .banana-detail-glow { opacity: 0.6; }
+.banana-detail-frame.tier-3 .banana-detail-glow { opacity: 0.44; }
 
 /* Légendaire : cadre doré animé. */
 .banana-detail-frame.tier-4 {
@@ -2504,7 +2504,7 @@ h1, h2, h3,
   box-shadow: 0 0 32px 8px var(--rarity-glow), inset 0 0 16px rgba(255, 255, 255, 0.15);
   animation: detailPulse 2.2s ease-in-out infinite;
 }
-.banana-detail-frame.tier-4 .banana-detail-glow { opacity: 0.7; }
+.banana-detail-frame.tier-4 .banana-detail-glow { opacity: 0.5; }
 
 /* Mythique : coins ornés en plus. */
 .banana-detail-frame.tier-5 {
@@ -2513,7 +2513,7 @@ h1, h2, h3,
   box-shadow: 0 0 40px 10px var(--rarity-glow), inset 0 0 20px rgba(255, 255, 255, 0.2);
   animation: detailPulse 1.8s ease-in-out infinite;
 }
-.banana-detail-frame.tier-5 .banana-detail-glow { opacity: 0.8; }
+.banana-detail-frame.tier-5 .banana-detail-glow { opacity: 0.56; }
 .banana-detail-frame.tier-5::before, .banana-detail-frame.tier-5::after,
 .banana-detail-frame.tier-6::before, .banana-detail-frame.tier-6::after {
   content: "✦";
@@ -2533,7 +2533,7 @@ h1, h2, h3,
   box-shadow: 0 0 50px 14px var(--rarity-glow), inset 0 0 26px rgba(255, 255, 255, 0.25);
   animation: detailPulse 1.5s ease-in-out infinite;
 }
-.banana-detail-frame.tier-6 .banana-detail-glow { opacity: 0.9; }
+.banana-detail-frame.tier-6 .banana-detail-glow { opacity: 0.62; }
 
 @keyframes detailPulse {
   0%, 100% { transform: scale(1); }
