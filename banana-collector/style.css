@@ -89,24 +89,34 @@ body {
 .tabs {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
   margin: 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 246, 213, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 999px;
+  padding: 6px;
+  box-shadow: var(--shadow);
 }
 
 .tab-btn {
   border: none;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--text);
+  background: transparent;
+  color: #7a6224;
   font-weight: 700;
   padding: 10px 16px;
   border-radius: 999px;
   cursor: pointer;
   font-size: 0.95rem;
-  transition: transform 0.15s ease, background 0.15s ease;
+  flex: 1 1 auto;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.tab-btn:hover { transform: translateY(-2px); }
+.tab-btn:hover { transform: translateY(-2px); color: var(--text); }
 
 .tab-btn.active {
   background: var(--accent);
@@ -601,8 +611,8 @@ body {
 .home-dashboard {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 @media (max-width: 640px) {
@@ -611,17 +621,24 @@ body {
 
 .home-card {
   background: #fff8e6;
-  border: 2px solid #f0e2b6;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border: 1px solid #f0e2b6;
+  border-radius: 12px;
+  padding: 8px 12px;
 }
 
 .home-card-title {
-  font-weight: 800;
-  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #7a6224;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-progress-wrap { margin: 0; }
+.home-progress-wrap .progress-bar { height: 8px; margin-top: 3px; }
+#home-xp-label { font-size: 0.7rem; color: #9c8850; font-weight: 700; }
 
 .home-xp-bar-fill { background: linear-gradient(90deg, #7bd88f, #3fa9ff); }
 
@@ -698,19 +715,58 @@ body {
 
 /* --- Marché --- */
 
-.market-subtabs { display: flex; gap: 8px; margin: 14px 0; }
+.market-subtabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 18px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #f0dfa8;
+}
 
 .market-subtab-btn {
   border: none;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--text);
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #9c8850;
   font-weight: 700;
-  padding: 8px 16px;
-  border-radius: 999px;
+  padding: 8px 12px 7px;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  margin-bottom: -2px;
 }
-.market-subtab-btn.active { background: var(--accent); color: #2b1a00; box-shadow: var(--shadow); }
+.market-subtab-btn:hover { color: var(--text); }
+.market-subtab-btn.active {
+  background: transparent;
+  color: var(--accent-dark);
+  border-bottom-color: var(--accent);
+  box-shadow: none;
+}
+
+/* Sous-niveau de sous-onglets (ex : Classement → Collection/PVP/PVE,
+   Marché → Acheter/Mes annonces) : encore plus discret pour ne pas rivaliser
+   visuellement avec le niveau au-dessus. */
+.market-subtabs-nested {
+  border-bottom: none;
+  margin: 0 0 14px;
+  gap: 8px;
+}
+.market-subtabs-nested .market-subtab-btn {
+  background: #fff8e6;
+  border: 2px solid #f0e2b6;
+  border-bottom: 2px solid #f0e2b6;
+  border-radius: 999px;
+  padding: 5px 12px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+}
+.market-subtabs-nested .market-subtab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #2b1a00;
+}
 
 .market-view.hidden { display: none; }
 
