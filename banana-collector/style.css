@@ -93,6 +93,20 @@ h1, h2, h3,
 }
 .mute-btn.muted { opacity: 0.55; }
 
+.settings-gear-btn {
+  border: none;
+  background: var(--card-bg);
+  border-radius: 999px;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+.settings-gear-btn:hover { transform: rotate(45deg); }
+
 .inline-avatar-icon { display: inline-flex; vertical-align: middle; }
 .inline-avatar-icon .banana-icon { margin: 0; }
 
@@ -2403,7 +2417,7 @@ h1, h2, h3,
 .modal.hidden { display: none; }
 
 .modal-box {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 22px;
   max-width: 340px;
@@ -2817,4 +2831,52 @@ h1, h2, h3,
   .banana-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
   .stats-bar { font-size: 0.9rem; }
   .tab-btn { padding: 8px 12px; font-size: 0.85rem; }
+}
+
+/* --- Mode nuit --- */
+
+:root[data-theme="dark"] {
+  --bg-1: #1b1e2a;
+  --bg-2: #10121a;
+  --text: #eae6da;
+  --card-bg: linear-gradient(165deg, #2b3040, #1f232f);
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] .topbar-hero {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .stats-bar span,
+:root[data-theme="dark"] .account-btn {
+  background: linear-gradient(160deg, #3a3f52, #2a2e3d);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .tabs {
+  background: rgba(20, 22, 32, 0.85);
+}
+
+:root[data-theme="dark"] .tab-btn {
+  color: #a9a493;
+}
+
+:root[data-theme="dark"] .market-subtabs {
+  border-bottom-color: #3a3f52;
+}
+
+:root[data-theme="dark"] .market-subtab-btn {
+  color: #a49d87;
+}
+
+:root[data-theme="dark"] .market-subtabs-nested .market-subtab-btn {
+  background: #2b3040;
+  border-color: #3a3f52;
+}
+
+:root[data-theme="dark"] .settings-section,
+:root[data-theme="dark"] .profile-section,
+:root[data-theme="dark"] .settings-toggle-btn {
+  border-color: #3a3f52;
 }
