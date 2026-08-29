@@ -2702,14 +2702,22 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pvpTeamPicker.innerHTML = team.map((id) => {
       const b = BANANAS_BY_ID[id];
       const stats = bananaCombatStats(b);
+      // Même flèche discrète que dans la Collection : monter le niveau
+      // d'une banane de l'équipe PVP augmente directement son ATK/DEF, donc
+      // ça vaut le coup de le savoir en un coup d'œil ici aussi.
+      const canLevelUp = levelsGainableFromDuplicates(b.id) > 0;
+      const hintHTML = canLevelUp ? `<span class="pvp-slot-upgrade-hint" title="Peut être améliorée">⬆️</span>` : "";
       return `
-        <div class="pvp-slot">
+        <div class="pvp-slot" data-id="${b.id}">
           ${bananaIconHTML(b, 2)}
-          <span class="pvp-slot-name">${b.name}</span>
+          <span class="pvp-slot-name">${b.name}</span>${hintHTML}
           <span class="pvp-slot-stats">⚔️${stats.atk} 🛡️${stats.def}</span>
         </div>
       `;
     }).join("");
+    els.pvpTeamPicker.querySelectorAll(".pvp-slot").forEach((slot) => {
+      slot.addEventListener("click", () => showBananaDetailOverlay(Number(slot.dataset.id)));
+    });
     els.pvpTeamCount.textContent = team.length < 5
       ? `${team.length} / 5 — récolte encore des bananes pour activer ta défense`
       : "🤖 Équipe automatique : tes 5 meilleures bananes";
