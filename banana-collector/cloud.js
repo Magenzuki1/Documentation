@@ -228,6 +228,16 @@ const CLOUD = (() => {
     return error || !data ? [] : data;
   }
 
+  // Vide le bandeau "Fil d'actualité" pour tout le monde : événements
+  // notables des joueurs ET annonces admin. Action de modération, réservée
+  // aux admins côté serveur (assert_admin dans la RPC).
+  async function adminResetActivityFeed() {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_reset_activity_feed");
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   async function adminScheduleEvent(dateStr, dayIndex) {
     if (!supabase) return unavailable;
     const { error } = await supabase.rpc("admin_schedule_event", { p_date: dateStr, p_event_day_index: dayIndex });
@@ -698,7 +708,7 @@ const CLOUD = (() => {
     if (!supabase || !isLinked() || !cachedUserId) return [];
     const { data, error } = await supabase
       .from("listings")
-      .select("id, banana_id, quantity, unit_price, status, created_at")
+      .select("id, banana_id, quantity, sold_quantity, unit_price, status, created_at")
       .eq("seller_id", cachedUserId)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -738,9 +748,13 @@ const CLOUD = (() => {
   // absence" affiché à l'ouverture du Marché.
   async function fetchUnseenSales() {
     if (!supabase || !isLinked() || !cachedUserId) return [];
+    // buy_listing() remet quantity à 0 sur une annonce entièrement vendue
+    // (c'est le champ "il en reste combien à acheter", qui n'a plus de sens
+    // une fois vendue) — sold_quantity conserve la quantité réellement
+    // vendue, c'est elle qu'il faut afficher ici, pas quantity.
     const { data, error } = await supabase
       .from("listings")
-      .select("id, banana_id, quantity, unit_price, buyer_id, sold_at")
+      .select("id, banana_id, quantity:sold_quantity, unit_price, buyer_id, sold_at")
       .eq("seller_id", cachedUserId)
       .eq("status", "sold")
       .eq("seen_by_seller", false)
@@ -982,6 +996,7 @@ const CLOUD = (() => {
     adminGetStats,
     adminSendAnnouncement,
     fetchRecentAnnouncements,
+    adminResetActivityFeed,
     adminScheduleEvent,
     adminUnscheduleEvent,
     adminListScheduledEvents,

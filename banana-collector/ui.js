@@ -202,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminNewsError: document.getElementById("admin-news-error"),
     adminNewsSuccess: document.getElementById("admin-news-success"),
     adminNewsList: document.getElementById("admin-news-list"),
+    adminNewsResetBtn: document.getElementById("admin-news-reset-btn"),
     adminEventsDate: document.getElementById("admin-events-date"),
     adminEventsSelect: document.getElementById("admin-events-select"),
     adminEventsScheduleBtn: document.getElementById("admin-events-schedule-btn"),
@@ -1387,14 +1388,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const banana = BANANAS_BY_ID[listing.banana_id];
     if (!banana) return "";
     const rarity = RARITIES[banana.rarity];
-    const total = listing.quantity * listing.unit_price;
+    // Une annonce vendue a quantity remise à 0 côté serveur (ce champ ne
+    // signifie plus que "il n'en reste plus à acheter") — sold_quantity
+    // conserve la quantité réellement vendue, à afficher à sa place.
+    const displayQty = listing.status === "sold" ? (listing.sold_quantity ?? listing.quantity) : listing.quantity;
+    const total = displayQty * listing.unit_price;
     const statusLabel = listing.status === "active" ? "En vente" : listing.status === "sold" ? "Vendue" : "Annulée";
     return `
       <div class="market-listing-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         ${bananaIconHTML(banana, 2.2)}
         <div class="banana-name">${banana.name}</div>
         ${mode === "buy" ? `<div class="market-listing-seller">par ${avatarIconHTML(listing.sellerAvatarId, 1.1)} ${clickableUsernameHTML(listing.sellerUsername)}</div>` : ""}
-        <div class="market-listing-qty">x${listing.quantity}</div>
+        <div class="market-listing-qty">x${displayQty}</div>
         <div class="market-listing-price">🪙 ${listing.unit_price} / unité</div>
         ${mode === "sell" ? `<div class="market-listing-status ${listing.status}">${statusLabel}</div>` : ""}
         ${mode === "buy" ? `<button class="btn market-buy-btn" data-listing="${listing.id}" data-qty="${listing.quantity}" data-banana="${listing.banana_id}">🪙 Acheter tout (${total})</button>` : ""}
@@ -4023,6 +4028,28 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminNewsSuccess.textContent = "Annonce envoyée !";
     els.adminNewsSuccess.classList.remove("hidden");
     renderAdminNewsHistory();
+  });
+
+  els.adminNewsResetBtn.addEventListener("click", async () => {
+    els.adminNewsError.classList.add("hidden");
+    els.adminNewsSuccess.classList.add("hidden");
+    if (!confirm("Vider le fil d'actualité pour TOUS les joueurs (événements notables + annonces) ? Action irréversible.")) {
+      return;
+    }
+    els.adminNewsResetBtn.disabled = true;
+    const res = await CLOUD.adminResetActivityFeed();
+    els.adminNewsResetBtn.disabled = false;
+    if (!res.ok) {
+      els.adminNewsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminNewsError.classList.remove("hidden");
+      return;
+    }
+    els.adminNewsSuccess.textContent = "Fil d'actualité réinitialisé !";
+    els.adminNewsSuccess.classList.remove("hidden");
+    renderAdminNewsHistory();
+    // Rafraîchit tout de suite le bandeau global (visible sur tous les
+    // onglets) plutôt que d'attendre le prochain tick de polling.
+    renderActivityFeed();
   });
 
   // Rempli une seule fois : les 7 événements sont un contenu fixe côté client.
