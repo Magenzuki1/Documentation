@@ -849,7 +849,12 @@ function resolveSlotSpin(evaluation, bet) {
   if (coinsEarned > (state.slotGame.biggestWin || 0)) state.slotGame.biggestWin = coinsEarned;
   grantXp(5);
   saveState();
-  return { coinsEarned, lineWinAmount };
+  // netChange : le vrai delta de pièces par rapport à avant la mise (mise déjà
+  // déduite par placeSlotBet). Sert à l'affichage : lineWinAmount seul ne dit
+  // pas si le joueur est réellement gagnant (ex: twoPay < 1 rembourse une
+  // partie de la mise sans jamais être un vrai gain).
+  const netChange = stakeEquivalent + coinsEarned - bet;
+  return { coinsEarned, lineWinAmount, netChange };
 }
 
 // Le gain du bonus "Choisis un fruit" est un prix trouvé en plus, jamais lié

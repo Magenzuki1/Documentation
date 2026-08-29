@@ -1776,18 +1776,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setTimeout(() => {
       const evaluation = evaluateSlotSpin(grid);
-      const { coinsEarned, lineWinAmount } = resolveSlotSpin(evaluation, bet);
+      const { coinsEarned, netChange } = resolveSlotSpin(evaluation, bet);
       renderHeader();
 
-      if (lineWinAmount > 0) {
+      // netChange (pas lineWinAmount) fait foi pour "gagné" : un tour qui ne
+      // fait que rembourser une partie de la mise (twoPay < 1) n'est pas un
+      // vrai gain, même si une ligne a techniquement payé quelque chose.
+      let title, coinsLine;
+      if (netChange > 0) {
         SFX.win();
         spawnConfetti(Math.min(40, 8 + evaluation.lineWins.length * 8));
+        title = "🎉 Gagné !";
+        coinsLine = `🪙 +${coinsEarned}`;
+      } else if (netChange === 0) {
+        SFX.click();
+        title = "🤝 Mise remboursée";
+        coinsLine = "🪙 ±0";
       } else {
         SFX.lose();
+        title = "😕 Perdu";
+        coinsLine = `🪙 ${netChange}`;
       }
       els.slotResult.innerHTML = `
-        <div class="catch-result-title">${lineWinAmount > 0 ? "🎉 Gagné !" : "😕 Perdu"}</div>
-        <div class="catch-result-coins">${lineWinAmount > 0 ? `🪙 +${coinsEarned}` : `🪙 -${bet}`}</div>
+        <div class="catch-result-title">${title}</div>
+        <div class="catch-result-coins">${coinsLine}</div>
       `;
       els.slotResult.classList.remove("hidden");
 
