@@ -506,6 +506,7 @@
       <h2>🛠️ Panneau admin</h2>
       <div class="market-subtabs">
         <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
+        <button class="market-subtab-btn" id="admin-tab-bananas" data-adminview="bananas">🍌 Bananes</button>
         <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
         <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
         <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
@@ -517,6 +518,22 @@
         <p id="admin-players-error" class="account-error hidden"></p>
         <input type="text" id="admin-players-search" class="admin-search-input" placeholder="🔍 Rechercher un pseudo…" />
         <div id="admin-players-list" class="admin-players-list"></div>
+      </div>
+
+      <div id="admin-bananas-view" class="hidden">
+        <p class="shop-hint">Crée de nouvelles bananes (jamais de rareté secrète, réservée au contenu du jeu). Une banane désactivée disparaît du tirage mais reste visible pour les joueurs qui en possèdent déjà.</p>
+        <div class="admin-news-form admin-bananas-form">
+          <input type="text" id="admin-banana-name" placeholder="Nom" maxlength="40" />
+          <select id="admin-banana-rarity"></select>
+          <select id="admin-banana-emoji"></select>
+          <label class="admin-banana-hue-label">Teinte <input type="range" id="admin-banana-hue" min="0" max="359" value="0" /></label>
+          <input type="number" id="admin-banana-value" placeholder="Valeur (pièces)" min="1" max="10000" />
+          <button class="btn" id="admin-banana-create-btn">🍌 Créer</button>
+        </div>
+        <p id="admin-bananas-error" class="account-error hidden"></p>
+        <p id="admin-bananas-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Bananes créées</h3>
+        <div id="admin-bananas-list" class="admin-players-list"></div>
       </div>
 
       <div id="admin-stats-view" class="hidden">

@@ -111,12 +111,14 @@ document.addEventListener("DOMContentLoaded", () => {
     adminModal: document.getElementById("admin-modal"),
     adminModalClose: document.getElementById("admin-modal-close"),
     adminTabPlayers: document.getElementById("admin-tab-players"),
+    adminTabBananas: document.getElementById("admin-tab-bananas"),
     adminTabStats: document.getElementById("admin-tab-stats"),
     adminTabNews: document.getElementById("admin-tab-news"),
     adminTabEvents: document.getElementById("admin-tab-events"),
     adminTabMovements: document.getElementById("admin-tab-movements"),
     adminTabLog: document.getElementById("admin-tab-log"),
     adminPlayersView: document.getElementById("admin-players-view"),
+    adminBananasView: document.getElementById("admin-bananas-view"),
     adminStatsView: document.getElementById("admin-stats-view"),
     adminNewsView: document.getElementById("admin-news-view"),
     adminEventsView: document.getElementById("admin-events-view"),
@@ -126,6 +128,15 @@ document.addEventListener("DOMContentLoaded", () => {
     adminPlayersError: document.getElementById("admin-players-error"),
     adminPlayersSearch: document.getElementById("admin-players-search"),
     adminStatsList: document.getElementById("admin-stats-list"),
+    adminBananaName: document.getElementById("admin-banana-name"),
+    adminBananaRarity: document.getElementById("admin-banana-rarity"),
+    adminBananaEmoji: document.getElementById("admin-banana-emoji"),
+    adminBananaHue: document.getElementById("admin-banana-hue"),
+    adminBananaValue: document.getElementById("admin-banana-value"),
+    adminBananaCreateBtn: document.getElementById("admin-banana-create-btn"),
+    adminBananasError: document.getElementById("admin-bananas-error"),
+    adminBananasSuccess: document.getElementById("admin-bananas-success"),
+    adminBananasList: document.getElementById("admin-bananas-list"),
     adminNewsMessage: document.getElementById("admin-news-message"),
     adminNewsSendBtn: document.getElementById("admin-news-send-btn"),
     adminNewsError: document.getElementById("admin-news-error"),
@@ -3511,6 +3522,119 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminEventsHistory();
   });
 
+  /* ---------------- Panneau admin : Bananes ---------------- */
+
+  // Remplis une seule fois : la rareté et la palette d'émojis sont fixes.
+  els.adminBananaRarity.innerHTML = RARITY_ORDER
+    .filter((r) => r !== "secrete")
+    .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
+    .join("");
+  els.adminBananaEmoji.innerHTML = ADMIN_BANANA_EMOJI_WHITELIST.map((e) => `<option value="${e}">${e}</option>`).join("");
+
+  function adminBananaRowHTML(b) {
+    const rarityOptions = RARITY_ORDER.filter((r) => r !== "secrete")
+      .map((r) => `<option value="${r}" ${r === b.rarity ? "selected" : ""}>${RARITIES[r].label}</option>`).join("");
+    const emojiOptions = ADMIN_BANANA_EMOJI_WHITELIST
+      .map((e) => `<option value="${e}" ${e === b.emoji ? "selected" : ""}>${e}</option>`).join("");
+    return `
+      <div class="admin-player-row admin-banana-row ${b.active ? "" : "banned"}" data-id="${b.id}" data-hue="${Number.isInteger(b.hue) ? b.hue : 0}">
+        <div class="admin-player-main admin-banana-fields">
+          <input type="text" class="admin-banana-edit-name" value="${b.name}" maxlength="40" />
+          <select class="admin-banana-edit-rarity">${rarityOptions}</select>
+          <select class="admin-banana-edit-emoji">${emojiOptions}</select>
+          <input type="number" class="admin-banana-edit-value" value="${b.value}" min="1" max="10000" />
+          ${!b.active ? `<span class="admin-player-ban-reason">Désactivée</span>` : ""}
+        </div>
+        <div class="admin-player-actions">
+          <button class="btn admin-banana-save-btn" title="Enregistrer">💾</button>
+          <button class="btn ${b.active ? "danger" : ""} admin-banana-toggle-btn">${b.active ? "Désactiver" : "Activer"}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function renderAdminBananasList() {
+    els.adminBananasList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.fetchAdminBananas();
+    if (!rows || rows.length === 0) {
+      els.adminBananasList.innerHTML = `<p class="account-hint">Aucune banane créée pour l'instant.</p>`;
+      return;
+    }
+    els.adminBananasList.innerHTML = rows.map(adminBananaRowHTML).join("");
+
+    els.adminBananasList.querySelectorAll(".admin-banana-row").forEach((row) => {
+      const id = Number(row.dataset.id);
+      const hue = Number(row.dataset.hue) || 0;
+
+      row.querySelector(".admin-banana-save-btn").addEventListener("click", async (e) => {
+        const name = row.querySelector(".admin-banana-edit-name").value.trim();
+        const rarity = row.querySelector(".admin-banana-edit-rarity").value;
+        const emoji = row.querySelector(".admin-banana-edit-emoji").value;
+        const value = Math.max(1, Math.min(10000, Math.floor(Number(row.querySelector(".admin-banana-edit-value").value))));
+        const res = await CLOUD.adminUpdateBanana(id, name, rarity, emoji, hue, value);
+        if (!res.ok) {
+          els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
+          els.adminBananasError.classList.remove("hidden");
+          return;
+        }
+        els.adminBananasError.classList.add("hidden");
+        flashAdminRowSaved(e.currentTarget);
+      });
+
+      row.querySelector(".admin-banana-toggle-btn").addEventListener("click", async () => {
+        const currentlyActive = !row.classList.contains("banned");
+        const res = await CLOUD.adminSetBananaActive(id, !currentlyActive);
+        if (!res.ok) {
+          els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
+          els.adminBananasError.classList.remove("hidden");
+          return;
+        }
+        els.adminBananasError.classList.add("hidden");
+        renderAdminBananasList();
+      });
+    });
+  }
+
+  function renderAdminBananas() {
+    els.adminBananasError.classList.add("hidden");
+    els.adminBananasSuccess.classList.add("hidden");
+    renderAdminBananasList();
+  }
+
+  els.adminBananaCreateBtn.addEventListener("click", async () => {
+    const name = els.adminBananaName.value.trim();
+    const rarity = els.adminBananaRarity.value;
+    const emoji = els.adminBananaEmoji.value;
+    const hue = Number(els.adminBananaHue.value);
+    const value = Math.floor(Number(els.adminBananaValue.value));
+    els.adminBananasError.classList.add("hidden");
+    els.adminBananasSuccess.classList.add("hidden");
+    if (!name) {
+      els.adminBananasError.textContent = "Donne un nom à la banane.";
+      els.adminBananasError.classList.remove("hidden");
+      return;
+    }
+    if (!value || value < 1 || value > 10000) {
+      els.adminBananasError.textContent = "Indique une valeur en pièces entre 1 et 10 000.";
+      els.adminBananasError.classList.remove("hidden");
+      return;
+    }
+    els.adminBananaCreateBtn.disabled = true;
+    const res = await CLOUD.adminCreateBanana(name, rarity, emoji, hue, value);
+    els.adminBananaCreateBtn.disabled = false;
+    if (!res.ok) {
+      els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
+      els.adminBananasError.classList.remove("hidden");
+      return;
+    }
+    els.adminBananaName.value = "";
+    els.adminBananaValue.value = "";
+    els.adminBananaHue.value = 0;
+    els.adminBananasSuccess.textContent = "Banane créée !";
+    els.adminBananasSuccess.classList.remove("hidden");
+    renderAdminBananasList();
+  });
+
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
   function flashAdminRowSaved(saveBtn) {
@@ -3580,12 +3704,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showAdminView(view) {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
+    els.adminBananasView.classList.toggle("hidden", view !== "bananas");
     els.adminStatsView.classList.toggle("hidden", view !== "stats");
     els.adminNewsView.classList.toggle("hidden", view !== "news");
     els.adminEventsView.classList.toggle("hidden", view !== "events");
     els.adminMovementsView.classList.toggle("hidden", view !== "movements");
     els.adminLogView.classList.toggle("hidden", view !== "log");
     els.adminTabPlayers.classList.toggle("active", view === "players");
+    els.adminTabBananas.classList.toggle("active", view === "bananas");
     els.adminTabStats.classList.toggle("active", view === "stats");
     els.adminTabNews.classList.toggle("active", view === "news");
     els.adminTabEvents.classList.toggle("active", view === "events");
@@ -3609,6 +3735,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === els.adminModal) closeAdminModal();
   });
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
+  els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); });
   els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
   els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
   els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });
