@@ -2708,16 +2708,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Messages affichés quand le fil est vide (pas encore d'événement notable,
+  // ou compte non lié) — volontairement chaleureux plutôt qu'un texte qui
+  // ressemble à une erreur, pour que le joueur comprenne que la fonctionnalité
+  // marche, elle n'a juste rien à montrer pour l'instant. Un tirage au sort
+  // à chaque affichage évite de toujours voir la même phrase.
+  const ACTIVITY_FEED_EMPTY_MESSAGES = [
+    "🍌 Amusez-vous, bonne journée !",
+    "🌞 Calme plat pour l'instant... profitez-en pour tenter votre chance !",
+    "✨ Rien à signaler — le prochain gros coup, c'est peut-être le vôtre !",
+  ];
+
+  function randomActivityFeedEmptyMessage() {
+    return ACTIVITY_FEED_EMPTY_MESSAGES[Math.floor(Math.random() * ACTIVITY_FEED_EMPTY_MESSAGES.length)];
+  }
+
   async function renderActivityFeed() {
     if (!CLOUD.available) {
-      els.activityFeedList.innerHTML = `<p class="secret-hint">Fil d'actualité indisponible (connexion réseau).</p>`;
+      els.activityFeedList.innerHTML = `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
       return;
     }
     const events = await CLOUD.fetchRecentNotableEvents(12);
     const messages = events.map(notableEventMessage).filter(Boolean);
     els.activityFeedList.innerHTML = messages.length > 0
       ? messages.map((msg) => `<div class="activity-feed-item">${msg}</div>`).join("")
-      : `<p class="secret-hint">Aucune activité récente pour le moment.</p>`;
+      : `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
   }
 
   let activityFeedPollTimer = null;
@@ -3100,6 +3115,42 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function renderAccountModalLinkedView() {
+    const bannedHTML = CLOUD.isBanned() ? `
+      <div class="account-banned-notice">
+        🚫 Ton compte a été banni${CLOUD.banReason() ? ` : ${CLOUD.banReason()}` : "."}
+        Le Marché et l'Arène PVP ne sont plus accessibles.
+      </div>
+    ` : "";
+    const adminBtnHTML = CLOUD.isAdmin() ? `<button id="account-admin-btn" class="btn">🛠️ Panneau admin</button>` : "";
+    els.accountModalContent.innerHTML =
+      profileSectionHTML() +
+      `
+      <div class="account-logged-in">
+        <div class="account-username">${avatarIconHTML(state.profile.avatarId, 1.4)} ${CLOUD.currentUsername()}</div>
+        ${bannedHTML}
+        ${CLOUD.isBanned() ? "" : `<div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>`}
+        ${adminBtnHTML}
+        <button id="account-signout-btn" class="btn danger">Déconnexion</button>
+      </div>
+    `;
+    wireProfileSection(els.accountModalContent);
+    els.accountModalContent.querySelector("#account-signout-btn").addEventListener("click", async () => {
+      await CLOUD.signOut();
+      updateAccountBtn();
+      renderAccountModal();
+      renderMarketTab();
+      renderPvpTab();
+    });
+    const adminBtn = els.accountModalContent.querySelector("#account-admin-btn");
+    if (adminBtn) {
+      adminBtn.addEventListener("click", () => {
+        els.accountModal.classList.add("hidden");
+        openAdminModal();
+      });
+    }
+  }
+
   function renderAccountModal() {
     if (!CLOUD.available) {
       els.accountModalContent.innerHTML =
@@ -3115,39 +3166,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (CLOUD.isLinked()) {
-      const bannedHTML = CLOUD.isBanned() ? `
-        <div class="account-banned-notice">
-          🚫 Ton compte a été banni${CLOUD.banReason() ? ` : ${CLOUD.banReason()}` : "."}
-          Le Marché et l'Arène PVP ne sont plus accessibles.
-        </div>
-      ` : "";
-      const adminBtnHTML = CLOUD.isAdmin() ? `<button id="account-admin-btn" class="btn">🛠️ Panneau admin</button>` : "";
-      els.accountModalContent.innerHTML =
-        profileSectionHTML() +
-        `
-        <div class="account-logged-in">
-          <div class="account-username">${avatarIconHTML(state.profile.avatarId, 1.4)} ${CLOUD.currentUsername()}</div>
-          ${bannedHTML}
-          ${CLOUD.isBanned() ? "" : `<div class="account-hint">Connecté — le Marché et l'Arène PVP sont disponibles.</div>`}
-          ${adminBtnHTML}
-          <button id="account-signout-btn" class="btn danger">Déconnexion</button>
-        </div>
-      `;
-      wireProfileSection(els.accountModalContent);
-      els.accountModalContent.querySelector("#account-signout-btn").addEventListener("click", async () => {
-        await CLOUD.signOut();
-        updateAccountBtn();
-        renderAccountModal();
-        renderMarketTab();
-        renderPvpTab();
+      renderAccountModalLinkedView();
+      // Re-vérifie le statut admin/ban à chaque ouverture du panneau Compte,
+      // plutôt que de se fier uniquement à la vérification faite une seule
+      // fois à la connexion/au chargement de la page : un pépin réseau
+      // ponctuel à ce moment-là ne doit jamais laisser le bouton admin caché
+      // pour le reste de la session sans que rien ne le retente.
+      CLOUD.refreshAccountStatus().then(() => {
+        if (!els.accountModal.classList.contains("hidden") && CLOUD.isLinked()) {
+          renderAccountModalLinkedView();
+        }
       });
-      const adminBtn = els.accountModalContent.querySelector("#account-admin-btn");
-      if (adminBtn) {
-        adminBtn.addEventListener("click", () => {
-          els.accountModal.classList.add("hidden");
-          openAdminModal();
-        });
-      }
       return;
     }
 
