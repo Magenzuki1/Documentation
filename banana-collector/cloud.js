@@ -74,6 +74,7 @@ const CLOUD = (() => {
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
+    await refreshAccountStatus();
     await pullLedger();
     await pullBananas();
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
@@ -112,6 +113,10 @@ const CLOUD = (() => {
     const cloud = ensureCloudState();
     cloud.linked = false;
     saveState();
+    // refreshAccountStatus() ne réinitialise plus ce statut à chaque appel
+    // (voir son commentaire) : la déconnexion doit donc le faire elle-même,
+    // sinon un ancien statut admin/banni resterait affiché après déconnexion.
+    accountStatus = { isAdmin: false, banned: false, bannedReason: null };
   }
 
   function isLinked() {
@@ -124,8 +129,16 @@ const CLOUD = (() => {
      jamais faire croire au jeu qu'on est admin ou débanni. */
 
   async function refreshAccountStatus() {
-    accountStatus = { isAdmin: false, banned: false, bannedReason: null };
-    if (!supabase || !isLinked()) return;
+    if (!supabase || !isLinked()) {
+      accountStatus = { isAdmin: false, banned: false, bannedReason: null };
+      return;
+    }
+    // Un pépin réseau ponctuel ne doit jamais faire "perdre" le statut admin
+    // pour toute la session : on ne l'écrase que si l'appel réussit vraiment.
+    // Sans ce garde-fou, un seul appel raté au démarrage (perte réseau
+    // pendant l'appel groupé avec pullLedger/pullBananas/pushAll dans
+    // CLOUD.init()) suffisait à cacher le bouton admin jusqu'au prochain
+    // rechargement complet de la page.
     const { data, error } = await supabase.rpc("my_account_status");
     if (error || !data || data.length === 0) return;
     const row = data[0];
@@ -629,6 +642,7 @@ const CLOUD = (() => {
     isAdmin,
     isBanned,
     banReason,
+    refreshAccountStatus,
     adminListProfiles,
     adminSetBan,
     adminAdjustCoins,
