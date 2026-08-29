@@ -374,12 +374,50 @@ const DAILY_EVENTS = [
   { day: 6, icon: "🕵️", name: "Samedi secret", desc: "+3% de chance d'obtenir une banane Secrète", kind: "rarity", rarity: "secrete", value: 3 },
 ];
 
+/* Un admin peut forcer un des 7 événements ci-dessus sur une date précise
+   (ex: rejouer "Samedi secret" un mardi pour un événement spécial), via le
+   panneau admin. eventOverrides associe une date "YYYY-MM-DD" (heure locale)
+   à un index de DAILY_EVENTS. Rempli par CLOUD.init() si une connexion est
+   disponible, et mis en cache dans localStorage pour que la dernière
+   planification connue reste active même hors-ligne — sans jamais bloquer
+   le jeu solo si aucune connexion n'a jamais eu lieu (le cache reste vide et
+   on retombe simplement sur la rotation hebdomadaire par défaut). */
+const EVENT_OVERRIDES_CACHE_KEY = "banana-collector-event-overrides-v1";
+let eventOverrides = {};
+try {
+  const raw = localStorage.getItem(EVENT_OVERRIDES_CACHE_KEY);
+  if (raw) eventOverrides = JSON.parse(raw);
+} catch (e) {
+  eventOverrides = {};
+}
+
+function setEventOverrides(overrides) {
+  eventOverrides = overrides || {};
+  try {
+    localStorage.setItem(EVENT_OVERRIDES_CACHE_KEY, JSON.stringify(eventOverrides));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique, juste pas de cache hors-ligne.
+  }
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function eventForDate(date) {
+  const overrideIndex = eventOverrides[dateKey(date)];
+  if (overrideIndex !== undefined && DAILY_EVENTS[overrideIndex]) return DAILY_EVENTS[overrideIndex];
+  return DAILY_EVENTS[date.getDay()];
+}
+
 function todayEvent() {
-  return DAILY_EVENTS[new Date().getDay()];
+  return eventForDate(new Date());
 }
 
 function tomorrowEvent() {
-  return DAILY_EVENTS[(new Date().getDay() + 1) % 7];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return eventForDate(tomorrow);
 }
 
 function dailyCoinEventBonus() {

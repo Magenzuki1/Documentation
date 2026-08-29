@@ -508,6 +508,7 @@
         <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
         <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
         <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
+        <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
         <button class="market-subtab-btn" id="admin-tab-movements" data-adminview="movements">💸 Mouvements</button>
         <button class="market-subtab-btn" id="admin-tab-log" data-adminview="log">📜 Journal</button>
       </div>
@@ -532,6 +533,19 @@
         <p id="admin-news-success" class="account-hint hidden"></p>
         <h3 class="admin-news-history-title">Annonces récentes</h3>
         <div id="admin-news-list" class="admin-log-list"></div>
+      </div>
+
+      <div id="admin-events-view" class="hidden">
+        <p class="shop-hint">Force un des 7 événements existants sur une date précise, peu importe le jour de la semaine normal.</p>
+        <div class="admin-news-form admin-events-form">
+          <input type="date" id="admin-events-date" />
+          <select id="admin-events-select"></select>
+          <button class="btn" id="admin-events-schedule-btn">🗓️ Planifier</button>
+        </div>
+        <p id="admin-events-error" class="account-error hidden"></p>
+        <p id="admin-events-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Planifications à venir</h3>
+        <div id="admin-events-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-movements-view" class="hidden">
