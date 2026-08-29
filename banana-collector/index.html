@@ -542,6 +542,23 @@
         </div>
         <p id="admin-bananas-error" class="account-error hidden"></p>
         <p id="admin-bananas-success" class="account-hint hidden"></p>
+
+        <h3 class="admin-news-history-title">Modifier la fiche d'une banane</h3>
+        <p class="shop-hint">Change le nom, la citation ou l'histoire d'une banane existante — jamais sa rareté ni son numéro, pour ne jamais désynchroniser les probabilités ou la numérotation.</p>
+        <div class="admin-news-form admin-banana-content-form">
+          <select id="admin-banana-content-select"></select>
+          <input type="text" id="admin-banana-content-name" placeholder="Nom (laisser vide = garder l'original)" maxlength="60" />
+          <input type="text" id="admin-banana-content-quote" placeholder="Citation (laisser vide = garder l'originale)" maxlength="300" />
+          <textarea id="admin-banana-content-story" maxlength="600" placeholder="Histoire (laisser vide = garder l'originale)"></textarea>
+          <div class="admin-banana-content-actions">
+            <button class="btn" id="admin-banana-content-save-btn">✏️ Enregistrer</button>
+            <button class="btn danger" id="admin-banana-content-reset-btn">↩️ Réinitialiser cette banane</button>
+          </div>
+        </div>
+        <p id="admin-banana-content-error" class="account-error hidden"></p>
+        <p id="admin-banana-content-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Bananes actuellement modifiées</h3>
+        <div id="admin-banana-content-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-quests-view" class="hidden">

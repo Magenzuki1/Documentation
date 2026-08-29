@@ -364,6 +364,30 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  // --- Contenu éditorial des bananes (nom/citation/histoire), overridable par un admin ---
+
+  async function fetchBananaContentOverrides() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_banana_content_overrides");
+    return error || !data ? [] : data;
+  }
+
+  async function adminSetBananaContent(bananaId, name, quote, story) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_set_banana_content", {
+      p_banana_id: bananaId, p_name: name || null, p_quote: quote || null, p_story: story || null,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminClearBananaContent(bananaId) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_clear_banana_content", { p_banana_id: bananaId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -789,6 +813,13 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde les derniers montants connus en cache local.
     }
+    // Nom/citation/histoire de bananes modifiés par un admin : même logique, contenu global public.
+    try {
+      const bananaContentOverrides = await fetchBananaContentOverrides();
+      if (bananaContentOverrides) setBananaContentOverridesCache(bananaContentOverrides);
+    } catch (e) {
+      // Hors ligne : on garde le dernier contenu connu en cache local.
+    }
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const meta = data.session.user.user_metadata || {};
@@ -882,6 +913,9 @@ const CLOUD = (() => {
     adminListSupportThreads,
     adminFetchSupportThread,
     adminReplySupport,
+    fetchBananaContentOverrides,
+    adminSetBananaContent,
+    adminClearBananaContent,
     init,
   };
 })();
