@@ -507,6 +507,7 @@
       <div class="market-subtabs">
         <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
         <button class="market-subtab-btn" id="admin-tab-bananas" data-adminview="bananas">🍌 Bananes</button>
+        <button class="market-subtab-btn" id="admin-tab-quests" data-adminview="quests">📜 Quêtes</button>
         <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
         <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
         <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
@@ -534,6 +535,25 @@
         <p id="admin-bananas-success" class="account-hint hidden"></p>
         <h3 class="admin-news-history-title">Bananes créées</h3>
         <div id="admin-bananas-list" class="admin-players-list"></div>
+      </div>
+
+      <div id="admin-quests-view" class="hidden">
+        <p class="shop-hint">Crée une quête journalière ou hebdomadaire, en réutilisant un suivi déjà existant (pubs, récoltes, victoires...). Elle rejoint le tirage aléatoire normal.</p>
+        <div class="admin-news-form admin-quests-form">
+          <select id="admin-quest-scope">
+            <option value="daily">Journalière</option>
+            <option value="weekly">Hebdomadaire</option>
+          </select>
+          <input type="text" id="admin-quest-desc" placeholder="Description" maxlength="120" />
+          <select id="admin-quest-key"></select>
+          <input type="number" id="admin-quest-need" placeholder="Objectif" min="1" max="1000000" />
+          <input type="number" id="admin-quest-reward" placeholder="Récompense (pièces)" min="1" max="1000000" />
+          <button class="btn" id="admin-quest-create-btn">📜 Créer</button>
+        </div>
+        <p id="admin-quests-error" class="account-error hidden"></p>
+        <p id="admin-quests-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Quêtes créées</h3>
+        <div id="admin-quests-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-stats-view" class="hidden">

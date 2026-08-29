@@ -279,6 +279,28 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  async function fetchAdminQuests() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("list_admin_quests");
+    return error || !data ? null : data;
+  }
+
+  async function adminCreateQuest(scope, description, key, need, reward) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("admin_create_quest", {
+      p_scope: scope, p_description: description, p_key: key, p_need: need, p_reward: reward,
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, id: data };
+  }
+
+  async function adminDeleteQuest(id) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_delete_quest", { p_id: id });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -677,6 +699,13 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde le dernier catalogue admin connu en cache local.
     }
+    // Quêtes créées par un admin : même logique, contenu global public.
+    try {
+      const adminQuests = await fetchAdminQuests();
+      if (adminQuests) setAdminQuestsCache(adminQuests);
+    } catch (e) {
+      // Hors ligne : on garde le dernier lot de quêtes admin connu en cache local.
+    }
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const meta = data.session.user.user_metadata || {};
@@ -757,6 +786,9 @@ const CLOUD = (() => {
     adminCreateBanana,
     adminUpdateBanana,
     adminSetBananaActive,
+    fetchAdminQuests,
+    adminCreateQuest,
+    adminDeleteQuest,
     init,
   };
 })();
