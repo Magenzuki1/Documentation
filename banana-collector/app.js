@@ -1870,6 +1870,25 @@ const BANANA_LEVEL_STAT_BONUS = {
   secrete: 15,
 };
 
+// Coût en pièces d'un niveau, EN PLUS des doublons ci-dessus : croît avec le
+// niveau courant ET avec la rareté (base par rareté × niveau courant), pour
+// que monter les bananes les plus rares jusqu'au niveau 100 reste un vrai
+// sink de pièces de fin de partie plutôt qu'un simple recyclage gratuit de
+// doublons.
+const BANANA_LEVEL_UP_COIN_BASE = {
+  commune: 20,
+  peu_commune: 50,
+  rare: 150,
+  epique: 400,
+  legendaire: 1000,
+  mythique: 3000,
+  secrete: 8000,
+};
+
+function bananaLevelUpCoinCost(rarity, currentLevel) {
+  return BANANA_LEVEL_UP_COIN_BASE[rarity] * currentLevel;
+}
+
 function bananaLevel(bananaId) {
   return state.bananaLevels[bananaId] || 1;
 }
@@ -1899,42 +1918,103 @@ function levelUpBanana(bananaId) {
   if (level >= MAX_BANANA_LEVEL) return { ok: false, reason: "niveau_max" };
   const cost = bananaLevelUpCost(level);
   if (bananaDuplicatesOwned(bananaId) < cost) return { ok: false, reason: "doublons_insuffisants" };
+  const coinCost = bananaLevelUpCoinCost(banana.rarity, level);
+  if (state.coins < coinCost) return { ok: false, reason: "pieces_insuffisantes" };
   state.counts[bananaId] -= cost;
+  state.coins -= coinCost;
   state.bananaLevels[bananaId] = level + 1;
   saveState();
-  return { ok: true, level: level + 1, cost };
+  return { ok: true, level: level + 1, cost, coinCost };
 }
 
-// Combien de niveaux pleins peut-on gagner avec les doublons actuellement
-// possédés, sans rien dépenser (utilisé pour afficher/activer le bouton
-// "Monter au maximum").
+// Combien de niveaux pleins peut-on gagner avec les doublons ET les pièces
+// actuellement possédés, sans rien dépenser (utilisé pour afficher/activer
+// le bouton "Monter au maximum" et le badge "peut être améliorée").
 function levelsGainableFromDuplicates(bananaId) {
+  const banana = BANANAS_BY_ID[bananaId];
   let level = bananaLevel(bananaId);
   let duplicates = bananaDuplicatesOwned(bananaId);
+  let coins = state.coins;
   let gained = 0;
   while (level < MAX_BANANA_LEVEL) {
     const cost = bananaLevelUpCost(level);
-    if (duplicates < cost) break;
+    const coinCost = bananaLevelUpCoinCost(banana.rarity, level);
+    if (duplicates < cost || coins < coinCost) break;
     duplicates -= cost;
+    coins -= coinCost;
     level += 1;
     gained += 1;
   }
   return gained;
 }
 
+// Doublons/pièces nécessaires pour gagner `levelsGained` niveaux depuis le
+// niveau actuel — pur (aucune mutation), utilisé à la fois pour l'aperçu
+// affiché avant de cliquer et par levelUpBananaToMax() pour dépenser.
+function bananaLevelUpSpendPreview(bananaId, levelsGained) {
+  const banana = BANANAS_BY_ID[bananaId];
+  const startLevel = bananaLevel(bananaId);
+  let duplicatesSpent = 0;
+  let coinsSpent = 0;
+  for (let l = startLevel; l < startLevel + levelsGained; l++) {
+    duplicatesSpent += bananaLevelUpCost(l);
+    coinsSpent += bananaLevelUpCoinCost(banana.rarity, l);
+  }
+  return { duplicatesSpent, coinsSpent };
+}
+
 function levelUpBananaToMax(bananaId) {
   const banana = BANANAS_BY_ID[bananaId];
   if (!banana || !state.discovered.includes(bananaId)) return { ok: false, reason: "banane_inconnue" };
   const levelsGained = levelsGainableFromDuplicates(bananaId);
-  if (levelsGained === 0) return { ok: false, reason: "doublons_insuffisants" };
+  if (levelsGained === 0) return { ok: false, reason: "doublons_ou_pieces_insuffisants" };
   const startLevel = bananaLevel(bananaId);
   const newLevel = startLevel + levelsGained;
-  let duplicatesSpent = 0;
-  for (let l = startLevel; l < newLevel; l++) duplicatesSpent += bananaLevelUpCost(l);
+  const { duplicatesSpent, coinsSpent } = bananaLevelUpSpendPreview(bananaId, levelsGained);
   state.counts[bananaId] -= duplicatesSpent;
+  state.coins -= coinsSpent;
   state.bananaLevels[bananaId] = newLevel;
   saveState();
-  return { ok: true, level: newLevel, levelsGained, duplicatesSpent };
+  return { ok: true, level: newLevel, levelsGained, duplicatesSpent, coinsSpent };
+}
+
+// Bouton "Augmenter tout" de la collection : monte chaque banane possédée au
+// maximum atteignable avec les doublons ET les pièces disponibles, dans
+// l'ordre de BANANAS (normales puis secrètes). Les pièces se répartissent
+// en cascade — si l'une est trop chère (une secrète tardive, par exemple),
+// on passe simplement à la suivante plutôt que de tout bloquer.
+function levelUpAllBananas() {
+  let bananasUpgraded = 0;
+  let totalLevelsGained = 0;
+  let totalCoinsSpent = 0;
+  for (const banana of BANANAS) {
+    if (!state.discovered.includes(banana.id)) continue;
+    if (levelsGainableFromDuplicates(banana.id) === 0) continue;
+    const res = levelUpBananaToMax(banana.id);
+    if (res.ok) {
+      bananasUpgraded += 1;
+      totalLevelsGained += res.levelsGained;
+      totalCoinsSpent += res.coinsSpent;
+    }
+  }
+  return { ok: bananasUpgraded > 0, bananasUpgraded, totalLevelsGained, totalCoinsSpent };
+}
+
+// Aperçu pur (aucune dépense) de ce que ferait "Augmenter tout" — utilisé
+// pour afficher le coût total et activer/désactiver le bouton.
+function levelUpAllBananasPreview() {
+  let bananasEligible = 0;
+  let totalLevelsGainable = 0;
+  let totalCoinsNeeded = 0;
+  for (const banana of BANANAS) {
+    if (!state.discovered.includes(banana.id)) continue;
+    const levelsGained = levelsGainableFromDuplicates(banana.id);
+    if (levelsGained === 0) continue;
+    bananasEligible += 1;
+    totalLevelsGainable += levelsGained;
+    totalCoinsNeeded += bananaLevelUpSpendPreview(banana.id, levelsGained).coinsSpent;
+  }
+  return { bananasEligible, totalLevelsGainable, totalCoinsNeeded };
 }
 
 function bananaCombatStats(banana) {

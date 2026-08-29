@@ -6,11 +6,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const els = {
     statCollection: document.getElementById("stat-collection"),
     statCoins: document.getElementById("stat-coins"),
+    economieCoinBalance: document.getElementById("economie-coin-balance"),
     tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
     tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
     harvestBtn: document.getElementById("harvest-btn"),
     lastBanana: document.getElementById("last-banana"),
     collectionGrid: document.getElementById("collection-grid"),
+    collectionUpgradeAllBtn: document.getElementById("collection-upgrade-all-btn"),
+    collectionUpgradeAllHint: document.getElementById("collection-upgrade-all-hint"),
     collectionSortSelect: document.getElementById("collection-sort-select"),
     collectionRaritySelect: document.getElementById("collection-rarity-select"),
     collectionSearchInput: document.getElementById("collection-search-input"),
@@ -357,6 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
     els.statCollection.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
     els.statCoins.textContent = `🪙 Pièces : ${state.coins}`;
+    els.economieCoinBalance.textContent = `🪙 ${state.coins} pièces`;
     renderHomeDashboard(discoveredNormal);
   }
 
@@ -914,10 +918,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const level = bananaLevel(banana.id);
     const rarity = RARITIES[banana.rarity];
     const stats = bananaCombatStats(banana);
+    // Flèche discrète : signale qu'un niveau est atteignable dès maintenant
+    // (doublons + pièces suffisants) sans avoir à ouvrir la fiche pour vérifier.
+    const canLevelUp = levelsGainableFromDuplicates(banana.id) > 0;
     return `
       <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         <div class="banana-card-number">#${banana.number}</div>
         ${level > 1 ? `<div class="banana-level-badge">Nv. ${level}</div>` : ""}
+        ${canLevelUp ? `<div class="banana-upgrade-hint" title="Peut être améliorée">⬆️</div>` : ""}
         ${bananaIconHTML(banana)}
         <div class="banana-name">${banana.name}</div>
         <div class="banana-card-stats">⚔️ ${stats.atk} · 🛡️ ${stats.def}</div>
@@ -952,6 +960,19 @@ document.addEventListener("DOMContentLoaded", () => {
       collectionSearchQuery = els.collectionSearchInput.value.trim().toLowerCase();
       renderCollection();
     });
+    els.collectionUpgradeAllBtn.addEventListener("click", () => {
+      const res = levelUpAllBananas();
+      if (!res.ok) return;
+      SFX.buy();
+      spawnConfetti(Math.min(40, 10 + res.bananasUpgraded * 3));
+      renderHeader();
+      renderCollection();
+      const unlocked = checkAchievements();
+      if (unlocked.length > 0) {
+        renderHeader();
+        showAchievementToasts(unlocked);
+      }
+    });
   }
 
   function lockedBananaCardHTML(banana) {
@@ -975,6 +996,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const collectionPct = Math.round((discoveredNormal / TOTAL_NORMAL) * 100);
     els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL} — ${collectionPct}% complétée`;
     els.progressBarFill.style.width = `${(discoveredNormal / TOTAL_NORMAL) * 100}%`;
+
+    const upgradePreview = levelUpAllBananasPreview();
+    els.collectionUpgradeAllBtn.disabled = upgradePreview.bananasEligible === 0;
+    els.collectionUpgradeAllHint.textContent = upgradePreview.bananasEligible > 0
+      ? `${upgradePreview.bananasEligible} banane${upgradePreview.bananasEligible > 1 ? "s" : ""} améliorable${upgradePreview.bananasEligible > 1 ? "s" : ""} (+${upgradePreview.totalLevelsGainable} niveaux) — 🪙 ${upgradePreview.totalCoinsNeeded}`
+      : "Aucune banane améliorable pour l'instant";
 
     let bananas = collectionRarityFilter === "toutes"
       ? NORMAL_BANANAS
@@ -1052,7 +1079,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const duplicates = bananaDuplicatesOwned(banana.id);
     const cost = bananaLevelUpCost(level);
-    const canLevelUp = duplicates >= cost;
+    const coinCost = bananaLevelUpCoinCost(banana.rarity, level);
+    const canLevelUp = duplicates >= cost && state.coins >= coinCost;
     const pct = Math.min(100, Math.round((duplicates / cost) * 100));
     const gainableMax = levelsGainableFromDuplicates(banana.id);
     // Le bouton "Monter au maximum" n'apporte rien de plus que "Combiner"
@@ -1060,7 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // lorsqu'il fait vraiment gagner du temps.
     const maxButtonHTML = gainableMax >= 2 ? `
       <button class="btn banana-level-up-max-btn" id="banana-level-up-max-btn">
-        ⬆️ Monter au maximum (+${gainableMax} niveaux)
+        ⬆️ Monter au maximum (+${gainableMax} niveaux, 🪙 ${bananaLevelUpSpendPreview(banana.id, gainableMax).coinsSpent})
       </button>
     ` : "";
     return `
@@ -1069,7 +1097,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="banana-level-progress-label">Doublons : ${Math.min(duplicates, cost)} / ${cost}</div>
         <div class="banana-level-progress-bar"><div class="banana-level-progress-fill" style="width:${pct}%;"></div></div>
         <button class="btn banana-level-up-btn" id="banana-level-up-btn" ${canLevelUp ? "" : "disabled"}>
-          🔗 Combiner ${cost} doublons → Niveau ${level + 1}
+          🔗 Combiner ${cost} doublons + 🪙 ${coinCost} → Niveau ${level + 1}
         </button>
         ${maxButtonHTML}
       </div>
@@ -2687,6 +2715,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const result = await CLOUD.setDefenseTeam(team);
     if (!result.ok) {
       els.pvpTeamError.textContent = result.reason || "Impossible de mettre à jour l'équipe.";
+    }
+  }
+
+  // Petit toast discret (coin de l'écran, pas de son ni de confettis) pour
+  // signaler une attaque PVP subie hors ligne dès la connexion — même si le
+  // joueur ne va jamais ouvrir l'onglet Arène PVP de lui-même. Ne marque
+  // jamais les rapports comme vus : le panneau "Pendant ton absence" de
+  // l'onglet PVP (renderPvpReports) reste la seule source qui les marque,
+  // pour que le détail complet reste consultable même si ce toast est raté.
+  function showPvpNotifyToast(title, line, lost) {
+    const toast = document.createElement("div");
+    toast.className = `pvp-notify-toast ${lost ? "lost" : ""}`;
+    toast.innerHTML = `<div class="pvp-notify-toast-title">${title}</div><div class="pvp-notify-toast-line">${line}</div>`;
+    els.toastLayer.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("show"));
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 400);
+    }, 5000);
+  }
+
+  async function checkPvpAttackNotifications() {
+    if (!CLOUD.available || !CLOUD.isLinked()) return;
+    const reports = await CLOUD.fetchUnseenCombatReports();
+    if (reports.length === 0) return;
+    if (reports.length === 1) {
+      const r = reports[0];
+      const won = r.defender_delta > 0;
+      showPvpNotifyToast(
+        won ? "🛡️ Défense réussie" : "⚔️ Tu as été attaqué",
+        `${r.attackerUsername} — ${won ? "+" : ""}${r.defender_delta} 🪙`,
+        !won
+      );
+    } else {
+      const totalDelta = reports.reduce((sum, r) => sum + r.defender_delta, 0);
+      showPvpNotifyToast(
+        "⚔️ Arène PVP",
+        `${reports.length} attaques pendant ton absence — ${totalDelta >= 0 ? "+" : ""}${totalDelta} 🪙`,
+        totalDelta < 0
+      );
     }
   }
 
@@ -4731,6 +4799,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateAccountBtn();
     renderHeader();
     refreshAllSupportBadges();
+    checkPvpAttackNotifications();
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });
