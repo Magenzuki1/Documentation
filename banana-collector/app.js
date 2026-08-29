@@ -1656,6 +1656,11 @@ const FRUIT_ENEMIES = (() => {
   return list;
 })();
 
+// Les 3 stades "boss" marquants de l'Arène Solo (Roi Ananas, Empereur Fruit
+// du Dragon, Divinité du Fruit Primordial) — sert au fil d'actualité pour ne
+// signaler que ces victoires-là, pas chaque combat gagné.
+const ARENA_BOSS_STAGES = [5, 59, FRUIT_ENEMIES.length - 1];
+
 // Un ennemi déjà battu reste jouable (pour refarmer des pièces), mais on ne
 // peut pas défier un ennemi plus loin que celui juste après le dernier battu.
 function maxPlayablePveStage() {
