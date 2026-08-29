@@ -23,6 +23,10 @@ document.addEventListener("DOMContentLoaded", () => {
     homeXpBarFill: document.getElementById("home-xp-bar-fill"),
     homeCollectionLabel: document.getElementById("home-collection-label"),
     homeCollectionBarFill: document.getElementById("home-collection-bar-fill"),
+    dailyEventToggle: document.getElementById("daily-event-toggle"),
+    dailyEventSummary: document.getElementById("daily-event-summary"),
+    dailyEventDetails: document.getElementById("daily-event-details"),
+    dailyEventTomorrow: document.getElementById("daily-event-tomorrow"),
     shopList: document.getElementById("shop-list"),
     questsList: document.getElementById("quests-list"),
     weeklyQuestsList: document.getElementById("weekly-quests-list"),
@@ -266,6 +270,20 @@ document.addEventListener("DOMContentLoaded", () => {
     els.homeCollectionLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL} — ${collectionPct}% complétée`;
     els.homeCollectionBarFill.style.width = `${collectionPct}%`;
   }
+
+  // Bannière repliable de l'accueil : l'événement du jour est toujours
+  // visible en un coup d'œil, l'aperçu de demain ne s'affiche qu'en dépliant.
+  function renderDailyEventBanner() {
+    const today = todayEvent();
+    const tomorrow = tomorrowEvent();
+    els.dailyEventSummary.textContent = `${today.icon} ${today.name} — ${today.desc}`;
+    els.dailyEventTomorrow.innerHTML = `<span class="daily-event-tomorrow-label">Demain :</span> ${tomorrow.icon} ${tomorrow.name} — ${tomorrow.desc}`;
+  }
+
+  els.dailyEventToggle.addEventListener("click", () => {
+    els.dailyEventDetails.classList.toggle("hidden");
+    els.dailyEventToggle.classList.toggle("open");
+  });
 
   /* ---------------- Icône banane (fusion glyphe + accessoires) ---------------- */
 
@@ -3165,6 +3183,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderHeader();
   renderMuteBtn();
   renderRollModeSettings();
+  renderDailyEventBanner();
   if (state.lastBananaId) {
     const banana = BANANAS_BY_ID[state.lastBananaId];
     els.lastBanana.innerHTML = bananaCardHTML(banana, state.counts[banana.id], false);

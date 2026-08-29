@@ -507,6 +507,42 @@ body {
 .banana-card.rarity-secrete .banana-name, .banana-card.rarity-secrete .banana-value, .banana-card.rarity-secrete .banana-count { color: #f0e8ff; }
 .banana-card.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
 
+/* --- Bannière repliable de l'événement quotidien --- */
+
+.daily-event-banner {
+  background: linear-gradient(90deg, #fff0c2, #ffe08a);
+  border: 2px solid var(--accent-dark);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.daily-event-toggle {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.daily-event-chevron { transition: transform 0.2s ease; }
+.daily-event-toggle.open .daily-event-chevron { transform: rotate(180deg); }
+
+.daily-event-details {
+  padding: 0 18px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.daily-event-tomorrow-label { font-weight: 800; }
+
 /* --- Tableau de bord de l'accueil (niveau + collection) --- */
 
 .home-dashboard {
