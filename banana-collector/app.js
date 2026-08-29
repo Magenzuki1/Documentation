@@ -219,6 +219,7 @@ function defaultState() {
     memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0 },
     blackjackGame: { gamesPlayed: 0, biggestWin: 0 },
     slotGame: { gamesPlayed: 0, biggestWin: 0, bonusesTriggered: 0, jackpotsHit: 0 },
+    playerXp: 0, // XP totale cumulée ; le niveau/titre s'en déduit à la volée (voir playerLevelProgress()).
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
     profile: { avatarId: "av_verte" },
@@ -285,6 +286,63 @@ function grantCoins(amount) {
   state.coins += final;
   state.totalCoinsEarned += Math.max(final, 0);
   return final;
+}
+
+/* ---------------- Niveau du joueur (XP) ----------------
+   Quasiment toutes les activités du jeu rapportent un peu d'XP (récolte,
+   mini-jeux, achats, quêtes, arène, succès...). Le niveau et le titre s'en
+   déduisent à la volée à partir du total d'XP cumulé (state.playerXp),
+   plutôt que d'être stockés séparément — jamais de désynchronisation
+   possible entre les deux. */
+
+const PLAYER_MAX_LEVEL = 100;
+
+// XP nécessaire pour passer du niveau L à L+1 : suite arithmétique simple,
+// qui rend chaque niveau un peu plus long que le précédent sans exploser.
+function xpToNextLevel(level) {
+  return 100 + (level - 1) * 35;
+}
+
+function playerLevelProgress() {
+  let level = 1;
+  let xp = state.playerXp || 0;
+  while (level < PLAYER_MAX_LEVEL && xp >= xpToNextLevel(level)) {
+    xp -= xpToNextLevel(level);
+    level += 1;
+  }
+  const xpForLevel = level >= PLAYER_MAX_LEVEL ? 0 : xpToNextLevel(level);
+  return {
+    level,
+    xpIntoLevel: xp,
+    xpForLevel,
+    pct: xpForLevel > 0 ? Math.round((xp / xpForLevel) * 100) : 100,
+  };
+}
+
+function playerLevel() {
+  return playerLevelProgress().level;
+}
+
+const PLAYER_TITLES = [
+  { level: 1, title: "Collectionneur débutant" },
+  { level: 10, title: "Collectionneur" },
+  { level: 25, title: "Grand Collectionneur" },
+  { level: 50, title: "Maître Collectionneur" },
+  { level: 75, title: "Expert Banane" },
+  { level: 100, title: "Légende de Banana Collector" },
+];
+
+function titleForLevel(level) {
+  let current = PLAYER_TITLES[0].title;
+  for (const t of PLAYER_TITLES) {
+    if (level >= t.level) current = t.title;
+  }
+  return current;
+}
+
+function grantXp(amount) {
+  if (amount <= 0) return;
+  state.playerXp = (state.playerXp || 0) + amount;
 }
 
 /* ---------------- Tirage pondéré avec système de pitié ---------------- */
@@ -379,6 +437,7 @@ function rollBanana() {
 
   const duplicateBonus = isNew ? 1 : 1 + (state.upgrades.recycleur || 0) * 0.05;
   const coinsEarned = grantCoins(Math.round(banana.value * duplicateBonus));
+  grantXp(isNew ? 9 : 1); // une nouvelle découverte rapporte bien plus qu'un doublon
   state.clicks += 1;
   state.totalRolls += 1;
   state.lastBananaId = banana.id;
@@ -413,6 +472,7 @@ function buyUpgrade(id) {
   if (state.coins < price) return { ok: false, reason: "pauvre" };
   state.coins -= price;
   state.upgrades[id] = level + 1;
+  grantXp(4);
   bumpQuestProgress("upgradesBought");
   saveState();
   return { ok: true };
@@ -511,6 +571,7 @@ function spinWheel() {
   state.wheelSpinsTotal = (state.wheelSpinsTotal || 0) + 1;
   const wheelBonus = 1 + (state.upgrades.trefle || 0) * 0.08;
   const coinsEarned = grantCoins(Math.round(prize.coins * wheelBonus));
+  grantXp(6);
   bumpQuestProgress("wheel");
   saveState();
   return { ok: true, index, coins: coinsEarned };
@@ -536,6 +597,7 @@ function awardCatchGameResult(goodCaught, rottenCaught) {
   const coinsEarned = grantCoins(Math.round(rawCoins * netBonus));
   if (goodCaught > state.catchGame.bestScore) state.catchGame.bestScore = goodCaught;
   if (coinsEarned > state.catchGame.bestCoins) state.catchGame.bestCoins = coinsEarned;
+  grantXp(5);
   bumpQuestProgress("catchRounds");
   saveState();
   return coinsEarned;
@@ -563,6 +625,7 @@ function awardMemoryGameResult(moves, timeMs) {
   const extraMoves = Math.max(0, moves - MEMORY_PAIRS_COUNT);
   const rawCoins = Math.max(40, MEMORY_BASE_REWARD - extraMoves * 6);
   const coinsEarned = grantCoins(rawCoins);
+  grantXp(5);
   bumpQuestProgress("memoryRounds");
   saveState();
   return coinsEarned;
@@ -653,6 +716,7 @@ function resolveBlackjackBet(totalBet, outcome) {
     state.coins += totalBet;
   }
   if (coinsEarned > (state.blackjackGame.biggestWin || 0)) state.blackjackGame.biggestWin = coinsEarned;
+  grantXp(outcome === "defaite" ? 3 : 8);
   saveState();
   return { coinsEarned };
 }
@@ -783,6 +847,7 @@ function resolveSlotSpin(evaluation, bet) {
   const coinsEarned = lineProfit > 0 ? grantCoins(lineProfit) : 0;
 
   if (coinsEarned > (state.slotGame.biggestWin || 0)) state.slotGame.biggestWin = coinsEarned;
+  grantXp(5);
   saveState();
   return { coinsEarned, lineWinAmount };
 }
@@ -795,6 +860,7 @@ function resolveSlotBonusPrize(bet, prizeMultiplier) {
   const amount = Math.round(bet * prizeMultiplier);
   const coinsEarned = grantCoins(amount);
   if (coinsEarned > (state.slotGame.biggestWin || 0)) state.slotGame.biggestWin = coinsEarned;
+  grantXp(10);
   saveState();
   return { coinsEarned };
 }
@@ -1002,6 +1068,7 @@ function checkQuests() {
     if ((state.quests.progress[quest.key] || 0) >= quest.need) {
       state.quests.completed.push(qid);
       grantCoins(quest.reward);
+      grantXp(12);
       state.dailyQuestsCompletedTotal = (state.dailyQuestsCompletedTotal || 0) + 1;
       completedNow.push(quest);
     }
@@ -1014,6 +1081,7 @@ function checkQuests() {
     if ((state.weeklyQuests.progress[quest.key] || 0) >= quest.need) {
       state.weeklyQuests.completed.push(qid);
       grantCoins(quest.reward);
+      grantXp(35);
       state.weeklyQuestsCompletedTotal = (state.weeklyQuestsCompletedTotal || 0) + 1;
       completedNow.push(quest);
     }
@@ -1024,6 +1092,7 @@ function checkQuests() {
     if (quest.progress(state) >= quest.need) {
       state.permanentQuests.completed.push(quest.id);
       grantCoins(quest.reward);
+      grantXp(60);
       completedNow.push(quest);
     }
   }
@@ -1109,6 +1178,7 @@ function checkAchievements() {
     if (ach.check(state)) {
       state.achievements.unlocked.push(ach.id);
       grantCoins(ach.reward);
+      grantXp(25);
       unlockedNow.push(ach);
     }
   }
@@ -1371,11 +1441,13 @@ function fightFruitEnemy(bananaId, stageIndex) {
   if (won) {
     coinsEarned = grantCoins(winReward);
     state.pve.wins += 1;
+    grantXp(stageAdvanced ? 20 : 8);
     bumpQuestProgress("wins");
     if (stageAdvanced) state.pve.stage = stageIndex;
   } else {
     coinsEarned = grantCoins(Math.round(winReward * 0.02));
     state.pve.losses += 1;
+    grantXp(2);
   }
   saveState();
   return { ok: true, won, coinsEarned, winChance, enemy, playerStats, stageAdvanced };
