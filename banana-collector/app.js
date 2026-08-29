@@ -2068,7 +2068,7 @@ const FRUIT_FAMILIES = [
   { emoji: "🍉", label: "Pastèque", names: ["Pastèque sauvage", "Pastèque acide", "Pastèque dorée", "Pastèque de fer", "Pastèque légendaire", "Reine Pastèque"] },
   { emoji: "🥝", label: "Kiwi", names: ["Kiwi sauvage", "Kiwi acide", "Kiwi doré", "Kiwi de fer", "Kiwi légendaire", "Roi Kiwi"] },
   { emoji: "🥭", label: "Mangue", names: ["Mangue sauvage", "Mangue acide", "Mangue dorée", "Mangue de fer", "Mangue légendaire", "Reine Mangue"] },
-  { emoji: "🍈", label: "Fruit du Dragon", names: ["Fruit du Dragon endormi", "Fruit du Dragon enragé", "Fruit du Dragon doré", "Fruit du Dragon de fer", "Fruit du Dragon légendaire", "Empereur Fruit du Dragon"] },
+  { emoji: "🐉", label: "Fruit du Dragon", names: ["Fruit du Dragon endormi", "Fruit du Dragon enragé", "Fruit du Dragon doré", "Fruit du Dragon de fer", "Fruit du Dragon légendaire", "Empereur Fruit du Dragon"] },
   { emoji: "🍑", label: "Pêche", names: ["Pêche sauvage", "Pêche acide", "Pêche dorée", "Pêche de fer", "Pêche légendaire", "Reine Pêche"] },
   { emoji: "🥥", label: "Noix de coco", names: ["Noix de coco sauvage", "Noix de coco acide", "Noix de coco dorée", "Noix de coco de fer", "Noix de coco légendaire", "Roi Noix de coco"] },
   { emoji: "🫐", label: "Myrtille", names: ["Myrtille sauvage", "Myrtille acide", "Myrtille dorée", "Myrtille de fer", "Myrtille légendaire", "Reine Myrtille"] },
