@@ -845,15 +845,21 @@ const SLOT_MAX_BET = 100000;
 // beaucoup de vraies machines à sous) — absent (0) pour la cloche (scatter
 // pur, jamais de gain de ligne) et le sept (jackpot réservé au grand
 // alignement complet, pas de lot de consolation).
+// Valeurs calibrées (voir verify_slots.js) pour un taux de redistribution
+// (RTP) global d'environ 92% lignes + bonus "Choisis un fruit" cumulés —
+// proche des machines à sous réelles (typiquement 85-97%). Les anciennes
+// valeurs redistribuaient ~108% en moyenne (le bonus a lui seul ajoutait
+// ~19 points de RTP par-dessus des gains de ligne déjà généreux), ce qui
+// n'a aucun équivalent réaliste et gonflait l'économie sans limite.
 const SLOT_SYMBOLS = [
-  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 3, twoPay: 0.5 },
-  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 4, twoPay: 0 },
+  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 2, twoPay: 0.5 },
+  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 3, twoPay: 0 },
   { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 6, twoPay: 0 },
-  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 10, twoPay: 0 },
-  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 16, twoPay: 0 },
-  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 28, twoPay: 0 },
+  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 9, twoPay: 0 },
+  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 15, twoPay: 0 },
+  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 25, twoPay: 0 },
   { id: "cloche", emoji: "🔔", name: "Cloche", weight: 11, payout: 0, twoPay: 0 },
-  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 90, twoPay: 0 },
+  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 80, twoPay: 0 },
 ];
 const SLOT_SYMBOLS_BY_ID = Object.fromEntries(SLOT_SYMBOLS.map((s) => [s.id, s]));
 const SLOT_TOTAL_WEIGHT = SLOT_SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
