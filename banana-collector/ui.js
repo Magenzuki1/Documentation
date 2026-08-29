@@ -112,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminModalClose: document.getElementById("admin-modal-close"),
     adminTabPlayers: document.getElementById("admin-tab-players"),
     adminTabBananas: document.getElementById("admin-tab-bananas"),
+    adminTabQuests: document.getElementById("admin-tab-quests"),
     adminTabStats: document.getElementById("admin-tab-stats"),
     adminTabNews: document.getElementById("admin-tab-news"),
     adminTabEvents: document.getElementById("admin-tab-events"),
@@ -119,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTabLog: document.getElementById("admin-tab-log"),
     adminPlayersView: document.getElementById("admin-players-view"),
     adminBananasView: document.getElementById("admin-bananas-view"),
+    adminQuestsView: document.getElementById("admin-quests-view"),
     adminStatsView: document.getElementById("admin-stats-view"),
     adminNewsView: document.getElementById("admin-news-view"),
     adminEventsView: document.getElementById("admin-events-view"),
@@ -137,6 +139,15 @@ document.addEventListener("DOMContentLoaded", () => {
     adminBananasError: document.getElementById("admin-bananas-error"),
     adminBananasSuccess: document.getElementById("admin-bananas-success"),
     adminBananasList: document.getElementById("admin-bananas-list"),
+    adminQuestScope: document.getElementById("admin-quest-scope"),
+    adminQuestDesc: document.getElementById("admin-quest-desc"),
+    adminQuestKey: document.getElementById("admin-quest-key"),
+    adminQuestNeed: document.getElementById("admin-quest-need"),
+    adminQuestReward: document.getElementById("admin-quest-reward"),
+    adminQuestCreateBtn: document.getElementById("admin-quest-create-btn"),
+    adminQuestsError: document.getElementById("admin-quests-error"),
+    adminQuestsSuccess: document.getElementById("admin-quests-success"),
+    adminQuestsList: document.getElementById("admin-quests-list"),
     adminNewsMessage: document.getElementById("admin-news-message"),
     adminNewsSendBtn: document.getElementById("admin-news-send-btn"),
     adminNewsError: document.getElementById("admin-news-error"),
@@ -3635,6 +3646,100 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminBananasList();
   });
 
+  /* ---------------- Panneau admin : Quêtes ---------------- */
+
+  const ADMIN_QUEST_KEY_LABELS = {
+    ads: "Pubs regardées",
+    catchRounds: "Rounds d'Attrape les bananes",
+    legendaryPlus: "Bananes légendaires ou mieux",
+    memoryRounds: "Parties de Mémoire",
+    newDiscoveries: "Nouvelles bananes découvertes",
+    rarePlus: "Bananes rares ou mieux",
+    rolls: "Bananes récoltées",
+    upgradesBought: "Améliorations achetées",
+    wheel: "Tours de roue",
+    wins: "Victoires en Arène",
+  };
+
+  // Rempli une seule fois : les clés de suivi disponibles sont fixes.
+  els.adminQuestKey.innerHTML = ADMIN_QUEST_KEY_WHITELIST
+    .map((k) => `<option value="${k}">${ADMIN_QUEST_KEY_LABELS[k] || k}</option>`)
+    .join("");
+
+  async function renderAdminQuestsList() {
+    els.adminQuestsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.fetchAdminQuests();
+    if (!rows || rows.length === 0) {
+      els.adminQuestsList.innerHTML = `<p class="account-hint">Aucune quête créée pour l'instant.</p>`;
+      return;
+    }
+    els.adminQuestsList.innerHTML = rows.map((q) => `
+      <div class="admin-log-row" data-id="${q.id}">
+        <span class="admin-log-user">${q.scope === "daily" ? "Journalière" : "Hebdomadaire"}</span>
+        <span class="admin-log-reason">${q.description} (${ADMIN_QUEST_KEY_LABELS[q.quest_key] || q.quest_key} ≥ ${q.need}, +${q.reward} 🪙)</span>
+        <button class="btn danger admin-quest-delete-btn">Supprimer</button>
+      </div>
+    `).join("");
+    els.adminQuestsList.querySelectorAll(".admin-quest-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest(".admin-log-row");
+        const res = await CLOUD.adminDeleteQuest(Number(row.dataset.id));
+        if (!res.ok) {
+          els.adminQuestsError.textContent = res.reason || "Erreur inconnue.";
+          els.adminQuestsError.classList.remove("hidden");
+          return;
+        }
+        els.adminQuestsError.classList.add("hidden");
+        renderAdminQuestsList();
+      });
+    });
+  }
+
+  function renderAdminQuests() {
+    els.adminQuestsError.classList.add("hidden");
+    els.adminQuestsSuccess.classList.add("hidden");
+    renderAdminQuestsList();
+  }
+
+  els.adminQuestCreateBtn.addEventListener("click", async () => {
+    const scope = els.adminQuestScope.value;
+    const description = els.adminQuestDesc.value.trim();
+    const key = els.adminQuestKey.value;
+    const need = Math.floor(Number(els.adminQuestNeed.value));
+    const reward = Math.floor(Number(els.adminQuestReward.value));
+    els.adminQuestsError.classList.add("hidden");
+    els.adminQuestsSuccess.classList.add("hidden");
+    if (!description) {
+      els.adminQuestsError.textContent = "Donne une description à la quête.";
+      els.adminQuestsError.classList.remove("hidden");
+      return;
+    }
+    if (!need || need < 1) {
+      els.adminQuestsError.textContent = "Indique un objectif d'au moins 1.";
+      els.adminQuestsError.classList.remove("hidden");
+      return;
+    }
+    if (!reward || reward < 1) {
+      els.adminQuestsError.textContent = "Indique une récompense en pièces d'au moins 1.";
+      els.adminQuestsError.classList.remove("hidden");
+      return;
+    }
+    els.adminQuestCreateBtn.disabled = true;
+    const res = await CLOUD.adminCreateQuest(scope, description, key, need, reward);
+    els.adminQuestCreateBtn.disabled = false;
+    if (!res.ok) {
+      els.adminQuestsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminQuestsError.classList.remove("hidden");
+      return;
+    }
+    els.adminQuestDesc.value = "";
+    els.adminQuestNeed.value = "";
+    els.adminQuestReward.value = "";
+    els.adminQuestsSuccess.textContent = "Quête créée !";
+    els.adminQuestsSuccess.classList.remove("hidden");
+    renderAdminQuestsList();
+  });
+
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
   function flashAdminRowSaved(saveBtn) {
@@ -3705,6 +3810,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function showAdminView(view) {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
     els.adminBananasView.classList.toggle("hidden", view !== "bananas");
+    els.adminQuestsView.classList.toggle("hidden", view !== "quests");
     els.adminStatsView.classList.toggle("hidden", view !== "stats");
     els.adminNewsView.classList.toggle("hidden", view !== "news");
     els.adminEventsView.classList.toggle("hidden", view !== "events");
@@ -3712,6 +3818,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminLogView.classList.toggle("hidden", view !== "log");
     els.adminTabPlayers.classList.toggle("active", view === "players");
     els.adminTabBananas.classList.toggle("active", view === "bananas");
+    els.adminTabQuests.classList.toggle("active", view === "quests");
     els.adminTabStats.classList.toggle("active", view === "stats");
     els.adminTabNews.classList.toggle("active", view === "news");
     els.adminTabEvents.classList.toggle("active", view === "events");
@@ -3736,6 +3843,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
   els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); });
+  els.adminTabQuests.addEventListener("click", () => { showAdminView("quests"); renderAdminQuests(); });
   els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
   els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
   els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });

@@ -1026,6 +1026,76 @@ const WEEKLY_QUEST_POOL = [
   { id: "w_buyUpgrade3", desc: "Achète 3 améliorations en boutique", need: 3, reward: 1300, key: "upgradesBought" },
 ];
 
+/* Quêtes créées par un admin (voir le panneau admin) : ajoutées EN PLUS des
+   pools ci-dessus, jamais à leur place. Toujours un id préfixé "admin_"
+   pour ne jamais entrer en collision avec un id "en dur". Réutilisent l'une
+   des clés de progression déjà suivies en permanence par bumpQuestProgress()
+   (ads, rolls, wins...) — aucun code arbitraire, seulement des paramètres
+   (description/objectif/récompense) rejoignant le tirage journalier ou
+   hebdomadaire normal. Mises en cache dans localStorage et fusionnées de
+   façon synchrone au chargement (comme les événements et les bananes admin)
+   pour qu'une quête admin déjà assignée reste visible même hors-ligne. */
+const ADMIN_QUEST_KEY_WHITELIST = [
+  "ads", "catchRounds", "legendaryPlus", "memoryRounds", "newDiscoveries",
+  "rarePlus", "rolls", "upgradesBought", "wheel", "wins",
+];
+const ADMIN_QUESTS_CACHE_KEY = "banana-collector-admin-quests-v1";
+
+function mergeAdminQuests(rows) {
+  const validIds = new Set();
+  for (const row of rows || []) {
+    if (!row || !Number.isInteger(row.id)) continue;
+    if (row.scope !== "daily" && row.scope !== "weekly") continue;
+    if (!ADMIN_QUEST_KEY_WHITELIST.includes(row.quest_key)) continue;
+    if (!Number.isFinite(row.need) || row.need < 1) continue;
+    if (!Number.isFinite(row.reward) || row.reward < 1) continue;
+    if (typeof row.description !== "string" || !row.description.trim()) continue;
+
+    const quest = {
+      id: `admin_${row.id}`,
+      desc: row.description.trim(),
+      need: Math.round(row.need),
+      reward: Math.round(row.reward),
+      key: row.quest_key,
+    };
+    const pool = row.scope === "daily" ? QUEST_POOL : WEEKLY_QUEST_POOL;
+    const existingIndex = pool.findIndex((q) => q.id === quest.id);
+    if (existingIndex >= 0) {
+      pool[existingIndex] = quest;
+    } else {
+      pool.push(quest);
+    }
+    validIds.add(quest.id);
+  }
+  // Retire du pool toute quête admin qui n'est plus dans la liste (supprimée
+  // côté serveur) : sans ça, elle resterait éligible au tirage indéfiniment
+  // à partir du cache localStorage périmé.
+  for (const pool of [QUEST_POOL, WEEKLY_QUEST_POOL]) {
+    for (let i = pool.length - 1; i >= 0; i--) {
+      if (pool[i].id.startsWith("admin_") && !validIds.has(pool[i].id)) pool.splice(i, 1);
+    }
+  }
+}
+
+function loadAdminQuestsCache() {
+  try {
+    const raw = localStorage.getItem(ADMIN_QUESTS_CACHE_KEY);
+    if (raw) mergeAdminQuests(JSON.parse(raw));
+  } catch (e) {
+    // Cache corrompu/absent : on retombe sur les pools statiques.
+  }
+}
+loadAdminQuestsCache();
+
+function setAdminQuestsCache(rows) {
+  mergeAdminQuests(rows);
+  try {
+    localStorage.setItem(ADMIN_QUESTS_CACHE_KEY, JSON.stringify(rows));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
+}
+
 // Quêtes sans date de fin : toujours toutes actives, jamais réinitialisées.
 // progress(state) renvoie la valeur cumulative courante, comparée à need.
 const PERMANENT_QUEST_POOL = [
