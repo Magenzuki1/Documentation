@@ -913,6 +913,11 @@ h1, h2, h3,
   box-shadow: var(--shadow);
 }
 
+/* Demande visant une banane que le viewer n'a pas découverte : même
+   traitement que .banana-card.locked dans la Collection (silhouette,
+   numéro seulement) — jamais de spoil, même sur sa propre demande. */
+.market-listing-card.locked { filter: grayscale(1); opacity: 0.7; }
+
 .market-listing-seller { font-size: 0.75rem; color: #7a6224; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .market-listing-qty { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
 .market-listing-price { font-weight: 800; color: var(--accent-dark); margin-top: 6px; }
@@ -952,6 +957,9 @@ h1, h2, h3,
   cursor: pointer;
   font-family: inherit;
 }
+/* Banane demandable mais pas encore découverte (voir requestableBananas) :
+   reste sélectionnable, juste visuellement en retrait derrière sa silhouette. */
+.market-sell-option.locked { opacity: 0.75; }
 .market-sell-option.selected { border-color: var(--accent-dark); box-shadow: 0 0 0 2px var(--accent); }
 .market-sell-option-count { font-size: 0.68rem; font-weight: 700; color: #5c4a1a; }
 

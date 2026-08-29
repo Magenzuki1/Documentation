@@ -1576,13 +1576,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Marché : demandes (buy orders) ---------------- */
 
-  // Contrairement à sellableBananas(), pas de filtre sur le nombre possédé :
-  // on peut demander une banane qu'on n'a plus (ou pas assez de doublons)
-  // tant qu'on l'a déjà découverte — c'est tout l'intérêt de la demande.
+  // Contrairement à sellableBananas(), pas de filtre sur le nombre possédé,
+  // ET aucun filtre sur la découverte non plus : le but même de la demande
+  // est de pouvoir viser une banane qu'on n'a JAMAIS eue, pour compléter sa
+  // collection. Les découvertes passent en premier (triées comme avant),
+  // les non découvertes suivent dans leur ordre d'origine — même logique
+  // que renderCollection() pour ne rien mélanger.
   function requestableBananas() {
-    return state.discovered
+    const discovered = state.discovered
       .map((id) => BANANAS_BY_ID[id])
       .sort((a, b) => rarityIndex(b.rarity) - rarityIndex(a.rarity) || b.value - a.value);
+    const locked = BANANAS.filter((b) => !state.discovered.includes(b.id));
+    return [...discovered, ...locked];
   }
 
   let marketRequestSelectedBananaId = null;
@@ -1590,7 +1595,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderMarketRequestPicker() {
     const options = requestableBananas();
     if (options.length === 0) {
-      els.marketRequestPicker.innerHTML = `<p class="secret-hint">Découvre des bananes avant de pouvoir en demander !</p>`;
+      els.marketRequestPicker.innerHTML = `<p class="secret-hint">Aucune banane disponible.</p>`;
       marketRequestSelectedBananaId = null;
       return;
     }
@@ -1599,10 +1604,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     els.marketRequestPicker.innerHTML = options.map((b) => {
       const selected = b.id === marketRequestSelectedBananaId;
+      const discovered = state.discovered.includes(b.id);
+      // Une banane pas encore découverte reste sélectionnable (c'est même
+      // tout l'intérêt), mais s'affiche en silhouette + numéro de carte
+      // seulement — jamais son nom ni son icône, comme pour une carte
+      // verrouillée de la Collection.
       return `
-        <button class="market-sell-option ${selected ? "selected" : ""}" data-id="${b.id}" title="${b.name}">
-          ${bananaIconHTML(b, 2)}
-          <span class="market-sell-option-count">x${state.counts[b.id] || 0}</span>
+        <button class="market-sell-option ${selected ? "selected" : ""} ${discovered ? "" : "locked"}" data-id="${b.id}" title="${discovered ? b.name : `Banane #${b.number} — non découverte`}">
+          ${discovered ? bananaIconHTML(b, 2) : `<div class="banana-emoji silhouette" style="font-size:2rem;">🍌</div>`}
+          <span class="market-sell-option-count">${discovered ? `x${state.counts[b.id] || 0}` : `#${b.number}`}</span>
         </button>
       `;
     }).join("");
@@ -1621,7 +1631,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function marketRequestCardHTML(request, mode) {
     const banana = BANANAS_BY_ID[request.banana_id];
     if (!banana) return "";
-    const rarity = RARITIES[banana.rarity];
+    // Peu importe qui a créé la demande (soi-même y compris) : c'est ce que
+    // LE VIEWER a découvert qui décide si on affiche le nom/l'icône réels
+    // ou une silhouette + numéro de carte — jamais de spoil, même sur sa
+    // propre demande pour une banane qu'on ne possède pas encore.
+    const discovered = state.discovered.includes(request.banana_id);
+    const rarity = discovered ? RARITIES[banana.rarity] : null;
     // Comme sold_quantity pour les annonces : quantity retombe à 0 une fois
     // comblée, original_quantity garde le total initial à afficher.
     const displayQty = request.status !== "active" ? (request.original_quantity ?? request.quantity) : request.quantity;
@@ -1630,9 +1645,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const owned = state.counts[request.banana_id] || 0;
     const canFulfill = mode === "open" && owned >= request.quantity;
     return `
-      <div class="market-listing-card rarity-${banana.rarity}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
-        ${bananaIconHTML(banana, 2.2)}
-        <div class="banana-name">${banana.name}</div>
+      <div class="market-listing-card ${discovered ? `rarity-${banana.rarity}` : "locked"}" ${discovered ? `style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};"` : ""}>
+        ${discovered ? bananaIconHTML(banana, 2.2) : `<div class="banana-emoji silhouette" style="font-size:2.2rem;">🍌</div>`}
+        <div class="banana-name">${discovered ? banana.name : `??? #${banana.number}`}</div>
         ${mode === "open" ? `<div class="market-listing-seller">par ${avatarIconHTML(request.requesterAvatarId, 1.1)} ${clickableUsernameHTML(request.requesterUsername)}</div>` : ""}
         <div class="market-listing-qty">x${displayQty}</div>
         <div class="market-listing-price">🪙 ${request.unit_price} / unité</div>
@@ -2965,11 +2980,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Petit toast discret (coin de l'écran, pas de son ni de confettis) pour
   // signaler une attaque PVP subie hors ligne dès la connexion — même si le
-  // joueur ne va jamais ouvrir l'onglet Arène PVP de lui-même. Ne marque
-  // jamais les rapports comme vus : le panneau "Pendant ton absence" de
-  // l'onglet PVP (renderPvpReports) reste la seule source qui les marque,
-  // pour que le détail complet reste consultable même si ce toast est raté.
-  function showPvpNotifyToast(title, line, lost) {
+  // joueur ne va jamais ouvrir l'onglet Arène PVP de lui-même. onClose (si
+  // fourni) marque les rapports comme vus : fermer la croix vaut acquit une
+  // fois pour toutes, pour ne plus jamais le revoir au prochain rechargement
+  // (sinon il réapparaîtrait à chaque fois tant que l'onglet PVP n'a pas été
+  // ouvert, ce qui pollue inutilement).
+  function showPvpNotifyToast(title, line, lost, onClose) {
     const toast = document.createElement("div");
     toast.className = `pvp-notify-toast ${lost ? "lost" : ""}`;
     toast.innerHTML = `
@@ -2984,14 +3000,14 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.querySelector(".pvp-notify-toast-close").addEventListener("click", () => {
       toast.classList.remove("show");
       setTimeout(() => toast.remove(), 400);
+      onClose?.();
     });
   }
 
   // Même principe côté Marché : signale qu'une annonce a été entièrement
-  // vendue pendant l'absence du joueur. Ne marque jamais les ventes comme
-  // vues elle-même — c'est renderMarketMyListings ("Mes annonces"), consulté
-  // naturellement pour voir le statut "Vendue", qui s'en charge.
-  function showMarketNotifyToast(title, line) {
+  // vendue (ou une demande comblée) pendant l'absence du joueur. onClose
+  // marque l'élément comme vu à la fermeture — même logique que ci-dessus.
+  function showMarketNotifyToast(title, line, onClose) {
     const toast = document.createElement("div");
     toast.className = "market-notify-toast";
     toast.innerHTML = `
@@ -3004,6 +3020,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.querySelector(".market-notify-toast-close").addEventListener("click", () => {
       toast.classList.remove("show");
       setTimeout(() => toast.remove(), 400);
+      onClose?.();
     });
   }
 
@@ -3011,19 +3028,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!CLOUD.available || !CLOUD.isLinked()) return;
     const sales = await CLOUD.fetchUnseenSales();
     if (sales.length === 0) return;
+    const markSeen = () => CLOUD.markListingsSeen(sales.map((s) => s.id));
     if (sales.length === 1) {
       const s = sales[0];
       const banana = BANANAS_BY_ID[s.banana_id];
       const total = s.quantity * s.unit_price;
       showMarketNotifyToast(
         "🏪 Vente conclue",
-        `${banana ? banana.name : "Banane"} x${s.quantity} vendue à ${s.buyerUsername} — +${total} 🪙`
+        `${banana ? banana.name : "Banane"} x${s.quantity} vendue à ${s.buyerUsername} — +${total} 🪙`,
+        markSeen
       );
     } else {
       const totalCoins = sales.reduce((sum, s) => sum + s.quantity * s.unit_price, 0);
       showMarketNotifyToast(
         "🏪 Marché",
-        `${sales.length} ventes conclues pendant ton absence — +${totalCoins} 🪙`
+        `${sales.length} ventes conclues pendant ton absence — +${totalCoins} 🪙`,
+        markSeen
       );
     }
   }
@@ -3036,17 +3056,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!CLOUD.available || !CLOUD.isLinked()) return;
     const fulfilled = await CLOUD.fetchUnseenFulfilledRequests();
     if (fulfilled.length === 0) return;
+    const markSeen = () => CLOUD.markRequestsSeen(fulfilled.map((r) => r.id));
     if (fulfilled.length === 1) {
       const r = fulfilled[0];
       const banana = BANANAS_BY_ID[r.banana_id];
       showMarketNotifyToast(
         "🙋 Demande comblée",
-        `${banana ? banana.name : "Banane"} x${r.quantity} livrée par ${r.fulfillerUsername} !`
+        `${banana ? banana.name : "Banane"} x${r.quantity} livrée par ${r.fulfillerUsername} !`,
+        markSeen
       );
     } else {
       showMarketNotifyToast(
         "🙋 Marché",
-        `${fulfilled.length} demandes comblées pendant ton absence !`
+        `${fulfilled.length} demandes comblées pendant ton absence !`,
+        markSeen
       );
     }
   }
@@ -3055,20 +3078,23 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!CLOUD.available || !CLOUD.isLinked()) return;
     const reports = await CLOUD.fetchUnseenCombatReports();
     if (reports.length === 0) return;
+    const markSeen = () => CLOUD.markCombatLogSeen(reports.map((r) => r.id));
     if (reports.length === 1) {
       const r = reports[0];
       const won = r.defender_delta > 0;
       showPvpNotifyToast(
         won ? "🛡️ Défense réussie" : "⚔️ Tu as été attaqué",
         `${r.attackerUsername} — ${won ? "+" : ""}${r.defender_delta} 🪙`,
-        !won
+        !won,
+        markSeen
       );
     } else {
       const totalDelta = reports.reduce((sum, r) => sum + r.defender_delta, 0);
       showPvpNotifyToast(
         "⚔️ Arène PVP",
         `${reports.length} attaques pendant ton absence — ${totalDelta >= 0 ? "+" : ""}${totalDelta} 🪙`,
-        totalDelta < 0
+        totalDelta < 0,
+        markSeen
       );
     }
   }
