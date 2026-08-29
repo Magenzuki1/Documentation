@@ -55,6 +55,11 @@ const SFX = (() => {
     harvestMythic: () => {
       [660, 880, 1100, 1320].forEach((f, i) => beep({ freq: f, duration: 0.2, type: "triangle", delay: i * 0.1, gain: 0.16 }));
     },
+    harvestSecret: () => {
+      [523, 659, 784, 1046, 1319, 1568].forEach((f, i) => beep({ freq: f, duration: 0.24, type: "triangle", delay: i * 0.09, gain: 0.17 }));
+    },
+    rouletteTick: () => beep({ freq: 700, duration: 0.045, type: "square", gain: 0.07 }),
+    rouletteLand: () => beep({ freq: 300, duration: 0.16, type: "sine", gain: 0.14, sweep: 500 }),
     win: () => {
       [523, 659, 784, 1046].forEach((f, i) => beep({ freq: f, duration: 0.16, type: "triangle", delay: i * 0.08, gain: 0.14 }));
     },

@@ -228,7 +228,7 @@ function defaultState() {
     quests: { date: null, assigned: [], progress: {}, completed: [] },
     weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
     permanentQuests: { completed: [] },
-    settings: { muted: false },
+    settings: { muted: false, animatedRoll: true },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
     cloud: { linked: false, lastLedgerId: 0 },
@@ -263,6 +263,10 @@ function sanitizeState(s) {
   }
   if (s.lastBananaId != null && !BANANAS_BY_ID[s.lastBananaId]) s.lastBananaId = null;
   if (s.rarestId != null && !BANANAS_BY_ID[s.rarestId]) s.rarestId = null;
+  // Object.assign(defaultState(), parsed) remplace state.settings en entier
+  // par l'ancien objet sauvegardé s'il existe : une sauvegarde antérieure à
+  // l'ajout d'animatedRoll n'aurait donc jamais ce champ sans ce filet.
+  if (s.settings.animatedRoll === undefined) s.settings.animatedRoll = true;
   return s;
 }
 
