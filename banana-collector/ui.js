@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dailyEventSummary: document.getElementById("daily-event-summary"),
     dailyEventDetails: document.getElementById("daily-event-details"),
     dailyEventTomorrow: document.getElementById("daily-event-tomorrow"),
+    activityFeedList: document.getElementById("activity-feed-list"),
     shopList: document.getElementById("shop-list"),
     questsList: document.getElementById("quests-list"),
     weeklyQuestsList: document.getElementById("weekly-quests-list"),
@@ -243,6 +244,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function showTab(name) {
     els.tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     els.tabPanels.forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
+    if (name === "accueil") startActivityFeedPolling();
+    else stopActivityFeedPolling();
     if (name === "progression") showProgressionView(progressionView);
     if (name === "economie") showEconomieView(economieView);
     if (name === "combat") showCombatView(combatView);
@@ -472,10 +475,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (rarity === "legendaire") {
       showBanner("⭐ LÉGENDAIRE ! ⭐", banana, 1800);
+      publishNotableEvent("legendary_pull", { bananaName: banana.name });
     } else if (rarity === "secrete") {
       showSecretRevealOverlay(banana);
+      publishNotableEvent("secret_pull", { bananaName: banana.name });
     } else if (rarity === "mythique") {
       showEpicOverlay(banana);
+      publishNotableEvent("mythic_pull", { bananaName: banana.name });
     } else if (isNew) {
       spawnConfetti(10);
     }
@@ -566,6 +572,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => layer.remove(), 1300);
   }
 
+  // Fil d'actualité (autres joueurs) : publie un événement notable si le
+  // compte est lié, échoue toujours en silence sinon (jamais bloquant, ce
+  // n'est qu'un fil d'ambiance — voir NOTABLE_BIG_WIN_THRESHOLD plus bas
+  // pour le seuil "gros gain" au Black Jack/Machine à sous).
+  function publishNotableEvent(eventType, payload) {
+    if (CLOUD.available && CLOUD.isLinked()) {
+      CLOUD.publishNotableEvent(eventType, payload).catch(() => {});
+    }
+  }
+
   function showBanner(title, banana, duration) {
     const banner = document.createElement("div");
     banner.className = "rare-banner";
@@ -603,6 +619,10 @@ document.addEventListener("DOMContentLoaded", () => {
         showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}` }, 2600);
         spawnConfetti(20);
       }, i * 900);
+      // playSound=false marque un rattrapage au démarrage (médaille déjà
+      // méritée avant même que ce système existe) : pas un événement "à
+      // l'instant", donc pas de publication dans le fil d'actualité.
+      if (playSound) publishNotableEvent("medal_unlocked", { medalName: medal.name, medalIcon: medal.icon });
     });
   }
 
@@ -1889,6 +1909,11 @@ document.addEventListener("DOMContentLoaded", () => {
     step();
   }
 
+  // Seuil "gros gain" pour le fil d'actualité — repris de la médaille
+  // "Quitte ou Double" (voir MEDALS dans app.js), un même montant marque déjà
+  // le joueur d'une médaille, il mérite aussi une mention dans le fil.
+  const NOTABLE_BIG_WIN_THRESHOLD = 50000;
+
   const BLACKJACK_OUTCOME_INFO = {
     blackjack: { title: "🃏 Black Jack !", sfx: "win", confetti: 30 },
     victoire: { title: "🎉 Victoire !", sfx: "win", confetti: 16 },
@@ -1905,6 +1930,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const info = BLACKJACK_OUTCOME_INFO[outcome];
     SFX[info.sfx]();
     if (info.confetti > 0) spawnConfetti(info.confetti);
+    if (coinsEarned >= NOTABLE_BIG_WIN_THRESHOLD) {
+      publishNotableEvent("bj_big_win", { amount: coinsEarned });
+    }
 
     const coinsLine = outcome === "defaite"
       ? `🪙 -${bet}`
@@ -2002,6 +2030,9 @@ document.addEventListener("DOMContentLoaded", () => {
         renderHeader();
         SFX.win();
         spawnConfetti(30);
+        if (coinsEarned >= NOTABLE_BIG_WIN_THRESHOLD) {
+          publishNotableEvent("slot_big_win", { amount: coinsEarned });
+        }
         setTimeout(() => {
           els.slotBonusPanel.classList.add("hidden");
           els.slotSpinBtn.disabled = false;
@@ -2042,6 +2073,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const evaluation = evaluateSlotSpin(grid);
       const { coinsEarned, netChange } = resolveSlotSpin(evaluation, bet);
       renderHeader();
+
+      if (evaluation.hasJackpotLine) {
+        publishNotableEvent("slot_jackpot", {});
+      } else if (coinsEarned >= NOTABLE_BIG_WIN_THRESHOLD) {
+        publishNotableEvent("slot_big_win", { amount: coinsEarned });
+      }
 
       // netChange (pas lineWinAmount) fait foi pour "gagné" : un tour qui ne
       // fait que rembourser une partie de la mise (twoPay < 1) n'est pas un
@@ -2280,6 +2317,7 @@ document.addEventListener("DOMContentLoaded", () => {
     SFX.win();
     spawnConfetti(30);
     showBanner("🏅 PRESTIGE !", { emoji: "🏅", name: `Niveau ${res.level}` }, 1800);
+    publishNotableEvent("prestige", { level: res.level });
 
     pveSelectedBananaId = null;
     pveSelectedStage = 0;
@@ -2358,6 +2396,9 @@ document.addEventListener("DOMContentLoaded", () => {
         els.pveResult.classList.remove("hidden");
 
         if (result.won) spawnConfetti(result.stageAdvanced ? 25 : 12);
+        if (result.won && result.stageAdvanced && ARENA_BOSS_STAGES.includes(pveSelectedStage)) {
+          publishNotableEvent("arena_boss_defeated", { bossName: FRUIT_ENEMIES[pveSelectedStage].name });
+        }
 
         const unlocked = checkAchievements();
         if (unlocked.length > 0) {
@@ -2610,6 +2651,65 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="stat-box"><div class="stat-num">${pct}%</div><div class="stat-label">Collection complétée</div></div>
       </div>
     `;
+  }
+
+  /* ---------------- Fil d'actualité (activité des joueurs) ----------------
+     Lecture publique — même un joueur sans compte cloud voit le fil, pour
+     que le jeu se sente vivant. Seule la PUBLICATION d'un événement (voir
+     publishNotableEvent) nécessite un compte lié. Volontairement rare (voir
+     les seuils/limites côté Supabase) pour ne jamais devenir un flux spam. */
+
+  function notableEventMessage(ev) {
+    const u = ev.username;
+    const p = ev.payload || {};
+    switch (ev.event_type) {
+      case "legendary_pull":
+        return `🌟 ${u} vient d'obtenir une banane Légendaire${p.bananaName ? ` : ${p.bananaName}` : ""} !`;
+      case "mythic_pull":
+        return `💫 ${u} vient d'obtenir une banane Mythique${p.bananaName ? ` : ${p.bananaName}` : ""} !`;
+      case "secret_pull":
+        return `🕵️ ${u} vient de découvrir une banane Secrète${p.bananaName ? ` : ${p.bananaName}` : ""} !`;
+      case "slot_jackpot":
+        return `🎰 ${u} vient de décrocher le jackpot à la Machine à sous !`;
+      case "bj_big_win":
+        return `🃏 ${u} vient de gagner ${Number(p.amount || 0).toLocaleString("fr-FR")} pièces au Black Jack !`;
+      case "slot_big_win":
+        return `🎰 ${u} vient de gagner ${Number(p.amount || 0).toLocaleString("fr-FR")} pièces à la Machine à sous !`;
+      case "medal_unlocked":
+        return `${p.medalIcon || "🎖️"} ${u} vient de débloquer la médaille "${p.medalName}" !`;
+      case "prestige":
+        return `🏅 ${u} vient d'atteindre le Prestige ${p.level} !`;
+      case "arena_boss_defeated":
+        return `⚔️ ${u} vient de vaincre ${p.bossName} dans l'Arène !`;
+      default:
+        return null;
+    }
+  }
+
+  async function renderActivityFeed() {
+    if (!CLOUD.available) {
+      els.activityFeedList.innerHTML = `<p class="secret-hint">Fil d'actualité indisponible (connexion réseau).</p>`;
+      return;
+    }
+    const events = await CLOUD.fetchRecentNotableEvents(12);
+    const messages = events.map(notableEventMessage).filter(Boolean);
+    els.activityFeedList.innerHTML = messages.length > 0
+      ? messages.map((msg) => `<div class="activity-feed-item">${msg}</div>`).join("")
+      : `<p class="secret-hint">Aucune activité récente pour le moment.</p>`;
+  }
+
+  let activityFeedPollTimer = null;
+  const ACTIVITY_FEED_POLL_MS = 20000;
+
+  function startActivityFeedPolling() {
+    stopActivityFeedPolling();
+    renderActivityFeed();
+    activityFeedPollTimer = setInterval(renderActivityFeed, ACTIVITY_FEED_POLL_MS);
+  }
+
+  function stopActivityFeedPolling() {
+    clearInterval(activityFeedPollTimer);
+    activityFeedPollTimer = null;
   }
 
   /* ---------------- Récolteur automatique ---------------- */
@@ -3270,6 +3370,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderMuteBtn();
   renderRollModeSettings();
   renderDailyEventBanner();
+  startActivityFeedPolling(); // "accueil" est l'onglet actif par défaut au chargement
   if (state.lastBananaId) {
     const banana = BANANAS_BY_ID[state.lastBananaId];
     els.lastBanana.innerHTML = bananaCardHTML(banana, state.counts[banana.id], false);

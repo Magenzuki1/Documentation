@@ -543,6 +543,32 @@ body {
 
 .daily-event-tomorrow-label { font-weight: 800; }
 
+/* --- Fil d'actualité (activité des joueurs) --- */
+
+.activity-feed-section {
+  margin-top: 26px;
+  text-align: left;
+}
+
+.activity-feed-section h4 { margin: 0 0 10px; text-align: center; }
+
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.activity-feed-item {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+
 /* --- Tableau de bord de l'accueil (niveau + collection) --- */
 
 .home-dashboard {

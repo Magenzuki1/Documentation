@@ -330,6 +330,29 @@ const CLOUD = (() => {
     return error || !data ? [] : data;
   }
 
+  /* ---------------- Fil d'actualité (événements notables) ----------------
+     Lecture publique (comme le classement), écriture réservée aux comptes
+     liés — voir app.js NOTABLE_EVENT_TRIGGERS pour la liste des moments qui
+     publient un événement. Le serveur limite déjà la fréquence par joueur
+     (voir publish_notable_event côté Supabase) : échoue silencieusement ici
+     aussi, ce n'est qu'un fil d'ambiance, jamais bloquant pour le joueur.
+     Nécessite un compte lié pour publier (source d'identité du joueur). */
+  async function publishNotableEvent(eventType, payload) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("publish_notable_event", {
+      p_event_type: eventType,
+      p_payload: payload || {},
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchRecentNotableEvents(limit) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_recent_notable_events", { p_limit: limit || 20 });
+    return error || !data ? [] : data;
+  }
+
   // Synchronise l'avatar choisi localement (voir app.js setAvatar()) vers le
   // profil public, pour qu'il apparaisse aux autres joueurs (marché, arène
   // PVP, classement).
@@ -547,6 +570,8 @@ const CLOUD = (() => {
     resetCloudProgress,
     scheduleSync,
     fetchLeaderboard,
+    publishNotableEvent,
+    fetchRecentNotableEvents,
     setAvatar,
     fetchActiveListings,
     fetchMyListings,
