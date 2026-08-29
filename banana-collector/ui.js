@@ -2813,13 +2813,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // translater de 0 à -50%, exactement la largeur d'une copie). La vitesse
   // est calculée depuis la largeur réelle du contenu pour rester constante
   // (px/seconde) peu importe la longueur du texte affiché.
-  const ACTIVITY_FEED_PX_PER_SECOND = 55;
+  const ACTIVITY_FEED_PX_PER_SECOND = 90;
 
   function setActivityFeedTrackContent(itemsHTML) {
     els.activityFeedTrack.innerHTML = itemsHTML + itemsHTML;
     requestAnimationFrame(() => {
       const singleCopyWidth = els.activityFeedTrack.scrollWidth / 2;
-      const duration = Math.max(8, singleCopyWidth / ACTIVITY_FEED_PX_PER_SECOND);
+      const duration = Math.max(5, singleCopyWidth / ACTIVITY_FEED_PX_PER_SECOND);
       els.activityFeedTrack.style.animationDuration = `${duration}s`;
     });
   }
