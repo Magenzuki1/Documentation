@@ -635,13 +635,23 @@ body {
 .home-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #dfe3e8 0%, #f8f9fb 22%, #b7bcc4 45%, #f4f5f7 68%, #ced2d8 100%);
+  background: linear-gradient(135deg, #fffdf7 0%, #f7f0da 25%, #ffffff 50%, #f3e9cf 75%, #fffdf7 100%);
   background-size: 220% 220%;
-  animation: metallicShine 5s ease-in-out infinite;
-  border: 1px solid #aab0b8;
+  animation: metallicShine 6s ease-in-out infinite;
+  border: 1px solid #ecdfb8;
   border-radius: 10px;
   padding: 6px 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(154, 122, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.home-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%);
+  background-size: 250% 250%;
+  animation: metallicShine 6s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @keyframes metallicShine {
@@ -652,17 +662,17 @@ body {
 .home-card-title {
   font-weight: 700;
   font-size: 0.7rem;
-  color: #4a4f57;
+  color: #8a6d1f;
   margin-bottom: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .home-progress-wrap { margin: 0; }
 .home-progress-wrap .progress-bar { height: 6px; margin-top: 2px; }
-#home-xp-label { font-size: 0.62rem; color: #5c616a; font-weight: 700; }
+#home-xp-label { font-size: 0.62rem; color: #9c8850; font-weight: 700; }
 
 .home-xp-bar-fill { background: linear-gradient(90deg, #7bd88f, #3fa9ff); }
 
