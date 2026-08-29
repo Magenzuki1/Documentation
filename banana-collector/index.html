@@ -12,10 +12,16 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <h1>🍌 BANANA COLLECTOR</h1>
-      <div class="topbar-account-row">
-        <button id="mute-btn" class="mute-btn" title="Couper/activer le son">🔊</button>
-        <button id="account-btn" class="account-btn">👤 Compte</button>
+      <div class="topbar-hero">
+        <h1>🍌 BANANA COLLECTOR</h1>
+        <div class="stats-bar">
+          <span id="stat-collection">Collection : 0 / 100</span>
+          <span id="stat-coins">🪙 Pièces : 0</span>
+        </div>
+        <div class="topbar-account-row">
+          <button id="mute-btn" class="mute-btn" title="Couper/activer le son">🔊</button>
+          <button id="account-btn" class="account-btn">👤 Compte</button>
+        </div>
       </div>
       <div id="activity-feed-section" class="activity-feed-section">
         <span class="activity-feed-icon" title="Activité récente">📰</span>
@@ -31,10 +37,6 @@
         <div id="daily-event-details" class="daily-event-details hidden">
           <div id="daily-event-tomorrow"></div>
         </div>
-      </div>
-      <div class="stats-bar">
-        <span id="stat-collection">Collection : 0 / 100</span>
-        <span id="stat-coins">🪙 Pièces : 0</span>
       </div>
     </header>
 
