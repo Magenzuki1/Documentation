@@ -374,6 +374,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return `<span class="clickable-username" data-username="${username}">${username}</span>`;
   }
 
+  // Illustration d'une médaille (pin émail fourni par le créateur du jeu) —
+  // retombe sur l'émoji si jamais l'image manque.
+  function medalIconHTML(medal, sizeRem) {
+    const size = sizeRem || 1.6;
+    return medal.image
+      ? `<img class="medal-icon-img" src="${medal.image}" alt="" style="height:${size}rem;" />`
+      : medal.icon;
+  }
+
   // Réservée à la vue "Profil" (celle où cadre + effet + titre + médaille +
   // banane favorite se combinent) : ailleurs (bouton compte, classement...),
   // l'avatar reste affiché sans ces habillages, pour rester léger.
@@ -626,7 +635,7 @@ document.addEventListener("DOMContentLoaded", () => {
     medals.forEach((medal, i) => {
       setTimeout(() => {
         if (playSound) SFX.achievement();
-        showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}` }, 2600);
+        showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { image: medal.image, emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}` }, 2600);
         spawnConfetti(20);
       }, i * 900);
       // playSound=false marque un rattrapage au démarrage (médaille déjà
@@ -2882,7 +2891,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const medalSlotsHTML = [0, 1, 2].map((i) => {
       const medal = medalIds[i] ? MEDALS_BY_ID[medalIds[i]] : null;
       return medal
-        ? `<div class="showcase-medal" title="${medal.name} — ${medal.publicDesc}">${medal.icon}</div>`
+        ? `<div class="showcase-medal" title="${medal.name} — ${medal.publicDesc}">${medalIconHTML(medal, 1.8)}</div>`
         : `<div class="showcase-medal showcase-medal-empty">?</div>`;
     }).join("");
 
@@ -2963,7 +2972,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const medalSlotsHTML = [0, 1, 2].map((i) => {
       const m = medals[i];
       return m
-        ? `<div class="showcase-medal" title="${m.name} — ${m.publicDesc}">${m.icon}</div>`
+        ? `<div class="showcase-medal" title="${m.name} — ${m.publicDesc}">${medalIconHTML(m, 1.8)}</div>`
         : `<div class="showcase-medal showcase-medal-empty">?</div>`;
     }).join("");
     const optionsHTML = state.discovered.map((id) => {
@@ -3002,7 +3011,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const unlocked = state.medals.unlocked.includes(m.id);
             return `
               <div class="medal-card ${unlocked ? "unlocked" : "locked"}">
-                <div class="medal-icon">${m.icon}</div>
+                <div class="medal-icon">${medalIconHTML(m, 2.4)}</div>
                 <div class="medal-name">${m.name}</div>
                 <div class="medal-desc">${m.publicDesc}</div>
                 <div class="medal-status">${unlocked ? "✅ Obtenue" : "🔒 Non obtenue"}</div>
