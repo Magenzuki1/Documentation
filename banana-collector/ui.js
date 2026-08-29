@@ -303,8 +303,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function showTab(name) {
     els.tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     els.tabPanels.forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
-    if (name === "accueil") startActivityFeedPolling();
-    else stopActivityFeedPolling();
+    // Le fil d'actualité est désormais dans l'en-tête, visible sur tous les
+    // onglets, et tourne en continu (voir startActivityFeedPolling() plus
+    // bas) ; on force juste un rafraîchissement immédiat au retour sur
+    // l'Accueil pour une info toujours à jour.
+    if (name === "accueil") renderActivityFeed();
     if (name === "progression") showProgressionView(progressionView);
     if (name === "economie") showEconomieView(economieView);
     if (name === "combat") showCombatView(combatView);
@@ -2847,18 +2850,14 @@ document.addEventListener("DOMContentLoaded", () => {
     setActivityFeedTrackContent(itemsHTML);
   }
 
-  let activityFeedPollTimer = null;
   const ACTIVITY_FEED_POLL_MS = 20000;
 
+  // Le fil est maintenant dans l'en-tête global (visible sur tous les
+  // onglets), donc il tourne en continu dès le chargement et n'est plus
+  // jamais mis en pause selon l'onglet actif.
   function startActivityFeedPolling() {
-    stopActivityFeedPolling();
     renderActivityFeed();
-    activityFeedPollTimer = setInterval(renderActivityFeed, ACTIVITY_FEED_POLL_MS);
-  }
-
-  function stopActivityFeedPolling() {
-    clearInterval(activityFeedPollTimer);
-    activityFeedPollTimer = null;
+    setInterval(renderActivityFeed, ACTIVITY_FEED_POLL_MS);
   }
 
   // La plupart des navigateurs (surtout mobile) ralentissent ou suspendent
@@ -2867,9 +2866,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // fil d'actualité périmé jusqu'au prochain tick (parfois très tardif),
   // donnant l'impression qu'il fallait recharger la page pour le mettre à
   // jour. On force un rafraîchissement immédiat dès que la page redevient
-  // visible, mais seulement si le fil est censé être actif (onglet Accueil).
+  // visible.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && activityFeedPollTimer !== null) {
+    if (document.visibilityState === "visible") {
       renderActivityFeed();
     }
   });
@@ -4141,7 +4140,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderMuteBtn();
   renderRollModeSettings();
   renderDailyEventBanner();
-  startActivityFeedPolling(); // "accueil" est l'onglet actif par défaut au chargement
+  startActivityFeedPolling(); // le fil est global (en-tête), actif dès le chargement
   if (state.lastBananaId) {
     const banana = BANANAS_BY_ID[state.lastBananaId];
     els.lastBanana.innerHTML = bananaCardHTML(banana, state.counts[banana.id], false);
