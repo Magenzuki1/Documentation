@@ -111,13 +111,24 @@ document.addEventListener("DOMContentLoaded", () => {
     adminModal: document.getElementById("admin-modal"),
     adminModalClose: document.getElementById("admin-modal-close"),
     adminTabPlayers: document.getElementById("admin-tab-players"),
+    adminTabStats: document.getElementById("admin-tab-stats"),
+    adminTabNews: document.getElementById("admin-tab-news"),
     adminTabMovements: document.getElementById("admin-tab-movements"),
     adminTabLog: document.getElementById("admin-tab-log"),
     adminPlayersView: document.getElementById("admin-players-view"),
+    adminStatsView: document.getElementById("admin-stats-view"),
+    adminNewsView: document.getElementById("admin-news-view"),
     adminMovementsView: document.getElementById("admin-movements-view"),
     adminLogView: document.getElementById("admin-log-view"),
     adminPlayersList: document.getElementById("admin-players-list"),
     adminPlayersError: document.getElementById("admin-players-error"),
+    adminPlayersSearch: document.getElementById("admin-players-search"),
+    adminStatsList: document.getElementById("admin-stats-list"),
+    adminNewsMessage: document.getElementById("admin-news-message"),
+    adminNewsSendBtn: document.getElementById("admin-news-send-btn"),
+    adminNewsError: document.getElementById("admin-news-error"),
+    adminNewsSuccess: document.getElementById("admin-news-success"),
+    adminNewsList: document.getElementById("admin-news-list"),
     adminMovementsList: document.getElementById("admin-movements-list"),
     adminLogList: document.getElementById("admin-log-list"),
     marketLocked: document.getElementById("market-locked"),
@@ -2728,10 +2739,20 @@ document.addEventListener("DOMContentLoaded", () => {
       els.activityFeedList.innerHTML = `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
       return;
     }
-    const events = await CLOUD.fetchRecentNotableEvents(12);
-    const messages = events.map(notableEventMessage).filter(Boolean);
-    els.activityFeedList.innerHTML = messages.length > 0
-      ? messages.map((msg) => `<div class="activity-feed-item">${msg}</div>`).join("")
+    const [events, announcements] = await Promise.all([
+      CLOUD.fetchRecentNotableEvents(12),
+      CLOUD.fetchRecentAnnouncements(5),
+    ]);
+    // Les annonces admin sont mélangées aux événements du fil, triées ensemble
+    // par date, plutôt que d'ajouter un second bandeau que le joueur devrait
+    // remarquer séparément.
+    const items = [
+      ...events.map((ev) => ({ html: notableEventMessage(ev), created_at: ev.created_at, announcement: false })),
+      ...announcements.map((a) => ({ html: `📢 ${a.message}`, created_at: a.created_at, announcement: true })),
+    ].filter((item) => item.html);
+    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    els.activityFeedList.innerHTML = items.length > 0
+      ? items.map((item) => `<div class="activity-feed-item${item.announcement ? " activity-feed-announcement" : ""}">${item.html}</div>`).join("")
       : `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
   }
 
@@ -3259,10 +3280,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Panneau admin ---------------- */
 
+  // Conserve la dernière liste chargée pour filtrer localement sans
+  // re-solliciter le serveur à chaque frappe dans la recherche.
+  let adminPlayersCache = [];
+
   async function renderAdminPlayers() {
     els.adminPlayersError.classList.add("hidden");
     els.adminPlayersList.innerHTML = `<p class="account-hint">Chargement…</p>`;
     const profiles = await CLOUD.adminListProfiles();
+    adminPlayersCache = profiles;
+    renderAdminPlayersList(profiles);
+  }
+
+  function renderAdminPlayersList(profiles) {
     if (profiles.length === 0) {
       els.adminPlayersList.innerHTML = `<p class="account-hint">Aucun joueur (ou accès refusé).</p>`;
       return;
@@ -3323,6 +3353,91 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+
+  els.adminPlayersSearch.addEventListener("input", () => {
+    const query = els.adminPlayersSearch.value.trim().toLowerCase();
+    const filtered = query
+      ? adminPlayersCache.filter((p) => p.username.toLowerCase().includes(query))
+      : adminPlayersCache;
+    renderAdminPlayersList(filtered);
+  });
+
+  const ADMIN_STATS_LABELS = [
+    { key: "total_players", label: "Joueurs inscrits", icon: "👥" },
+    { key: "new_players_7d", label: "Nouveaux (7 jours)", icon: "🆕" },
+    { key: "banned_players", label: "Joueurs bannis", icon: "🚫" },
+    { key: "admin_players", label: "Admins", icon: "🛠️" },
+    { key: "total_coins", label: "Pièces en circulation", icon: "🪙" },
+    { key: "avg_coins", label: "Pièces moyennes / joueur", icon: "📈" },
+    { key: "total_banana_discoveries", label: "Bananes découvertes (types)", icon: "🍌" },
+    { key: "total_banana_count", label: "Bananes collectées (total)", icon: "🎒" },
+    { key: "top_pve_stage", label: "Meilleur palier Arène", icon: "⚔️" },
+    { key: "total_combats", label: "Combats PVP joués", icon: "🥊" },
+    { key: "active_listings", label: "Annonces actives au Marché", icon: "🏪" },
+    { key: "market_sales_count", label: "Ventes conclues au Marché", icon: "✅" },
+    { key: "market_volume", label: "Volume total du Marché", icon: "💰" },
+    { key: "notable_events_7d", label: "Événements notables (7 jours)", icon: "✨" },
+  ];
+
+  async function renderAdminStats() {
+    els.adminStatsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const stats = await CLOUD.adminGetStats();
+    if (!stats) {
+      els.adminStatsList.innerHTML = `<p class="account-hint">Impossible de charger les statistiques (ou accès refusé).</p>`;
+      return;
+    }
+    els.adminStatsList.innerHTML = ADMIN_STATS_LABELS.map(({ key, label, icon }) => `
+      <div class="admin-stat-card">
+        <span class="admin-stat-icon">${icon}</span>
+        <span class="admin-stat-value">${Number(stats[key] ?? 0).toLocaleString("fr-FR")}</span>
+        <span class="admin-stat-label">${label}</span>
+      </div>
+    `).join("");
+  }
+
+  async function renderAdminNewsHistory() {
+    els.adminNewsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.fetchRecentAnnouncements(10);
+    if (rows.length === 0) {
+      els.adminNewsList.innerHTML = `<p class="account-hint">Aucune annonce envoyée pour l'instant.</p>`;
+      return;
+    }
+    els.adminNewsList.innerHTML = rows.map((r) => `
+      <div class="admin-log-row">
+        <span class="admin-log-reason">📢 ${r.message}</span>
+        <span class="admin-log-date">${new Date(r.created_at).toLocaleString("fr-FR")}</span>
+      </div>
+    `).join("");
+  }
+
+  function renderAdminNews() {
+    els.adminNewsError.classList.add("hidden");
+    els.adminNewsSuccess.classList.add("hidden");
+    renderAdminNewsHistory();
+  }
+
+  els.adminNewsSendBtn.addEventListener("click", async () => {
+    const message = els.adminNewsMessage.value.trim();
+    els.adminNewsError.classList.add("hidden");
+    els.adminNewsSuccess.classList.add("hidden");
+    if (!message) {
+      els.adminNewsError.textContent = "Le message ne peut pas être vide.";
+      els.adminNewsError.classList.remove("hidden");
+      return;
+    }
+    els.adminNewsSendBtn.disabled = true;
+    const res = await CLOUD.adminSendAnnouncement(message);
+    els.adminNewsSendBtn.disabled = false;
+    if (!res.ok) {
+      els.adminNewsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminNewsError.classList.remove("hidden");
+      return;
+    }
+    els.adminNewsMessage.value = "";
+    els.adminNewsSuccess.textContent = "Annonce envoyée !";
+    els.adminNewsSuccess.classList.remove("hidden");
+    renderAdminNewsHistory();
+  });
 
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
@@ -3393,15 +3508,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showAdminView(view) {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
+    els.adminStatsView.classList.toggle("hidden", view !== "stats");
+    els.adminNewsView.classList.toggle("hidden", view !== "news");
     els.adminMovementsView.classList.toggle("hidden", view !== "movements");
     els.adminLogView.classList.toggle("hidden", view !== "log");
     els.adminTabPlayers.classList.toggle("active", view === "players");
+    els.adminTabStats.classList.toggle("active", view === "stats");
+    els.adminTabNews.classList.toggle("active", view === "news");
     els.adminTabMovements.classList.toggle("active", view === "movements");
     els.adminTabLog.classList.toggle("active", view === "log");
   }
 
   function openAdminModal() {
     els.adminModal.classList.remove("hidden");
+    els.adminPlayersSearch.value = "";
     showAdminView("players");
     renderAdminPlayers();
   }
@@ -3415,6 +3535,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === els.adminModal) closeAdminModal();
   });
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
+  els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
+  els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
   els.adminTabMovements.addEventListener("click", () => { showAdminView("movements"); renderAdminMovements(); });
   els.adminTabLog.addEventListener("click", () => { showAdminView("log"); renderAdminLog(); });
 

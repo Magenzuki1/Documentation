@@ -506,13 +506,32 @@
       <h2>🛠️ Panneau admin</h2>
       <div class="market-subtabs">
         <button class="market-subtab-btn active" id="admin-tab-players" data-adminview="players">👥 Joueurs</button>
+        <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
+        <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
         <button class="market-subtab-btn" id="admin-tab-movements" data-adminview="movements">💸 Mouvements</button>
         <button class="market-subtab-btn" id="admin-tab-log" data-adminview="log">📜 Journal</button>
       </div>
 
       <div id="admin-players-view">
         <p id="admin-players-error" class="account-error hidden"></p>
+        <input type="text" id="admin-players-search" class="admin-search-input" placeholder="🔍 Rechercher un pseudo…" />
         <div id="admin-players-list" class="admin-players-list"></div>
+      </div>
+
+      <div id="admin-stats-view" class="hidden">
+        <div id="admin-stats-list" class="admin-stats-grid"></div>
+      </div>
+
+      <div id="admin-news-view" class="hidden">
+        <p class="shop-hint">Envoie un message qui apparaît dans le fil d'actualité de tous les joueurs.</p>
+        <div class="admin-news-form">
+          <textarea id="admin-news-message" maxlength="200" placeholder="Écris ton annonce ici (200 caractères max)…"></textarea>
+          <button class="btn" id="admin-news-send-btn">📢 Envoyer</button>
+        </div>
+        <p id="admin-news-error" class="account-error hidden"></p>
+        <p id="admin-news-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Annonces récentes</h3>
+        <div id="admin-news-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-movements-view" class="hidden">
