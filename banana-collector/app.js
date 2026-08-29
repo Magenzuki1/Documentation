@@ -202,6 +202,7 @@ function defaultState() {
     totalRolls: 0,
     counts: {}, // bananaId -> count
     discovered: [], // bananaId[]
+    firstObtainedAt: {}, // bananaId -> "AAAA-MM-JJ" (première découverte, absent pour les captures antérieures à cette fonctionnalité)
     bananaLevels: {}, // bananaId -> niveau (1 si absent), voir "Niveaux de banane"
     pityRare: 0,
     pityLegendary: 0,
@@ -262,6 +263,13 @@ function sanitizeState(s) {
   }
   for (const id of Object.keys(s.bananaLevels)) {
     if (!BANANAS_BY_ID[id]) delete s.bananaLevels[id];
+  }
+  // Ajouté après la sortie du jeu : une sauvegarde antérieure n'a pas ce
+  // champ, et les bananes déjà en collection à ce moment-là n'ont donc pas de
+  // date de première obtention connue (jamais inventée, voir la fiche détail).
+  if (!s.firstObtainedAt) s.firstObtainedAt = {};
+  for (const id of Object.keys(s.firstObtainedAt)) {
+    if (!BANANAS_BY_ID[id]) delete s.firstObtainedAt[id];
   }
   if (s.lastBananaId != null && !BANANAS_BY_ID[s.lastBananaId]) s.lastBananaId = null;
   if (s.rarestId != null && !BANANAS_BY_ID[s.rarestId]) s.rarestId = null;
@@ -525,7 +533,10 @@ function rollBanana() {
   }
 
   const isNew = !state.discovered.includes(banana.id);
-  if (isNew) state.discovered.push(banana.id);
+  if (isNew) {
+    state.discovered.push(banana.id);
+    state.firstObtainedAt[banana.id] = dateKey(new Date());
+  }
   state.counts[banana.id] = (state.counts[banana.id] || 0) + 1;
 
   const duplicateBonus = isNew ? 1 : 1 + (state.upgrades.recycleur || 0) * 0.05;
@@ -1561,6 +1572,59 @@ function setRewardOverridesCache(rows) {
   mergeRewardOverrides(rows);
   try {
     localStorage.setItem(REWARD_OVERRIDES_CACHE_KEY, JSON.stringify(rows));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
+}
+
+/* Permet à un admin de modifier le nom, la citation et l'histoire d'une
+   banane EXISTANTE (créée par le développeur, catalogue figé) sans jamais en
+   créer de nouvelle ni toucher à sa rareté ou son numéro — même logique que
+   ORIGINAL_QUEST_REWARDS/mergeRewardOverrides ci-dessus. Les objets de
+   BANANAS sont mutés en place : toutes les vues qui affichent une banane
+   (collection, marché, fiche détail...) lisent la même référence et voient
+   donc l'override sans changement supplémentaire ailleurs. */
+const ORIGINAL_BANANA_CONTENT = new Map(BANANAS.map((b) => [b.id, { name: b.name, quote: b.quote, story: b.story }]));
+const BANANA_CONTENT_OVERRIDES_CACHE_KEY = "banana-collector-banana-content-overrides-v1";
+// Conserve aussi les lignes brutes (pas seulement le résultat déjà fusionné
+// dans BANANAS) pour que le panneau admin puisse pré-remplir son formulaire
+// avec l'override actuel d'une banane plutôt que de l'écraser à l'aveugle.
+let bananaContentOverridesList = [];
+
+function getBananaContentOverride(bananaId) {
+  return bananaContentOverridesList.find((row) => row && row.banana_id === bananaId) || null;
+}
+
+function mergeBananaContentOverrides(rows) {
+  bananaContentOverridesList = rows || [];
+  const overridesById = new Map();
+  for (const row of bananaContentOverridesList) {
+    if (!row || !ORIGINAL_BANANA_CONTENT.has(row.banana_id)) continue; // id inconnu : ignoré, jamais de création
+    overridesById.set(row.banana_id, row);
+  }
+  for (const banana of BANANAS) {
+    const original = ORIGINAL_BANANA_CONTENT.get(banana.id);
+    const override = overridesById.get(banana.id);
+    banana.name = (override && override.name) || original.name;
+    banana.quote = (override && override.quote) || original.quote;
+    banana.story = (override && override.story) || original.story;
+  }
+}
+
+function loadBananaContentOverridesCache() {
+  try {
+    const raw = localStorage.getItem(BANANA_CONTENT_OVERRIDES_CACHE_KEY);
+    if (raw) mergeBananaContentOverrides(JSON.parse(raw));
+  } catch (e) {
+    // Cache corrompu/absent : on retombe sur le contenu par défaut.
+  }
+}
+loadBananaContentOverridesCache();
+
+function setBananaContentOverridesCache(rows) {
+  mergeBananaContentOverrides(rows);
+  try {
+    localStorage.setItem(BANANA_CONTENT_OVERRIDES_CACHE_KEY, JSON.stringify(rows));
   } catch (e) {
     // Stockage plein/indisponible : pas critique.
   }

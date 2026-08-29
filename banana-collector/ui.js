@@ -153,6 +153,15 @@ document.addEventListener("DOMContentLoaded", () => {
     adminBananaGrantBtn: document.getElementById("admin-banana-grant-btn"),
     adminBananasError: document.getElementById("admin-bananas-error"),
     adminBananasSuccess: document.getElementById("admin-bananas-success"),
+    adminBananaContentSelect: document.getElementById("admin-banana-content-select"),
+    adminBananaContentName: document.getElementById("admin-banana-content-name"),
+    adminBananaContentQuote: document.getElementById("admin-banana-content-quote"),
+    adminBananaContentStory: document.getElementById("admin-banana-content-story"),
+    adminBananaContentSaveBtn: document.getElementById("admin-banana-content-save-btn"),
+    adminBananaContentResetBtn: document.getElementById("admin-banana-content-reset-btn"),
+    adminBananaContentError: document.getElementById("admin-banana-content-error"),
+    adminBananaContentSuccess: document.getElementById("admin-banana-content-success"),
+    adminBananaContentList: document.getElementById("admin-banana-content-list"),
     adminQuestScope: document.getElementById("admin-quest-scope"),
     adminQuestDesc: document.getElementById("admin-quest-desc"),
     adminQuestKey: document.getElementById("admin-quest-key"),
@@ -898,6 +907,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const stats = bananaCombatStats(banana);
     return `
       <div class="banana-card rarity-${banana.rarity}" data-id="${banana.id}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        <div class="banana-card-number">#${banana.number}</div>
         ${level > 1 ? `<div class="banana-level-badge">Nv. ${level}</div>` : ""}
         ${bananaIconHTML(banana)}
         <div class="banana-name">${banana.name}</div>
@@ -935,9 +945,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function lockedBananaCardHTML() {
+  function lockedBananaCardHTML(banana) {
     return `
       <div class="banana-card locked">
+        <div class="banana-card-number">#${banana.number}</div>
         <div class="banana-emoji silhouette">🍌</div>
         <div class="banana-name">???</div>
         <div class="banana-card-stats">⚔️ ? · 🛡️ ?</div>
@@ -986,23 +997,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     els.collectionGrid.innerHTML = bananas.map((banana) => {
       const discovered = state.discovered.includes(banana.id);
-      return discovered ? bananaGridCardHTML(banana) : lockedBananaCardHTML();
+      return discovered ? bananaGridCardHTML(banana) : lockedBananaCardHTML(banana);
     }).join("");
     els.collectionGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
       card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
     });
 
-    const discoveredSecrets = SECRET_BANANAS.filter((b) => state.discovered.includes(b.id));
+    // Comme pour les bananes normales, les secrètes non découvertes
+    // s'affichent en carte masquée (numéro visible, tout le reste en "???") —
+    // seul leur nom/histoire reste caché tant qu'elles ne sont pas trouvées.
+    const discoveredSecretsCount = SECRET_BANANAS.filter((b) => state.discovered.includes(b.id)).length;
     els.secretSection.style.display = "block";
-    document.getElementById("secret-count").textContent = `${discoveredSecrets.length} / ${TOTAL_SECRET}`;
-    if (discoveredSecrets.length === 0) {
-      els.secretGrid.innerHTML = `<p class="secret-hint">🕵️ Des bananes secrètes se cachent quelque part... continue de récolter pour percer leur mystère !</p>`;
-    } else {
-      els.secretGrid.innerHTML = discoveredSecrets.map((banana) => bananaGridCardHTML(banana)).join("");
-      els.secretGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
-        card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
-      });
-    }
+    document.getElementById("secret-count").textContent = `${discoveredSecretsCount} / ${TOTAL_SECRET}`;
+    els.secretGrid.innerHTML = SECRET_BANANAS.map((banana) => {
+      const discovered = state.discovered.includes(banana.id);
+      return discovered ? bananaGridCardHTML(banana) : lockedBananaCardHTML(banana);
+    }).join("");
+    els.secretGrid.querySelectorAll(".banana-card[data-id]").forEach((card) => {
+      card.addEventListener("click", () => showBananaDetailOverlay(Number(card.dataset.id)));
+    });
   }
 
   // Fiche agrandie d'une banane de la collection : le cadre devient plus
@@ -1054,6 +1067,33 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Fiche "album de collection" : numéro fixe, citation + petite histoire
+  // (voir BANANA_LORE dans data.js), statistiques de combat (chaque banane
+  // en a, dérivées de sa rareté) et statistiques du joueur pour cette banane
+  // précise. La date de première obtention n'existe que pour les captures
+  // faites depuis l'ajout de ce suivi — jamais de valeur inventée pour les
+  // captures plus anciennes.
+  function bananaDetailStatsHTML(banana) {
+    const stats = bananaCombatStats(banana);
+    const firstObtainedKey = state.firstObtainedAt[banana.id];
+    const firstObtainedLabel = firstObtainedKey
+      ? new Date(firstObtainedKey).toLocaleDateString("fr-FR", { timeZone: "UTC" })
+      : "Inconnue (obtenue avant ce suivi)";
+    const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
+    const collectionPct = banana.secret
+      ? null
+      : Math.round((discoveredNormal / TOTAL_NORMAL) * 1000) / 10;
+    return `
+      <div class="banana-detail-stats">
+        <div class="banana-detail-stats-row">⚔️ Attaque : <strong>${stats.atk}</strong></div>
+        <div class="banana-detail-stats-row">🛡️ Défense : <strong>${stats.def}</strong></div>
+        <div class="banana-detail-stats-row">📅 Première obtention : <strong>${firstObtainedLabel}</strong></div>
+        <div class="banana-detail-stats-row">🔁 Obtenue par vous : <strong>${state.counts[banana.id] || 0} fois</strong></div>
+        ${collectionPct != null ? `<div class="banana-detail-stats-row">📖 Collection globale : <strong>${collectionPct.toLocaleString("fr-FR")} %</strong></div>` : ""}
+      </div>
+    `;
+  }
+
   function showBananaDetailOverlay(bananaId) {
     const banana = BANANAS_BY_ID[bananaId];
     if (!banana || !state.discovered.includes(bananaId)) return;
@@ -1065,6 +1105,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="banana-detail-frame tier-${tier}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
         <button class="banana-detail-close" id="banana-detail-close-btn" aria-label="Fermer">✕</button>
         <div class="banana-detail-glow"></div>
+        <div class="banana-detail-number">#${banana.number}</div>
         ${bananaIconHTML(banana, 6)}
         <div class="banana-detail-name">${banana.name}</div>
         <div class="banana-detail-rarity-pill">${rarity.label}</div>
@@ -1072,6 +1113,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>🪙 ${banana.value}</span>
           <span>x${count}</span>
         </div>
+        ${banana.quote ? `<p class="banana-detail-quote">« ${banana.quote} »</p>` : ""}
+        ${banana.story ? `<div class="banana-detail-story"><h4>📚 Son histoire</h4><p>${banana.story}</p></div>` : ""}
+        ${bananaDetailStatsHTML(banana)}
         ${bananaLevelSectionHTML(banana)}
       </div>
     `;
@@ -3419,7 +3463,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderMarketTab();
       renderPvpTab();
       CLOUD.setAvatar(state.profile.avatarId);
-      refreshSupportBadge();
+      refreshAllSupportBadges();
     });
   }
 
@@ -3535,6 +3579,23 @@ document.addEventListener("DOMContentLoaded", () => {
     els.settingsBtn.classList.toggle("has-badge", unread);
   }
 
+  // Symétrique côté admin : un point rouge sur le bouton Compte signale
+  // qu'au moins un joueur a un message de support en attente de réponse
+  // (unread_count > 0), sans avoir à ouvrir le panneau admin pour le savoir.
+  async function refreshAdminSupportBadge() {
+    if (!CLOUD.available || !CLOUD.isLinked() || !CLOUD.isAdmin()) {
+      els.accountBtn.classList.remove("has-badge");
+      return;
+    }
+    const threads = await CLOUD.adminListSupportThreads();
+    els.accountBtn.classList.toggle("has-badge", threads.some((t) => t.unread_count > 0));
+  }
+
+  function refreshAllSupportBadges() {
+    refreshSupportBadge();
+    refreshAdminSupportBadge();
+  }
+
   function closeSettingsModal() { els.settingsModal.classList.add("hidden"); }
 
   els.settingsBtn.addEventListener("click", () => {
@@ -3547,7 +3608,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   applyTheme();
-  setInterval(refreshSupportBadge, 60000);
+  setInterval(refreshAllSupportBadges, 60000);
+  // Comme pour le fil d'actualité : un onglet remis au premier plan force un
+  // contrôle immédiat plutôt que d'attendre le prochain tick des 60s.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshAllSupportBadges();
+  });
 
   /* ---------------- Panneau admin ---------------- */
 
@@ -3818,6 +3884,95 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminBananasSuccess.classList.remove("hidden");
     els.adminBananaUsername.value = "";
     els.adminBananaQuantity.value = 1;
+  });
+
+  /* ---------------- Panneau admin : Bananes (contenu éditorial) ---------------- */
+
+  // Même tri/liste que le sélecteur de loot, mais affiche aussi le numéro
+  // de collection pour que l'admin retrouve facilement une banane précise.
+  els.adminBananaContentSelect.innerHTML = BANANAS
+    .slice()
+    .sort((a, b) => rarityIndex(a.rarity) - rarityIndex(b.rarity) || a.name.localeCompare(b.name))
+    .map((b) => `<option value="${b.id}">#${b.number} — ${b.name}</option>`)
+    .join("");
+
+  function fillAdminBananaContentForm() {
+    const bananaId = Number(els.adminBananaContentSelect.value);
+    const override = getBananaContentOverride(bananaId);
+    els.adminBananaContentName.value = override?.name || "";
+    els.adminBananaContentQuote.value = override?.quote || "";
+    els.adminBananaContentStory.value = override?.story || "";
+  }
+
+  // Rafraîchit juste la liste/le formulaire depuis le serveur, sans toucher
+  // aux bandeaux d'erreur/succès — utilisé après une sauvegarde ou une
+  // réinitialisation, où le bandeau vient justement d'être renseigné et ne
+  // doit pas être effacé dans la foulée par ce même rafraîchissement.
+  async function refreshAdminBananaContentList() {
+    const rows = await CLOUD.fetchBananaContentOverrides();
+    setBananaContentOverridesCache(rows);
+    fillAdminBananaContentForm();
+    if (rows.length === 0) {
+      els.adminBananaContentList.innerHTML = `<p class="account-hint">Aucune banane modifiée pour l'instant.</p>`;
+      return;
+    }
+    els.adminBananaContentList.innerHTML = rows.map((row) => {
+      const banana = BANANAS_BY_ID[row.banana_id];
+      return `
+        <div class="admin-log-row">
+          <span class="admin-log-user">#${banana ? banana.number : row.banana_id} ${row.name || banana?.name || ""}</span>
+          <button class="btn danger admin-banana-content-clear-btn" data-id="${row.banana_id}">Réinitialiser</button>
+        </div>
+      `;
+    }).join("");
+    els.adminBananaContentList.querySelectorAll(".admin-banana-content-clear-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        await CLOUD.adminClearBananaContent(Number(btn.dataset.id));
+        renderCollection();
+        refreshAdminBananaContentList();
+      });
+    });
+  }
+
+  function renderAdminBananaContent() {
+    els.adminBananaContentError.classList.add("hidden");
+    els.adminBananaContentSuccess.classList.add("hidden");
+    return refreshAdminBananaContentList();
+  }
+
+  els.adminBananaContentSelect.addEventListener("change", fillAdminBananaContentForm);
+
+  els.adminBananaContentSaveBtn.addEventListener("click", async () => {
+    const bananaId = Number(els.adminBananaContentSelect.value);
+    const name = els.adminBananaContentName.value.trim();
+    const quote = els.adminBananaContentQuote.value.trim();
+    const story = els.adminBananaContentStory.value.trim();
+    els.adminBananaContentError.classList.add("hidden");
+    els.adminBananaContentSuccess.classList.add("hidden");
+    els.adminBananaContentSaveBtn.disabled = true;
+    const res = await CLOUD.adminSetBananaContent(bananaId, name, quote, story);
+    els.adminBananaContentSaveBtn.disabled = false;
+    if (!res.ok) {
+      els.adminBananaContentError.textContent = res.reason || "Erreur inconnue.";
+      els.adminBananaContentError.classList.remove("hidden");
+      return;
+    }
+    renderCollection();
+    await refreshAdminBananaContentList();
+    els.adminBananaContentSuccess.textContent = "Fiche mise à jour !";
+    els.adminBananaContentSuccess.classList.remove("hidden");
+  });
+
+  els.adminBananaContentResetBtn.addEventListener("click", async () => {
+    const bananaId = Number(els.adminBananaContentSelect.value);
+    els.adminBananaContentError.classList.add("hidden");
+    els.adminBananaContentSuccess.classList.add("hidden");
+    els.adminBananaContentResetBtn.disabled = true;
+    await CLOUD.adminClearBananaContent(bananaId);
+    els.adminBananaContentResetBtn.disabled = false;
+    renderCollection();
+    await refreshAdminBananaContentList();
   });
 
   /* ---------------- Panneau admin : Quêtes ---------------- */
@@ -4234,6 +4389,9 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminSupportReplyError.classList.add("hidden");
     const messages = await CLOUD.adminFetchSupportThread(username);
     els.adminSupportThreadMessages.innerHTML = supportThreadListHTML(messages);
+    // Ouvrir une conversation marque ses messages joueur comme lus côté
+    // serveur : le point d'alerte doit refléter ça sans attendre le prochain tick.
+    refreshAdminSupportBadge();
   }
 
   els.adminSupportBackBtn.addEventListener("click", () => {
@@ -4297,7 +4455,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === els.adminModal) closeAdminModal();
   });
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
-  els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); });
+  els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); renderAdminBananaContent(); });
   els.adminTabQuests.addEventListener("click", () => { showAdminView("quests"); renderAdminQuests(); });
   els.adminTabMedals.addEventListener("click", () => { showAdminView("medals"); renderAdminMedals(); });
   els.adminTabRewards.addEventListener("click", () => { showAdminView("rewards"); renderAdminRewards(); });
@@ -4411,7 +4569,7 @@ document.addEventListener("DOMContentLoaded", () => {
   CLOUD.init().then(() => {
     updateAccountBtn();
     renderHeader();
-    refreshSupportBadge();
+    refreshAllSupportBadges();
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });
