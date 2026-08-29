@@ -914,6 +914,27 @@ body {
 .memory-card-back { background: #fff6d5; font-size: 1.8rem; }
 .memory-card-front { background: #fffdf5; transform: rotateY(180deg); }
 
+/* --- Bulle "ratio de gains" à côté du titre d'un jeu de casino --- */
+
+.game-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.game-title-row h2 { margin: 0; }
+
+.game-rtp-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.78rem;
+  background: #dff2c8;
+  color: #3d6b1f;
+  cursor: help;
+}
+
 /* --- Mini-jeu : Black Jack (bananes) --- */
 
 .bj-bet-panel {
