@@ -835,6 +835,12 @@ h1, h2, h3,
 
 .economie-coin-balance {
   display: inline-block;
+  position: sticky;
+  /* --tabs-height est mesurée en JS (voir syncStickyOffsets) : la barre
+     d'onglets du haut est elle-même en position: sticky/top:0, donc ce
+     solde doit se coller juste en dessous d'elle plutôt qu'à top:0, sinon
+     il disparaîtrait dessous en scrollant. */
+  top: calc(var(--tabs-height, 60px) + 8px);
   background: var(--card-bg);
   border-radius: 999px;
   padding: 6px 16px;
@@ -842,6 +848,7 @@ h1, h2, h3,
   font-size: 0.9rem;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
+  z-index: 15;
 }
 
 .market-subtab-btn {
@@ -2566,7 +2573,7 @@ h1, h2, h3,
    neutre — ce n'est pas une célébration, juste une information. --- */
 .pvp-notify-toast {
   position: fixed;
-  bottom: 16px;
+  top: 16px;
   right: 16px;
   max-width: 260px;
   background: var(--card-bg);
@@ -2584,7 +2591,7 @@ h1, h2, h3,
 .pvp-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
 
 @media (max-width: 520px) {
-  .pvp-notify-toast { left: 16px; right: 16px; max-width: none; bottom: 12px; }
+  .pvp-notify-toast { left: 16px; right: 16px; max-width: none; top: 12px; }
 }
 
 /* --- Confettis --- */

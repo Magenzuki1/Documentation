@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     statCollection: document.getElementById("stat-collection"),
     statCoins: document.getElementById("stat-coins"),
     economieCoinBalance: document.getElementById("economie-coin-balance"),
+    tabsNav: document.querySelector(".tabs"),
     tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
     tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
     harvestBtn: document.getElementById("harvest-btn"),
@@ -355,6 +356,17 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ---------------- En-tête ---------------- */
+
+  // La barre d'onglets du haut est en position: sticky/top:0 et peut passer
+  // sur deux lignes selon la largeur de l'écran (mobile étroit) : sa hauteur
+  // réelle n'est donc pas une constante CSS fiable. Mesurée en JS et exposée
+  // en variable CSS pour que .economie-coin-balance (elle aussi sticky) se
+  // colle juste en dessous, quelle que soit la largeur d'écran.
+  function syncStickyOffsets() {
+    if (!els.tabsNav) return;
+    document.documentElement.style.setProperty("--tabs-height", `${els.tabsNav.offsetHeight}px`);
+  }
+  window.addEventListener("resize", syncStickyOffsets);
 
   function renderHeader() {
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
@@ -4768,6 +4780,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAutoHarvestTimer();
   refreshQuestsIfNewDay();
   saveState();
+  syncStickyOffsets();
 
   // Aucun son n'est joué pour les toasts affichés ici : ils apparaissent au
   // chargement de la page, avant tout geste de l'utilisateur, ce que les
