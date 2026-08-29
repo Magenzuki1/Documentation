@@ -413,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     next();
   }
 
-  function finishHarvestReveal(banana, isNew, rarity, coinsEarned) {
+  function finishHarvestReveal(banana, isNew, rarity, coinsEarned, medalsUnlocked) {
     if (rarity === "secrete") SFX.harvestSecret();
     else if (rarity === "mythique") SFX.harvestMythic();
     else if (rarity === "legendaire" || rarity === "epique") SFX.harvestEpic();
@@ -449,6 +449,10 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showQuestToasts(questsDone);
     }
+    if (medalsUnlocked && medalsUnlocked.length > 0) {
+      renderHeader();
+      showMedalToasts(medalsUnlocked);
+    }
 
     const cooldown = rarity === "mythique" || rarity === "secrete" ? 300 : 350;
     setTimeout(() => {
@@ -462,17 +466,19 @@ document.addEventListener("DOMContentLoaded", () => {
     busy = true;
     els.harvestBtn.disabled = true;
 
+    const coinsBeforeRoll = state.coins;
     const result = rollBanana();
     const { banana, isNew, rarity, coinsEarned } = result;
+    const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), rollRarity: rarity, coinsAtRoll: coinsBeforeRoll });
 
     renderHeader();
     CLOUD.scheduleSync();
 
     const animated = !!(state.settings && state.settings.animatedRoll);
     if (animated) {
-      playRarityRoulette(rarity, () => finishHarvestReveal(banana, isNew, rarity, coinsEarned));
+      playRarityRoulette(rarity, () => finishHarvestReveal(banana, isNew, rarity, coinsEarned, medalsUnlocked));
     } else {
-      finishHarvestReveal(banana, isNew, rarity, coinsEarned);
+      finishHarvestReveal(banana, isNew, rarity, coinsEarned, medalsUnlocked);
     }
 
     return rarity;
@@ -542,6 +548,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (playSound) SFX.achievement();
         showBanner("🏆 SUCCÈS DÉBLOQUÉ !", { emoji: ach.icon, name: `${ach.name} (+${ach.reward} 🪙)` }, 2200);
         spawnConfetti(15);
+      }, i * 900);
+    });
+  }
+
+  // Contrairement aux succès, le toast de médaille n'affiche jamais la
+  // condition d'obtention — seulement le nom, l'icône et la description
+  // volontairement vague (publicDesc), déjà pensée pour être vue du joueur.
+  function showMedalToasts(medals, playSound = true) {
+    medals.forEach((medal, i) => {
+      setTimeout(() => {
+        if (playSound) SFX.achievement();
+        showBanner("🎖️ MÉDAILLE DÉBLOQUÉE !", { emoji: medal.icon, name: `${medal.name} — ${medal.publicDesc}` }, 2600);
+        spawnConfetti(20);
       }, i * 900);
     });
   }
@@ -1808,6 +1827,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showQuestToasts(questsDone);
     }
+    const medalsUnlocked = checkMedals();
+    if (medalsUnlocked.length > 0) {
+      renderHeader();
+      showMedalToasts(medalsUnlocked);
+    }
   }
 
   els.bjAgainBtn.addEventListener("click", resetBlackjackView);
@@ -1882,6 +1906,11 @@ document.addEventListener("DOMContentLoaded", () => {
             renderHeader();
             showAchievementToasts(unlocked);
           }
+          const medalsUnlocked = checkMedals();
+          if (medalsUnlocked.length > 0) {
+            renderHeader();
+            showMedalToasts(medalsUnlocked);
+          }
         }, 1400);
       }, { once: true });
     });
@@ -1949,6 +1978,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (questsDone.length > 0) {
         renderHeader();
         showQuestToasts(questsDone);
+      }
+      const medalsUnlocked = checkMedals();
+      if (medalsUnlocked.length > 0) {
+        renderHeader();
+        showMedalToasts(medalsUnlocked);
       }
     }, 500);
   });
@@ -2171,6 +2205,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showQuestToasts(questsDone);
     }
+    const medalsUnlocked = checkMedals({ prestigeHour: new Date().getHours() });
+    if (medalsUnlocked.length > 0) {
+      renderHeader();
+      showMedalToasts(medalsUnlocked);
+    }
   });
 
   els.pveFightBtn.addEventListener("click", () => {
@@ -2225,6 +2264,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (questsDone.length > 0) {
           renderHeader();
           showQuestToasts(questsDone);
+        }
+        const medalsUnlocked = checkMedals();
+        if (medalsUnlocked.length > 0) {
+          renderHeader();
+          showMedalToasts(medalsUnlocked);
         }
 
         renderPveStageList();
@@ -2627,6 +2671,68 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Vitrine personnelle : banane favorite (choisie par le joueur, ou par
+  // défaut la plus rare possédée) + les 3 médailles les plus récentes.
+  function showcaseSectionHTML() {
+    const favorite = currentFavoriteBanana();
+    const medals = showcaseMedals();
+    const favoriteHTML = favorite
+      ? `${bananaIconHTML(favorite, 3)}<div class="showcase-favorite-name">${favorite.name}</div>`
+      : `<div class="showcase-favorite-empty">🍌<div>Aucune banane</div></div>`;
+    const medalSlotsHTML = [0, 1, 2].map((i) => {
+      const m = medals[i];
+      return m
+        ? `<div class="showcase-medal" title="${m.name} — ${m.publicDesc}">${m.icon}</div>`
+        : `<div class="showcase-medal showcase-medal-empty">?</div>`;
+    }).join("");
+    const optionsHTML = state.discovered.map((id) => {
+      const b = BANANAS_BY_ID[id];
+      if (!b) return "";
+      const selected = state.profile.favoriteBananaId === id ? "selected" : "";
+      return `<option value="${id}" ${selected}>${b.name} — ${RARITIES[b.rarity].label}</option>`;
+    }).join("");
+    return `
+      <div class="showcase-section">
+        <h4>🌟 Vitrine</h4>
+        <div class="showcase-row">
+          <div class="showcase-favorite">${favoriteHTML}</div>
+          <div class="showcase-medals">${medalSlotsHTML}</div>
+        </div>
+        <div class="favorite-picker-row">
+          <label for="favorite-banana-select">Banane favorite</label>
+          <select id="favorite-banana-select">
+            <option value="">🎲 Automatique (la plus rare)</option>
+            ${optionsHTML}
+          </select>
+        </div>
+      </div>
+    `;
+  }
+
+  // Le nom, l'icône et une description très vague sont toujours visibles,
+  // médaille obtenue ou non — mais jamais la condition exacte d'obtention
+  // (voir MEDALS dans app.js).
+  function medalsSectionHTML() {
+    return `
+      <div class="medals-section">
+        <h4>🎖️ Médailles</h4>
+        <div class="medals-grid">
+          ${MEDALS.map((m) => {
+            const unlocked = state.medals.unlocked.includes(m.id);
+            return `
+              <div class="medal-card ${unlocked ? "unlocked" : "locked"}">
+                <div class="medal-icon">${m.icon}</div>
+                <div class="medal-name">${m.name}</div>
+                <div class="medal-desc">${m.publicDesc}</div>
+                <div class="medal-status">${unlocked ? "✅ Obtenue" : "🔒 Non obtenue"}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
     const medal = currentPrestigeMedal(state);
@@ -2644,6 +2750,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="profile-current-name">${displayName}</div>
           ${medalHTML}
         </div>
+        ${showcaseSectionHTML()}
         ${levelPanelHTML()}
         ${prestigePanelHTML()}
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
@@ -2661,11 +2768,26 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
           }).join("")}
         </div>
+        ${medalsSectionHTML()}
       </div>
     `;
   }
 
   function wireProfileSection(container) {
+    const favoriteSelect = container.querySelector("#favorite-banana-select");
+    if (favoriteSelect) {
+      favoriteSelect.addEventListener("change", () => {
+        const val = favoriteSelect.value;
+        if (val === "") {
+          state.profile.favoriteBananaId = null;
+          saveState();
+        } else {
+          setFavoriteBanana(Number(val));
+        }
+        SFX.click();
+        renderAccountModal();
+      });
+    }
     container.querySelectorAll(".profile-avatar-option:not(.locked)").forEach((btn) => {
       btn.addEventListener("click", () => {
         const res = setAvatar(btn.dataset.avatarId);
@@ -3070,6 +3192,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (unlockedAtStart.length > 0) {
     renderHeader();
     showAchievementToasts(unlockedAtStart, false);
+  }
+  const medalsUnlockedAtStart = checkMedals();
+  if (medalsUnlockedAtStart.length > 0) {
+    renderHeader();
+    showMedalToasts(medalsUnlockedAtStart, false);
   }
 
   updateAccountBtn();

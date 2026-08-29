@@ -222,9 +222,10 @@ function defaultState() {
     playerXp: 0, // XP totale cumulée ; le niveau/titre s'en déduit à la volée (voir playerLevelProgress()).
     streak: { count: 0, lastLoginDate: null },
     achievements: { unlocked: [] },
-    profile: { avatarId: "av_verte" },
+    medals: { unlocked: [] }, // voir MEDALS : conditions volontairement secrètes, jamais affichées au joueur
+    profile: { avatarId: "av_verte", favoriteBananaId: null }, // null = auto (banane la plus rare possédée)
     prestige: { level: 0 },
-    pve: { stage: 0, wins: 0, losses: 0 },
+    pve: { stage: 0, wins: 0, losses: 0, lossStreak: 0 },
     quests: { date: null, assigned: [], progress: {}, completed: [] },
     weeklyQuests: { weekKey: null, assigned: [], progress: {}, completed: [] },
     permanentQuests: { completed: [] },
@@ -267,6 +268,11 @@ function sanitizeState(s) {
   // par l'ancien objet sauvegardé s'il existe : une sauvegarde antérieure à
   // l'ajout d'animatedRoll n'aurait donc jamais ce champ sans ce filet.
   if (s.settings.animatedRoll === undefined) s.settings.animatedRoll = true;
+  // Même chose pour profile.favoriteBananaId et pve.lossStreak, ajoutés à des
+  // objets imbriqués déjà existants dans les sauvegardes antérieures.
+  if (s.profile.favoriteBananaId === undefined) s.profile.favoriteBananaId = null;
+  if (s.profile.favoriteBananaId != null && !BANANAS_BY_ID[s.profile.favoriteBananaId]) s.profile.favoriteBananaId = null;
+  if (s.pve.lossStreak === undefined) s.pve.lossStreak = 0;
   return s;
 }
 
@@ -1195,6 +1201,101 @@ function checkAchievements() {
   return unlockedNow;
 }
 
+/* ---------------- Médailles secrètes ----------------
+   Contrairement aux succès (ACHIEVEMENTS), la condition exacte d'obtention
+   d'une médaille n'est JAMAIS affichée au joueur — seuls son nom, son icône
+   et une description volontairement vague (publicDesc) apparaissent dans
+   l'interface. `check(s, ctx)` reste nécessairement lisible dans le code
+   côté client (le jeu tourne entièrement dans le navigateur, sans serveur
+   pour ce type de logique), mais aucune UI ne colle jamais un texte explicite
+   à côté du nom de la médaille comme le fait la liste des succès. La liste
+   complète et lisible des conditions, à l'usage du créateur du jeu (pour
+   donner des indices aux joueurs), vit à part dans
+   medals-secret-reference.md — un fichier jamais chargé par index.html. */
+const MEDALS = [
+  {
+    id: "medal_ghost",
+    icon: "👻",
+    name: "Banane Fantôme",
+    publicDesc: "Une rencontre qui n'arrive qu'au cœur de la nuit...",
+    check: (s, ctx) => !!(ctx && ctx.hourNow === 2),
+  },
+  {
+    id: "medal_lucky",
+    icon: "🍀",
+    name: "Banane Chanceuse",
+    publicDesc: "La chance sourit parfois aux plus audacieux, à la machine à sous.",
+    check: (s) => (s.slotGame.jackpotsHit || 0) >= 1,
+  },
+  {
+    id: "medal_doubledown",
+    icon: "🎲",
+    name: "Quitte ou Double",
+    publicDesc: "Un pari risqué, un gain qui change tout.",
+    check: (s) => (s.blackjackGame.biggestWin || 0) >= 50000 || (s.slotGame.biggestWin || 0) >= 50000,
+  },
+  {
+    id: "medal_pauper_treasure",
+    icon: "🕳️",
+    name: "Trésor du désespoir",
+    publicDesc: "La fortune trouve parfois les plus démunis.",
+    check: (s, ctx) => !!(ctx && ctx.rollRarity === "secrete" && ctx.coinsAtRoll < 1000),
+  },
+  {
+    id: "medal_stubborn",
+    icon: "🐴",
+    name: "Tête de Mule",
+    publicDesc: "La persévérance a parfois un goût amer.",
+    check: (s) => (s.pve.lossStreak || 0) >= 10,
+  },
+  {
+    id: "medal_sleepwalker",
+    icon: "🌙",
+    name: "Somnambule",
+    publicDesc: "Certaines décisions se prennent à des heures improbables.",
+    check: (s, ctx) => !!(ctx && ctx.prestigeHour != null && ctx.prestigeHour >= 0 && ctx.prestigeHour < 5),
+  },
+];
+const MEDALS_BY_ID = Object.fromEntries(MEDALS.map((m) => [m.id, m]));
+
+function checkMedals(context) {
+  const unlockedNow = [];
+  for (const medal of MEDALS) {
+    if (state.medals.unlocked.includes(medal.id)) continue;
+    if (medal.check(state, context)) {
+      state.medals.unlocked.push(medal.id);
+      grantXp(40);
+      unlockedNow.push(medal);
+    }
+  }
+  if (unlockedNow.length > 0) saveState();
+  return unlockedNow;
+}
+
+// Les 3 médailles les plus récemment obtenues, les plus récentes en premier —
+// utilisées pour la vitrine du profil (pas de sélection manuelle nécessaire).
+function showcaseMedals() {
+  return state.medals.unlocked.slice(-3).reverse().map((id) => MEDALS_BY_ID[id]).filter(Boolean);
+}
+
+/* ---------------- Vitrine : banane favorite ---------------- */
+
+// Par défaut (aucun choix explicite), la vitrine montre la banane la plus
+// rare possédée — déjà suivie via state.rarestId à chaque récolte.
+function currentFavoriteBanana() {
+  if (state.profile.favoriteBananaId != null) {
+    return BANANAS_BY_ID[state.profile.favoriteBananaId] || null;
+  }
+  return state.rarestId != null ? BANANAS_BY_ID[state.rarestId] || null : null;
+}
+
+function setFavoriteBanana(bananaId) {
+  if (!state.discovered.includes(bananaId)) return { ok: false, reason: "non_possedee" };
+  state.profile.favoriteBananaId = bananaId;
+  saveState();
+  return { ok: true };
+}
+
 /* ---------------- Combat : l'Arène contre les Ananas ---------------- */
 
 // Statistiques d'attaque/défense dérivées de la rareté (+ variation propre
@@ -1450,12 +1551,14 @@ function fightFruitEnemy(bananaId, stageIndex) {
   if (won) {
     coinsEarned = grantCoins(winReward);
     state.pve.wins += 1;
+    state.pve.lossStreak = 0;
     grantXp(stageAdvanced ? 20 : 8);
     bumpQuestProgress("wins");
     if (stageAdvanced) state.pve.stage = stageIndex;
   } else {
     coinsEarned = grantCoins(Math.round(winReward * 0.02));
     state.pve.losses += 1;
+    state.pve.lossStreak = (state.pve.lossStreak || 0) + 1;
     grantXp(2);
   }
   saveState();
@@ -1481,6 +1584,7 @@ function doPrestige() {
   if (!canPrestige()) return { ok: false, reason: "verrouille" };
   const newLevel = (state.prestige.level || 0) + 1;
   const keepAchievements = state.achievements;
+  const keepMedals = state.medals;
   const keepProfile = state.profile;
   const keepSettings = state.settings;
   const keepCloud = state.cloud;
@@ -1492,6 +1596,7 @@ function doPrestige() {
   state = defaultState();
   state.prestige.level = newLevel;
   state.achievements = keepAchievements;
+  state.medals = keepMedals;
   state.profile = keepProfile;
   state.settings = keepSettings;
   state.cloud = keepCloud;

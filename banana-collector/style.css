@@ -1346,6 +1346,108 @@ body {
 .achievement-desc { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
 .achievement-reward { font-weight: 800; font-size: 0.85rem; color: var(--accent-dark); white-space: nowrap; }
 
+/* --- Vitrine du profil (banane favorite + médailles) --- */
+
+.showcase-section {
+  background: #fff6d5;
+  border: 2px solid #f0dfa8;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+
+.showcase-section h4 { margin: 0 0 10px; }
+
+.showcase-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.showcase-favorite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 80px;
+}
+
+.showcase-favorite-name { font-weight: 700; font-size: 0.8rem; margin-top: 2px; }
+
+.showcase-favorite-empty {
+  font-size: 2.2rem;
+  opacity: 0.4;
+  text-align: center;
+}
+.showcase-favorite-empty div { font-size: 0.75rem; font-weight: 700; opacity: 0.8; }
+
+.showcase-medals { display: flex; gap: 8px; }
+
+.showcase-medal {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 2px solid var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: var(--shadow);
+}
+
+.showcase-medal-empty {
+  border-color: #cfcfcf;
+  color: #b0a888;
+  opacity: 0.6;
+}
+
+.favorite-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.favorite-picker-row select {
+  flex: 1;
+  min-width: 160px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 2px solid #f0dfa8;
+  font-size: 0.85rem;
+}
+
+.medals-section { margin-top: 16px; }
+.medals-section h4 { margin: 0 0 10px; }
+
+.medals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.medal-card {
+  background: var(--card-bg);
+  border: 2px solid #f0dfa8;
+  border-radius: var(--radius);
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.medal-card.locked { opacity: 0.6; }
+
+.medal-icon { font-size: 1.8rem; margin-bottom: 4px; }
+.medal-name { font-weight: 800; font-size: 0.85rem; }
+.medal-desc { font-size: 0.72rem; color: #5c4a1a; margin-top: 2px; font-style: italic; }
+.medal-status { font-size: 0.72rem; font-weight: 700; margin-top: 6px; }
+.medal-card.unlocked .medal-status { color: #2e7d32; }
+.medal-card.locked .medal-status { color: #8a6d1f; }
+
 /* --- Combat : l'Arène des Ananas --- */
 
 .profile-level-panel {
