@@ -217,6 +217,37 @@ const CLOUD = (() => {
     return error || !data ? [] : data;
   }
 
+  async function adminScheduleEvent(dateStr, dayIndex) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_schedule_event", { p_date: dateStr, p_event_day_index: dayIndex });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminUnscheduleEvent(dateStr) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_unschedule_event", { p_date: dateStr });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminListScheduledEvents() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_list_scheduled_events");
+    return error || !data ? [] : data;
+  }
+
+  async function fetchEventOverrides() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("list_event_overrides");
+    if (error || !data) return null;
+    const map = {};
+    for (const row of data) {
+      map[row.event_date] = row.event_day_index;
+    }
+    return map;
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -598,6 +629,15 @@ const CLOUD = (() => {
 
   async function init() {
     if (!supabase) return;
+    // Planification des événements quotidiens : lecture publique, indépendante
+    // d'un compte lié, car c'est du contenu global du jeu (pas une donnée
+    // joueur). Échec silencieux : le jeu retombe sur la rotation par défaut.
+    try {
+      const overrides = await fetchEventOverrides();
+      if (overrides) setEventOverrides(overrides);
+    } catch (e) {
+      // Hors ligne : on garde la dernière planification connue en cache local.
+    }
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const meta = data.session.user.user_metadata || {};
@@ -670,6 +710,10 @@ const CLOUD = (() => {
     adminGetStats,
     adminSendAnnouncement,
     fetchRecentAnnouncements,
+    adminScheduleEvent,
+    adminUnscheduleEvent,
+    adminListScheduledEvents,
+    fetchEventOverrides,
     init,
   };
 })();

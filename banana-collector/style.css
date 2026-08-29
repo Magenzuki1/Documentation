@@ -2534,6 +2534,15 @@ body {
 }
 .admin-news-history-title { font-size: 0.85rem; margin: 14px 0 4px; color: #5c4a1a; }
 
+.admin-events-form { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.admin-events-form input, .admin-events-form select {
+  font-family: inherit;
+  font-size: 0.85rem;
+  border: 2px solid #f0dfa8;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
 .activity-feed-announcement {
   background: #fff3d6;
   border: 2px solid var(--accent);

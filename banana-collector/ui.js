@@ -113,11 +113,13 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTabPlayers: document.getElementById("admin-tab-players"),
     adminTabStats: document.getElementById("admin-tab-stats"),
     adminTabNews: document.getElementById("admin-tab-news"),
+    adminTabEvents: document.getElementById("admin-tab-events"),
     adminTabMovements: document.getElementById("admin-tab-movements"),
     adminTabLog: document.getElementById("admin-tab-log"),
     adminPlayersView: document.getElementById("admin-players-view"),
     adminStatsView: document.getElementById("admin-stats-view"),
     adminNewsView: document.getElementById("admin-news-view"),
+    adminEventsView: document.getElementById("admin-events-view"),
     adminMovementsView: document.getElementById("admin-movements-view"),
     adminLogView: document.getElementById("admin-log-view"),
     adminPlayersList: document.getElementById("admin-players-list"),
@@ -129,6 +131,12 @@ document.addEventListener("DOMContentLoaded", () => {
     adminNewsError: document.getElementById("admin-news-error"),
     adminNewsSuccess: document.getElementById("admin-news-success"),
     adminNewsList: document.getElementById("admin-news-list"),
+    adminEventsDate: document.getElementById("admin-events-date"),
+    adminEventsSelect: document.getElementById("admin-events-select"),
+    adminEventsScheduleBtn: document.getElementById("admin-events-schedule-btn"),
+    adminEventsError: document.getElementById("admin-events-error"),
+    adminEventsSuccess: document.getElementById("admin-events-success"),
+    adminEventsList: document.getElementById("admin-events-list"),
     adminMovementsList: document.getElementById("admin-movements-list"),
     adminLogList: document.getElementById("admin-log-list"),
     marketLocked: document.getElementById("market-locked"),
@@ -3439,6 +3447,70 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminNewsHistory();
   });
 
+  // Rempli une seule fois : les 7 événements sont un contenu fixe côté client.
+  els.adminEventsSelect.innerHTML = DAILY_EVENTS.map((ev, i) => `<option value="${i}">${ev.icon} ${ev.name}</option>`).join("");
+
+  async function renderAdminEventsHistory() {
+    els.adminEventsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.adminListScheduledEvents();
+    if (rows.length === 0) {
+      els.adminEventsList.innerHTML = `<p class="account-hint">Aucune planification à venir.</p>`;
+      return;
+    }
+    els.adminEventsList.innerHTML = rows.map((r) => {
+      const ev = DAILY_EVENTS[r.event_day_index];
+      return `
+        <div class="admin-log-row" data-date="${r.event_date}">
+          <span class="admin-log-user">${new Date(r.event_date).toLocaleDateString("fr-FR", { timeZone: "UTC" })}</span>
+          <span class="admin-log-reason">${ev ? `${ev.icon} ${ev.name}` : "?"}</span>
+          <button class="btn danger admin-events-cancel-btn">Annuler</button>
+        </div>
+      `;
+    }).join("");
+    els.adminEventsList.querySelectorAll(".admin-events-cancel-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest(".admin-log-row");
+        const res = await CLOUD.adminUnscheduleEvent(row.dataset.date);
+        if (!res.ok) {
+          els.adminEventsError.textContent = res.reason || "Erreur inconnue.";
+          els.adminEventsError.classList.remove("hidden");
+          return;
+        }
+        els.adminEventsError.classList.add("hidden");
+        renderAdminEventsHistory();
+      });
+    });
+  }
+
+  function renderAdminEvents() {
+    els.adminEventsError.classList.add("hidden");
+    els.adminEventsSuccess.classList.add("hidden");
+    renderAdminEventsHistory();
+  }
+
+  els.adminEventsScheduleBtn.addEventListener("click", async () => {
+    const dateStr = els.adminEventsDate.value;
+    const dayIndex = Number(els.adminEventsSelect.value);
+    els.adminEventsError.classList.add("hidden");
+    els.adminEventsSuccess.classList.add("hidden");
+    if (!dateStr) {
+      els.adminEventsError.textContent = "Choisis une date.";
+      els.adminEventsError.classList.remove("hidden");
+      return;
+    }
+    els.adminEventsScheduleBtn.disabled = true;
+    const res = await CLOUD.adminScheduleEvent(dateStr, dayIndex);
+    els.adminEventsScheduleBtn.disabled = false;
+    if (!res.ok) {
+      els.adminEventsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminEventsError.classList.remove("hidden");
+      return;
+    }
+    els.adminEventsSuccess.textContent = "Planification enregistrée !";
+    els.adminEventsSuccess.classList.remove("hidden");
+    renderAdminEventsHistory();
+  });
+
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
   function flashAdminRowSaved(saveBtn) {
@@ -3510,11 +3582,13 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
     els.adminStatsView.classList.toggle("hidden", view !== "stats");
     els.adminNewsView.classList.toggle("hidden", view !== "news");
+    els.adminEventsView.classList.toggle("hidden", view !== "events");
     els.adminMovementsView.classList.toggle("hidden", view !== "movements");
     els.adminLogView.classList.toggle("hidden", view !== "log");
     els.adminTabPlayers.classList.toggle("active", view === "players");
     els.adminTabStats.classList.toggle("active", view === "stats");
     els.adminTabNews.classList.toggle("active", view === "news");
+    els.adminTabEvents.classList.toggle("active", view === "events");
     els.adminTabMovements.classList.toggle("active", view === "movements");
     els.adminTabLog.classList.toggle("active", view === "log");
   }
@@ -3537,6 +3611,7 @@ document.addEventListener("DOMContentLoaded", () => {
   els.adminTabPlayers.addEventListener("click", () => { showAdminView("players"); renderAdminPlayers(); });
   els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
   els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
+  els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });
   els.adminTabMovements.addEventListener("click", () => { showAdminView("movements"); renderAdminMovements(); });
   els.adminTabLog.addEventListener("click", () => { showAdminView("log"); renderAdminLog(); });
 
