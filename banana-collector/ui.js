@@ -27,14 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
     dailyEventSummary: document.getElementById("daily-event-summary"),
     dailyEventDetails: document.getElementById("daily-event-details"),
     dailyEventTomorrow: document.getElementById("daily-event-tomorrow"),
-    activityFeedList: document.getElementById("activity-feed-list"),
+    activityFeedTrack: document.getElementById("activity-feed-track"),
     shopList: document.getElementById("shop-list"),
     questsList: document.getElementById("quests-list"),
     weeklyQuestsList: document.getElementById("weekly-quests-list"),
     permanentQuestsList: document.getElementById("permanent-quests-list"),
     muteBtn: document.getElementById("mute-btn"),
-    settingsRollAnimatedBtn: document.getElementById("settings-roll-animated-btn"),
-    settingsRollFastBtn: document.getElementById("settings-roll-fast-btn"),
     watchAdBtn: document.getElementById("watch-ad-btn"),
     adQuota: document.getElementById("ad-quota"),
     statsPanel: document.getElementById("stats-content"),
@@ -209,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pveVsMark: document.getElementById("pve-vs-mark"),
     pveWinChance: document.getElementById("pve-win-chance"),
     pveFightBtn: document.getElementById("pve-fight-btn"),
+    pveNextStageBtn: document.getElementById("pve-next-stage-btn"),
     pveResult: document.getElementById("pve-result"),
     pveStageList: document.getElementById("pve-stage-list"),
     prestigeConfirmModal: document.getElementById("prestige-confirm-modal"),
@@ -495,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // RARITY_ORDER) à vitesse décroissante, toujours pile sur la vraie rareté
   // obtenue au dernier cran — le résultat lui-même est déjà déterminé (par
   // rollBanana(), appelé avant), l'animation ne fait que le mettre en scène.
-  const ROULETTE_STEP_DELAYS_MS = [70, 80, 95, 110, 130, 155, 185, 220];
+  const ROULETTE_STEP_DELAYS_MS = [40, 45, 55, 60, 70, 85, 100, 120];
 
   function playRarityRoulette(finalRarity, onDone) {
     const seq = RARITY_ORDER;
@@ -526,7 +525,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (step >= ROULETTE_STEP_DELAYS_MS.length) {
         wrap.classList.add("landed");
         SFX.rouletteLand();
-        setTimeout(onDone, 280);
+        setTimeout(onDone, 150);
         return;
       }
       setTimeout(() => {
@@ -640,18 +639,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function spawnSparkleBurst() {
     const layer = document.createElement("div");
     layer.className = "sparkle-burst";
-    const symbols = ["✨", "⭐", "💫"];
-    const count = 14;
+    const symbols = ["✨", "⭐", "💫", "💎", "🌟"];
+    const count = 22;
     for (let i = 0; i < count; i++) {
       const piece = document.createElement("span");
       piece.className = "sparkle-burst-piece";
       piece.textContent = symbols[i % symbols.length];
       piece.style.setProperty("--angle", `${(360 / count) * i}deg`);
-      piece.style.setProperty("--delay", `${(i % 5) * 0.03}s`);
+      piece.style.setProperty("--delay", `${(i % 6) * 0.03}s`);
       layer.appendChild(piece);
     }
     document.body.appendChild(layer);
-    setTimeout(() => layer.remove(), 1300);
+    setTimeout(() => layer.remove(), 1500);
   }
 
   // Fil d'actualité (autres joueurs) : publie un événement notable si le
@@ -751,13 +750,20 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(close, 4500);
   }
 
-  // Réservée à la banane secrète : plus spectaculaire que l'overlay mythique
-  // (suspense avant révélation, flash à l'écran, anneau de particules
-  // lumineuses, message "WOW"), tout en restant courte (~6s au total).
+  // Réservée à la banane secrète : le moment le plus exceptionnel du jeu,
+  // habillage "premium" dédié (anneaux de suspense façon radar, cadre doré
+  // scintillant, rayons de lumière tournants derrière la banane, entrée en
+  // rebond), au-delà du simple flash/confetti de l'overlay mythique. Reste
+  // courte (~7s au total) malgré l'habillage plus riche.
   function showSecretRevealOverlay(banana) {
     els.overlayContent.innerHTML = `
       <div class="epic-lines secret-suspense">
-        <div class="secret-suspense-glyph">❔</div>
+        <div class="secret-suspense-rings">
+          <span class="secret-suspense-ring"></span>
+          <span class="secret-suspense-ring"></span>
+          <span class="secret-suspense-ring"></span>
+          <div class="secret-suspense-glyph">❔</div>
+        </div>
         <div class="secret-suspense-text">Quelque chose d'extraordinaire se prépare...</div>
       </div>
     `;
@@ -766,11 +772,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setTimeout(() => {
       els.overlayContent.innerHTML = `
-        <div class="epic-lines">
+        <div class="epic-lines secret-reveal-frame">
           <div class="secret-flash"></div>
+          <div class="secret-rays"></div>
           <div class="epic-sparkles">✨✨✨</div>
           <div class="epic-title secret-title">BANANE SECRÈTE !</div>
-          <div class="epic-emoji secret-emoji">${bananaIconHTML(banana, 4)}</div>
+          <div class="epic-emoji secret-emoji secret-emoji-pop">${bananaIconHTML(banana, 4)}</div>
           <div class="epic-sub">🤯 INCROYABLE ! TU AS DÉCOUVERT UN SECRET DU JEU !</div>
           <div class="epic-name">${banana.name}</div>
           <div class="epic-sparkles">✨✨✨</div>
@@ -792,7 +799,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target === els.overlay) close();
       }, { once: true });
       setTimeout(close, 5500);
-    }, 750);
+    }, 1300);
   }
 
   /* ---------------- Pause publicitaire (interstitiel) ----------------
@@ -2348,6 +2355,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     els.pveFightBtn.disabled = pveFighting || !playerBanana || locked;
     els.pveFightBtn.textContent = locked ? "🔒 Bats l'ennemi précédent d'abord" : "⚔️ Attaquer";
+    // Passe directement au combat suivant sans avoir à redescendre jusqu'à
+    // la liste des paliers pour cliquer dessus.
+    els.pveNextStageBtn.disabled = pveFighting || pveSelectedStage >= maxPlayablePveStage();
   }
 
   // Les 60 niveaux sont regroupés par famille de fruit (10 groupes de 6),
@@ -2440,6 +2450,15 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       showMedalToasts(medalsUnlocked);
     }
+  });
+
+  els.pveNextStageBtn.addEventListener("click", () => {
+    if (pveFighting || pveSelectedStage >= maxPlayablePveStage()) return;
+    pveSelectedStage += 1;
+    renderPveStageList();
+    renderPveFighters();
+    els.pveResult.classList.add("hidden");
+    SFX.click();
   });
 
   els.pveFightBtn.addEventListener("click", () => {
@@ -2789,9 +2808,25 @@ document.addEventListener("DOMContentLoaded", () => {
     return ACTIVITY_FEED_EMPTY_MESSAGES[Math.floor(Math.random() * ACTIVITY_FEED_EMPTY_MESSAGES.length)];
   }
 
+  // Bandeau déroulant (droite → gauche, en continu) : le contenu est dupliqué
+  // une fois pour boucler sans saut visible (l'animation ne fait que
+  // translater de 0 à -50%, exactement la largeur d'une copie). La vitesse
+  // est calculée depuis la largeur réelle du contenu pour rester constante
+  // (px/seconde) peu importe la longueur du texte affiché.
+  const ACTIVITY_FEED_PX_PER_SECOND = 55;
+
+  function setActivityFeedTrackContent(itemsHTML) {
+    els.activityFeedTrack.innerHTML = itemsHTML + itemsHTML;
+    requestAnimationFrame(() => {
+      const singleCopyWidth = els.activityFeedTrack.scrollWidth / 2;
+      const duration = Math.max(8, singleCopyWidth / ACTIVITY_FEED_PX_PER_SECOND);
+      els.activityFeedTrack.style.animationDuration = `${duration}s`;
+    });
+  }
+
   async function renderActivityFeed() {
     if (!CLOUD.available) {
-      els.activityFeedList.innerHTML = `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
+      setActivityFeedTrackContent(`<span class="activity-feed-item">${randomActivityFeedEmptyMessage()}</span>`);
       return;
     }
     const [events, announcements] = await Promise.all([
@@ -2806,9 +2841,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ...announcements.map((a) => ({ html: `📢 ${a.message}`, created_at: a.created_at, announcement: true })),
     ].filter((item) => item.html);
     items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    els.activityFeedList.innerHTML = items.length > 0
-      ? items.map((item) => `<div class="activity-feed-item${item.announcement ? " activity-feed-announcement" : ""}">${item.html}</div>`).join("")
-      : `<p class="secret-hint">${randomActivityFeedEmptyMessage()}</p>`;
+    const itemsHTML = items.length > 0
+      ? items.map((item) => `<span class="activity-feed-item${item.announcement ? " activity-feed-announcement" : ""}">${item.html}</span>`).join("")
+      : `<span class="activity-feed-item">${randomActivityFeedEmptyMessage()}</span>`;
+    setActivityFeedTrackContent(itemsHTML);
   }
 
   let activityFeedPollTimer = null;
@@ -3156,6 +3192,15 @@ document.addEventListener("DOMContentLoaded", () => {
         ${showcaseSectionHTML()}
         ${levelPanelHTML()}
         ${prestigePanelHTML()}
+        <div class="settings-section">
+          <div class="settings-row">
+            <span class="settings-row-label">🎰 Animation de récolte</span>
+            <div class="settings-toggle-group">
+              <button id="settings-roll-animated-btn" class="settings-toggle-btn ${state.settings.animatedRoll ? "active" : ""}" title="Une petite roulette de rareté avant de révéler la banane">🎰 Mode animé</button>
+              <button id="settings-roll-fast-btn" class="settings-toggle-btn ${state.settings.animatedRoll ? "" : "active"}" title="Résultat instantané, comme avant">⚡ Mode rapide</button>
+            </div>
+          </div>
+        </div>
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
         <div class="profile-avatar-grid">
           ${AVATARS.map((a) => {
@@ -3205,6 +3250,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+    const rollAnimatedBtn = container.querySelector("#settings-roll-animated-btn");
+    if (rollAnimatedBtn) {
+      rollAnimatedBtn.addEventListener("click", () => {
+        state.settings.animatedRoll = true;
+        saveState();
+        renderRollModeSettings();
+        SFX.click();
+      });
+    }
+    const rollFastBtn = container.querySelector("#settings-roll-fast-btn");
+    if (rollFastBtn) {
+      rollFastBtn.addEventListener("click", () => {
+        state.settings.animatedRoll = false;
+        saveState();
+        renderRollModeSettings();
+        SFX.click();
+      });
+    }
     const prestigeBtn = container.querySelector("#profile-prestige-btn");
     if (prestigeBtn) {
       prestigeBtn.addEventListener("click", () => {
@@ -4031,27 +4094,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!state.settings.muted) SFX.click();
   });
 
-  /* ---------------- Réglages : mode de récolte animé/rapide ---------------- */
-
+  /* ---------------- Réglages : mode de récolte animé/rapide ----------------
+     Vit maintenant dans le Profil (voir profileSectionHTML()/wireProfileSection())
+     plutôt que Statistiques : les boutons n'existent donc que pendant que le
+     panneau Compte est ouvert — on les cherche à chaque appel plutôt que de
+     les mettre en cache dans `els`, et on tolère leur absence. */
   function renderRollModeSettings() {
+    const animatedBtn = document.getElementById("settings-roll-animated-btn");
+    const fastBtn = document.getElementById("settings-roll-fast-btn");
+    if (!animatedBtn || !fastBtn) return;
     const animated = !!(state.settings && state.settings.animatedRoll);
-    els.settingsRollAnimatedBtn.classList.toggle("active", animated);
-    els.settingsRollFastBtn.classList.toggle("active", !animated);
+    animatedBtn.classList.toggle("active", animated);
+    fastBtn.classList.toggle("active", !animated);
   }
-
-  els.settingsRollAnimatedBtn.addEventListener("click", () => {
-    state.settings.animatedRoll = true;
-    saveState();
-    renderRollModeSettings();
-    SFX.click();
-  });
-
-  els.settingsRollFastBtn.addEventListener("click", () => {
-    state.settings.animatedRoll = false;
-    saveState();
-    renderRollModeSettings();
-    SFX.click();
-  });
 
   /* ---------------- Réinitialisation ---------------- */
 
