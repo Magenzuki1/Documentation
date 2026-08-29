@@ -225,7 +225,7 @@ function defaultState() {
     achievements: { unlocked: [] },
     medals: { unlocked: [] }, // voir MEDALS : conditions volontairement secrètes, jamais affichées au joueur
     cosmetics: { unlocked: [], equippedFrame: "frame_none", equippedTitle: null, equippedEffect: "effect_none" },
-    profile: { avatarId: "av_verte", favoriteBananaId: null }, // null = auto (banane la plus rare possédée)
+    profile: { avatarId: "av_verte", favoriteBananaId: null, showcaseMedals: [null, null, null] }, // favoriteBananaId null = auto (banane la plus rare possédée) ; showcaseMedals : 3 emplacements choisis par le joueur, null = vide
     prestige: { level: 0 },
     pve: { stage: 0, wins: 0, losses: 0, lossStreak: 0 },
     quests: { date: null, assigned: [], progress: {}, completed: [] },
@@ -282,8 +282,29 @@ function sanitizeState(s) {
   // objets imbriqués déjà existants dans les sauvegardes antérieures.
   if (s.profile.favoriteBananaId === undefined) s.profile.favoriteBananaId = null;
   if (s.profile.favoriteBananaId != null && !BANANAS_BY_ID[s.profile.favoriteBananaId]) s.profile.favoriteBananaId = null;
+  if (!Array.isArray(s.profile.showcaseMedals)) s.profile.showcaseMedals = [null, null, null];
+  // Toujours exactement 3 emplacements, et jamais l'id d'une médaille que le
+  // joueur ne possède plus (ex. médaille admin supprimée depuis) : mieux
+  // vaut une vitrine honnête qu'une médaille fantôme qu'on ne peut plus
+  // obtenir légitimement.
+  s.profile.showcaseMedals = [0, 1, 2].map((i) => {
+    const id = s.profile.showcaseMedals[i];
+    return id && s.medals.unlocked.includes(id) ? id : null;
+  });
   if (s.pve.lossStreak === undefined) s.pve.lossStreak = 0;
   return s;
+}
+
+// Les 3 médailles à afficher dans la vitrine (profil + fiche publique) :
+// les emplacements choisis explicitement par le joueur, ou par défaut (tant
+// qu'il n'a rien choisi) les 3 dernières débloquées, comme avant l'ajout de
+// cette fonctionnalité — jamais un mélange des deux, pour un comportement
+// prévisible ("ce que j'ai choisi" ou "l'automatique", jamais les deux).
+function effectiveShowcaseMedalSlots(s) {
+  const chosen = s.profile.showcaseMedals || [null, null, null];
+  if (chosen.some((id) => id)) return chosen;
+  const recent = s.medals.unlocked.slice(-3).reverse();
+  return [0, 1, 2].map((i) => recent[i] || null);
 }
 
 function saveState() {
@@ -1445,7 +1466,7 @@ const MEDALS_BY_ID = Object.fromEntries(MEDALS.map((m) => [m.id, m]));
 const ADMIN_MEDAL_METRIC_WHITELIST = [
   "totalRolls", "totalCoinsEarned", "pveWins", "adsWatched", "streakCount",
   "prestigeLevel", "discoveredCount", "secretDiscoveredCount",
-  "biggestSlotWin", "biggestBjWin", "medalsUnlockedCount",
+  "biggestSlotWin", "biggestBjWin", "medalsUnlockedCount", "jackpotsHit",
 ];
 const ADMIN_MEDAL_ICON_WHITELIST = [
   "🏆", "🥇", "🥈", "🥉", "🎖️", "👑", "💎", "🔥", "⭐", "🌟",
@@ -1466,6 +1487,7 @@ function adminMedalMetricValue(s, metric) {
     case "biggestSlotWin": return s.slotGame.biggestWin || 0;
     case "biggestBjWin": return s.blackjackGame.biggestWin || 0;
     case "medalsUnlockedCount": return s.medals.unlocked.length;
+    case "jackpotsHit": return s.slotGame.jackpotsHit || 0;
     default: return 0;
   }
 }
@@ -1479,6 +1501,7 @@ function mergeAdminMedals(rows) {
     if (!Number.isFinite(row.threshold) || row.threshold < 1) continue;
     if (typeof row.name !== "string" || !row.name.trim()) continue;
     if (typeof row.public_desc !== "string" || !row.public_desc.trim()) continue;
+    const reward = Number.isFinite(row.reward) && row.reward > 0 ? Math.round(row.reward) : 0;
 
     // Préfixe "medal_" obligatoire : sync_medals() côté serveur valide tout
     // id de médaille poussé avec ^medal_[a-z0-9_]{1,40}$ avant de l'accepter.
@@ -1489,6 +1512,7 @@ function mergeAdminMedals(rows) {
       image: null,
       name: row.name.trim(),
       publicDesc: row.public_desc.trim(),
+      reward,
       check: (s) => adminMedalMetricValue(s, row.metric) >= row.threshold,
     };
     const existingIndex = MEDALS.findIndex((m) => m.id === id);
@@ -1643,6 +1667,7 @@ function checkMedals(context) {
     if (medal.check(state, context)) {
       state.medals.unlocked.push(medal.id);
       grantXp(40);
+      if (medal.reward) grantCoins(medal.reward);
       unlockedNow.push(medal);
     }
   }
@@ -1650,10 +1675,11 @@ function checkMedals(context) {
   return unlockedNow;
 }
 
-// Les 3 médailles les plus récemment obtenues, les plus récentes en premier —
-// utilisées pour la vitrine du profil (pas de sélection manuelle nécessaire).
+// Les 3 médailles de la vitrine du profil (voir effectiveShowcaseMedalSlots) :
+// un tableau de longueur 3 avec des trous explicites (null) là où le joueur
+// n'a rien mis, pour que chaque emplacement reste à sa place dans l'affichage.
 function showcaseMedals() {
-  return state.medals.unlocked.slice(-3).reverse().map((id) => MEDALS_BY_ID[id]).filter(Boolean);
+  return effectiveShowcaseMedalSlots(state).map((id) => (id ? MEDALS_BY_ID[id] : null));
 }
 
 /* ---------------- Vitrine : banane favorite ---------------- */
@@ -1670,6 +1696,15 @@ function currentFavoriteBanana() {
 function setFavoriteBanana(bananaId) {
   if (!state.discovered.includes(bananaId)) return { ok: false, reason: "non_possedee" };
   state.profile.favoriteBananaId = bananaId;
+  saveState();
+  return { ok: true };
+}
+
+// slotIndex : 0/1/2. medalId : null pour vider l'emplacement.
+function setShowcaseMedalSlot(slotIndex, medalId) {
+  if (slotIndex < 0 || slotIndex > 2) return { ok: false, reason: "emplacement_invalide" };
+  if (medalId != null && !state.medals.unlocked.includes(medalId)) return { ok: false, reason: "medaille_non_obtenue" };
+  state.profile.showcaseMedals[slotIndex] = medalId || null;
   saveState();
   return { ok: true };
 }

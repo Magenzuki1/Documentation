@@ -288,10 +288,11 @@ const CLOUD = (() => {
     return error || !data ? null : data;
   }
 
-  async function adminCreateMedal(name, icon, publicDesc, metric, threshold) {
+  async function adminCreateMedal(name, icon, publicDesc, metric, threshold, reward) {
     if (!supabase) return unavailable;
     const { data, error } = await supabase.rpc("admin_create_medal", {
       p_name: name, p_icon: icon, p_public_desc: publicDesc, p_metric: metric, p_threshold: threshold,
+      p_reward: reward || null,
     });
     if (error) return { ok: false, reason: error.message };
     return { ok: true, id: data };
@@ -302,6 +303,14 @@ const CLOUD = (() => {
     const { error } = await supabase.rpc("admin_delete_medal", { p_id: id });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
+  }
+
+  // Statistiques d'obtention (comptes cloud uniquement) : combien de joueurs
+  // ont chaque médaille, admin ET développeur confondues (mêmes ids).
+  async function adminMedalUnlockStats() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("admin_medal_unlock_stats");
+    return error || !data ? [] : data;
   }
 
   async function fetchRewardOverrides() {
@@ -511,9 +520,15 @@ const CLOUD = (() => {
   // lier un compte cloud pour la première fois.
   async function pushShowcase() {
     if (!isLinked()) return;
+    // set_showcase_medals valide côté serveur que chaque médaille choisie
+    // fait bien partie de profiles.medals : il faut donc que syncMedals()
+    // soit déjà retombé en base AVANT, pas en parallèle (sinon une première
+    // synchronisation pourrait rejeter un choix pourtant légitime si l'ordre
+    // d'arrivée des deux requêtes n'est pas garanti).
+    await syncMedals(state.medals.unlocked);
     await Promise.all([
       setFavoriteBananaCloud(state.profile.favoriteBananaId),
-      syncMedals(state.medals.unlocked),
+      setShowcaseMedals(state.profile.showcaseMedals),
       pushCosmetics(),
     ]);
   }
@@ -606,6 +621,16 @@ const CLOUD = (() => {
   async function syncMedals(medalIds) {
     if (!supabase || !isLinked()) return unavailable;
     const { error } = await supabase.rpc("sync_medals", { p_medal_ids: medalIds || [] });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  // Pousse les 3 emplacements de médailles choisis par le joueur pour sa
+  // vitrine, pour que les autres joueurs voient CE choix plutôt que les 3
+  // dernières débloquées (déjà couvertes par `medals`/syncMedals ci-dessus).
+  async function setShowcaseMedals(medalIds) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("set_showcase_medals", { p_medal_ids: medalIds || [] });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
   }
@@ -868,6 +893,7 @@ const CLOUD = (() => {
     setAvatar,
     setFavoriteBananaCloud,
     syncMedals,
+    setShowcaseMedals,
     pushCosmetics,
     fetchPlayerShowcase,
     fetchActiveListings,
@@ -904,6 +930,7 @@ const CLOUD = (() => {
     fetchAdminMedals,
     adminCreateMedal,
     adminDeleteMedal,
+    adminMedalUnlockStats,
     fetchRewardOverrides,
     adminSetRewardOverride,
     adminClearRewardOverride,
