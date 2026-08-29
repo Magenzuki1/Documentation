@@ -31,6 +31,12 @@
 
     <main>
       <section id="tab-accueil" class="tab-panel active">
+        <div id="activity-feed-section" class="activity-feed-section">
+          <span class="activity-feed-icon" title="Activité récente">📰</span>
+          <div class="activity-feed-viewport">
+            <div id="activity-feed-track" class="activity-feed-track"></div>
+          </div>
+        </div>
         <div id="daily-event-banner" class="daily-event-banner">
           <button id="daily-event-toggle" class="daily-event-toggle" type="button">
             <span id="daily-event-summary"></span>
@@ -57,11 +63,6 @@
         </div>
         <button id="harvest-btn" class="harvest-btn">🍌 RÉCOLTER UNE BANANE</button>
         <div id="last-banana" class="last-banana-zone"></div>
-
-        <div id="activity-feed-section" class="activity-feed-section">
-          <h4>📰 Activité récente</h4>
-          <div id="activity-feed-list" class="activity-feed-list"></div>
-        </div>
       </section>
 
       <section id="tab-progression" class="tab-panel">
@@ -390,7 +391,10 @@
 
           <div id="pve-win-chance" class="pve-win-chance"></div>
 
-          <button id="pve-fight-btn" class="btn harvest-btn">⚔️ Attaquer</button>
+          <div class="pve-action-row">
+            <button id="pve-fight-btn" class="btn harvest-btn">⚔️ Attaquer</button>
+            <button id="pve-next-stage-btn" class="btn">▶️ Combat suivant</button>
+          </div>
           <div id="pve-result" class="pve-result hidden"></div>
 
           <p class="pve-stage-label">Progression dans l'arène :</p>
@@ -444,17 +448,6 @@
           <h2>Statistiques</h2>
           <div id="stats-content"></div>
           <div id="achievements-content"></div>
-
-          <div class="settings-section">
-            <h2>⚙️ Réglages</h2>
-            <div class="settings-row">
-              <span class="settings-row-label">Animation de récolte</span>
-              <div class="settings-toggle-group">
-                <button id="settings-roll-animated-btn" class="settings-toggle-btn" title="Une petite roulette de rareté avant de révéler la banane">🎰 Mode animé</button>
-                <button id="settings-roll-fast-btn" class="settings-toggle-btn" title="Résultat instantané, comme avant">⚡ Mode rapide</button>
-              </div>
-            </div>
-          </div>
 
           <button id="reset-btn" class="btn danger reset-btn">🗑️ Réinitialiser la sauvegarde</button>
         </div>

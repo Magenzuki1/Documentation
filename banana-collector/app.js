@@ -371,7 +371,7 @@ const DAILY_EVENTS = [
   { day: 3, icon: "⚔️", name: "Mercredi guerrier", desc: "+10% de puissance de combat dans l'Arène Solo", kind: "combat", value: 0.10 },
   { day: 4, icon: "🟠", name: "Jeudi légendaire", desc: "+10% de chance d'obtenir une banane Légendaire", kind: "rarity", rarity: "legendaire", value: 10 },
   { day: 5, icon: "🌈", name: "Vendredi mythique", desc: "+5% de chance d'obtenir une banane Mythique", kind: "rarity", rarity: "mythique", value: 5 },
-  { day: 6, icon: "🕵️", name: "Samedi secret", desc: "+3% de chance d'obtenir une banane Secrète", kind: "rarity", rarity: "secrete", value: 3 },
+  { day: 6, icon: "🕵️", name: "Samedi secret", desc: "+0.8% de chance d'obtenir une banane Secrète", kind: "rarity", rarity: "secrete", value: 0.8 },
 ];
 
 /* Un admin peut forcer un des 7 événements ci-dessus sur une date précise
@@ -529,7 +529,7 @@ function rollBanana() {
 
   const duplicateBonus = isNew ? 1 : 1 + (state.upgrades.recycleur || 0) * 0.05;
   const coinsEarned = grantCoins(Math.round(banana.value * duplicateBonus));
-  grantXp(isNew ? 9 : 1); // une nouvelle découverte rapporte bien plus qu'un doublon
+  grantXp(RARITIES[rarity].xp); // l'XP dépend uniquement de la rareté obtenue, jamais du fait que ce soit un doublon
   state.clicks += 1;
   state.totalRolls += 1;
   state.lastBananaId = banana.id;

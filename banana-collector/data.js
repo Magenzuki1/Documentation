@@ -15,13 +15,13 @@ const RARITY_ORDER = [
 ];
 
 const RARITIES = {
-  commune: { label: "Commune", color: "#9e9e9e", glow: "#c9c9c9", weight: 50 },
-  peu_commune: { label: "Peu commune", color: "#4caf50", glow: "#7be08a", weight: 27 },
-  rare: { label: "Rare", color: "#2196f3", glow: "#6fc3ff", weight: 14 },
-  epique: { label: "Épique", color: "#9c27b0", glow: "#e08bfb", weight: 6 },
-  legendaire: { label: "Légendaire", color: "#ff9800", glow: "#ffcf7a", weight: 2.5 },
-  mythique: { label: "Mythique", color: "#f43f8e", glow: "#ff9fd0", weight: 0.4 },
-  secrete: { label: "Secrète", color: "#111827", glow: "#ffffff", weight: 0.1 },
+  commune: { label: "Commune", color: "#9e9e9e", glow: "#c9c9c9", weight: 50, xp: 1 },
+  peu_commune: { label: "Peu commune", color: "#4caf50", glow: "#7be08a", weight: 27, xp: 3 },
+  rare: { label: "Rare", color: "#2196f3", glow: "#6fc3ff", weight: 14, xp: 5 },
+  epique: { label: "Épique", color: "#9c27b0", glow: "#e08bfb", weight: 6, xp: 8 },
+  legendaire: { label: "Légendaire", color: "#ff9800", glow: "#ffcf7a", weight: 2.5, xp: 13 },
+  mythique: { label: "Mythique", color: "#f43f8e", glow: "#ff9fd0", weight: 0.4, xp: 20 },
+  secrete: { label: "Secrète", color: "#111827", glow: "#ffffff", weight: 0.1, xp: 50 },
 };
 
 function rarityIndex(key) {
