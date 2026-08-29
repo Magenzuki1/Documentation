@@ -114,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTabBananas: document.getElementById("admin-tab-bananas"),
     adminTabQuests: document.getElementById("admin-tab-quests"),
     adminTabMedals: document.getElementById("admin-tab-medals"),
+    adminTabRewards: document.getElementById("admin-tab-rewards"),
     adminTabStats: document.getElementById("admin-tab-stats"),
     adminTabNews: document.getElementById("admin-tab-news"),
     adminTabEvents: document.getElementById("admin-tab-events"),
@@ -123,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     adminBananasView: document.getElementById("admin-bananas-view"),
     adminQuestsView: document.getElementById("admin-quests-view"),
     adminMedalsView: document.getElementById("admin-medals-view"),
+    adminRewardsView: document.getElementById("admin-rewards-view"),
     adminStatsView: document.getElementById("admin-stats-view"),
     adminNewsView: document.getElementById("admin-news-view"),
     adminEventsView: document.getElementById("admin-events-view"),
@@ -159,6 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
     adminMedalsError: document.getElementById("admin-medals-error"),
     adminMedalsSuccess: document.getElementById("admin-medals-success"),
     adminMedalsList: document.getElementById("admin-medals-list"),
+    adminRewardQuest: document.getElementById("admin-reward-quest"),
+    adminRewardValue: document.getElementById("admin-reward-value"),
+    adminRewardSetBtn: document.getElementById("admin-reward-set-btn"),
+    adminRewardsError: document.getElementById("admin-rewards-error"),
+    adminRewardsSuccess: document.getElementById("admin-rewards-success"),
+    adminRewardsList: document.getElementById("admin-rewards-list"),
     adminNewsMessage: document.getElementById("admin-news-message"),
     adminNewsSendBtn: document.getElementById("admin-news-send-btn"),
     adminNewsError: document.getElementById("admin-news-error"),
@@ -3847,6 +3855,90 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminMedalsList();
   });
 
+  /* ---------------- Panneau admin : Récompenses ---------------- */
+
+  // Rempli une seule fois : liste les quêtes "en dur" (jamais celles créées
+  // par un admin, déjà éditables en les recréant depuis l'onglet Quêtes).
+  const ADMIN_REWARD_QUEST_LOOKUP = new Map();
+  {
+    const scopedPools = [
+      { label: "Journalière", pool: QUEST_POOL },
+      { label: "Hebdomadaire", pool: WEEKLY_QUEST_POOL },
+      { label: "Permanente", pool: PERMANENT_QUEST_POOL },
+    ];
+    const optionsHTML = [];
+    for (const { label, pool } of scopedPools) {
+      for (const quest of pool) {
+        if (quest.id.startsWith("admin_")) continue;
+        ADMIN_REWARD_QUEST_LOOKUP.set(quest.id, { label, desc: quest.desc });
+        optionsHTML.push(`<option value="${quest.id}">${label} — ${quest.desc} (défaut ${ORIGINAL_QUEST_REWARDS.get(quest.id)} 🪙)</option>`);
+      }
+    }
+    els.adminRewardQuest.innerHTML = optionsHTML.join("");
+  }
+
+  async function renderAdminRewardsList() {
+    els.adminRewardsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const rows = await CLOUD.fetchRewardOverrides();
+    if (!rows || rows.length === 0) {
+      els.adminRewardsList.innerHTML = `<p class="account-hint">Aucune récompense modifiée pour l'instant.</p>`;
+      return;
+    }
+    els.adminRewardsList.innerHTML = rows.map((r) => {
+      const info = ADMIN_REWARD_QUEST_LOOKUP.get(r.quest_id);
+      return `
+        <div class="admin-log-row" data-id="${r.quest_id}">
+          <span class="admin-log-user">${info ? info.label : r.quest_id}</span>
+          <span class="admin-log-reason">${info ? info.desc : r.quest_id} → ${r.reward} 🪙 (défaut ${ORIGINAL_QUEST_REWARDS.get(r.quest_id) ?? "?"} 🪙)</span>
+          <button class="btn danger admin-reward-clear-btn">Réinitialiser</button>
+        </div>
+      `;
+    }).join("");
+    els.adminRewardsList.querySelectorAll(".admin-reward-clear-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest(".admin-log-row");
+        const res = await CLOUD.adminClearRewardOverride(row.dataset.id);
+        if (!res.ok) {
+          els.adminRewardsError.textContent = res.reason || "Erreur inconnue.";
+          els.adminRewardsError.classList.remove("hidden");
+          return;
+        }
+        els.adminRewardsError.classList.add("hidden");
+        renderAdminRewardsList();
+      });
+    });
+  }
+
+  function renderAdminRewards() {
+    els.adminRewardsError.classList.add("hidden");
+    els.adminRewardsSuccess.classList.add("hidden");
+    renderAdminRewardsList();
+  }
+
+  els.adminRewardSetBtn.addEventListener("click", async () => {
+    const questId = els.adminRewardQuest.value;
+    const reward = Math.floor(Number(els.adminRewardValue.value));
+    els.adminRewardsError.classList.add("hidden");
+    els.adminRewardsSuccess.classList.add("hidden");
+    if (!reward || reward < 1) {
+      els.adminRewardsError.textContent = "Indique une nouvelle récompense d'au moins 1.";
+      els.adminRewardsError.classList.remove("hidden");
+      return;
+    }
+    els.adminRewardSetBtn.disabled = true;
+    const res = await CLOUD.adminSetRewardOverride(questId, reward);
+    els.adminRewardSetBtn.disabled = false;
+    if (!res.ok) {
+      els.adminRewardsError.textContent = res.reason || "Erreur inconnue.";
+      els.adminRewardsError.classList.remove("hidden");
+      return;
+    }
+    els.adminRewardValue.value = "";
+    els.adminRewardsSuccess.textContent = "Récompense modifiée !";
+    els.adminRewardsSuccess.classList.remove("hidden");
+    renderAdminRewardsList();
+  });
+
   // Confirmation visuelle brève sur le bouton 💾 : sans ça, une correction de
   // solde réussie ne donnait aucun retour visible à l'admin.
   function flashAdminRowSaved(saveBtn) {
@@ -3919,6 +4011,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminBananasView.classList.toggle("hidden", view !== "bananas");
     els.adminQuestsView.classList.toggle("hidden", view !== "quests");
     els.adminMedalsView.classList.toggle("hidden", view !== "medals");
+    els.adminRewardsView.classList.toggle("hidden", view !== "rewards");
     els.adminStatsView.classList.toggle("hidden", view !== "stats");
     els.adminNewsView.classList.toggle("hidden", view !== "news");
     els.adminEventsView.classList.toggle("hidden", view !== "events");
@@ -3928,6 +4021,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminTabBananas.classList.toggle("active", view === "bananas");
     els.adminTabQuests.classList.toggle("active", view === "quests");
     els.adminTabMedals.classList.toggle("active", view === "medals");
+    els.adminTabRewards.classList.toggle("active", view === "rewards");
     els.adminTabStats.classList.toggle("active", view === "stats");
     els.adminTabNews.classList.toggle("active", view === "news");
     els.adminTabEvents.classList.toggle("active", view === "events");
@@ -3954,6 +4048,7 @@ document.addEventListener("DOMContentLoaded", () => {
   els.adminTabBananas.addEventListener("click", () => { showAdminView("bananas"); renderAdminBananas(); });
   els.adminTabQuests.addEventListener("click", () => { showAdminView("quests"); renderAdminQuests(); });
   els.adminTabMedals.addEventListener("click", () => { showAdminView("medals"); renderAdminMedals(); });
+  els.adminTabRewards.addEventListener("click", () => { showAdminView("rewards"); renderAdminRewards(); });
   els.adminTabStats.addEventListener("click", () => { showAdminView("stats"); renderAdminStats(); });
   els.adminTabNews.addEventListener("click", () => { showAdminView("news"); renderAdminNews(); });
   els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });
