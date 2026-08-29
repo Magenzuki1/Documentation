@@ -122,6 +122,17 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTabEvents: document.getElementById("admin-tab-events"),
     adminTabMovements: document.getElementById("admin-tab-movements"),
     adminTabLog: document.getElementById("admin-tab-log"),
+    adminTabSupport: document.getElementById("admin-tab-support"),
+    adminSupportView: document.getElementById("admin-support-view"),
+    adminSupportThreadsView: document.getElementById("admin-support-threads-view"),
+    adminSupportThreadsList: document.getElementById("admin-support-threads-list"),
+    adminSupportThreadView: document.getElementById("admin-support-thread-view"),
+    adminSupportThreadTitle: document.getElementById("admin-support-thread-title"),
+    adminSupportThreadMessages: document.getElementById("admin-support-thread-messages"),
+    adminSupportBackBtn: document.getElementById("admin-support-back-btn"),
+    adminSupportReplyInput: document.getElementById("admin-support-reply-input"),
+    adminSupportReplyBtn: document.getElementById("admin-support-reply-btn"),
+    adminSupportReplyError: document.getElementById("admin-support-reply-error"),
     adminPlayersView: document.getElementById("admin-players-view"),
     adminBananasView: document.getElementById("admin-bananas-view"),
     adminQuestsView: document.getElementById("admin-quests-view"),
@@ -3408,6 +3419,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderMarketTab();
       renderPvpTab();
       CLOUD.setAvatar(state.profile.avatarId);
+      refreshSupportBadge();
     });
   }
 
@@ -3428,6 +3440,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function settingsModalHTML() {
+    const linked = CLOUD.available && CLOUD.isLinked();
     return `
       <h3>⚙️ Paramètres</h3>
       <div class="settings-row">
@@ -3437,10 +3450,59 @@ document.addEventListener("DOMContentLoaded", () => {
           <button id="settings-theme-dark-btn" class="settings-toggle-btn ${state.settings.darkMode ? "active" : ""}">🌙 Mode nuit</button>
         </div>
       </div>
+      <div class="settings-section">
+        <h3>📮 Nous contacter</h3>
+        ${linked ? `
+          <div id="support-thread" class="support-thread"><p class="account-hint">Chargement…</p></div>
+          <div class="support-form">
+            <select id="support-category-select">
+              ${SUPPORT_CATEGORIES.map((c) => `<option value="${c.id}">${c.label}</option>`).join("")}
+            </select>
+            <textarea id="support-body-input" maxlength="1000" placeholder="Décris ton bug, ta question ou ta suggestion…"></textarea>
+            <button id="support-submit-btn" class="btn">📨 Envoyer</button>
+            <p id="support-error" class="account-error hidden"></p>
+          </div>
+        ` : `<p class="account-hint">Connecte-toi (bouton "👤 Compte" en haut de la page) pour nous contacter et suivre nos réponses.</p>`}
+      </div>
     `;
   }
 
-  function renderSettingsModal() {
+  async function refreshSupportThread() {
+    const threadEl = document.getElementById("support-thread");
+    if (!threadEl) return;
+    const messages = await CLOUD.fetchMySupportThread();
+    threadEl.innerHTML = supportThreadListHTML(messages);
+    threadEl.scrollTop = threadEl.scrollHeight;
+    refreshSupportBadge();
+  }
+
+  function wireSupportForm() {
+    const submitBtn = document.getElementById("support-submit-btn");
+    if (!submitBtn) return;
+    submitBtn.addEventListener("click", async () => {
+      const category = document.getElementById("support-category-select").value;
+      const bodyInput = document.getElementById("support-body-input");
+      const errorEl = document.getElementById("support-error");
+      const body = bodyInput.value.trim();
+      errorEl.classList.add("hidden");
+      if (!body) return;
+      submitBtn.disabled = true;
+      const res = await CLOUD.submitSupportMessage(category, body);
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.reason === "trop_de_messages"
+          ? "Trop de messages envoyés récemment, réessaie dans quelques minutes."
+          : "Erreur : " + res.reason;
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      bodyInput.value = "";
+      SFX.buy();
+      refreshSupportThread();
+    });
+  }
+
+  async function renderSettingsModal() {
     els.settingsModalContent.innerHTML = settingsModalHTML();
     const lightBtn = els.settingsModalContent.querySelector("#settings-theme-light-btn");
     const darkBtn = els.settingsModalContent.querySelector("#settings-theme-dark-btn");
@@ -3458,6 +3520,19 @@ document.addEventListener("DOMContentLoaded", () => {
       renderSettingsModal();
       SFX.click();
     });
+    if (CLOUD.available && CLOUD.isLinked()) {
+      wireSupportForm();
+      refreshSupportThread();
+    }
+  }
+
+  async function refreshSupportBadge() {
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.settingsBtn.classList.remove("has-badge");
+      return;
+    }
+    const unread = await CLOUD.hasUnreadSupportReply();
+    els.settingsBtn.classList.toggle("has-badge", unread);
   }
 
   function closeSettingsModal() { els.settingsModal.classList.add("hidden"); }
@@ -3472,6 +3547,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   applyTheme();
+  setInterval(refreshSupportBadge, 60000);
 
   /* ---------------- Panneau admin ---------------- */
 
@@ -4085,6 +4161,101 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
   }
 
+  /* ---------------- Support (messagerie bugs/questions/suggestions) ---------------- */
+
+  const SUPPORT_CATEGORIES = [
+    { id: "bug", label: "🐛 Bug" },
+    { id: "question", label: "❓ Question" },
+    { id: "suggestion", label: "💡 Suggestion" },
+  ];
+
+  // Contrairement aux autres champs affichés dans l'appli (pseudos, noms de
+  // bananes/médailles...), qui sont tous contraints à une liste blanche fixe
+  // côté serveur, le corps d'un message de support est du texte libre saisi
+  // par le joueur : impossible à mettre en liste blanche, donc on échappe
+  // avant de l'insérer dans du HTML pour éviter toute injection.
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function supportCategoryLabel(id) {
+    return (SUPPORT_CATEGORIES.find((c) => c.id === id) || {}).label || "";
+  }
+
+  function supportMessageHTML(msg) {
+    const author = msg.sender === "admin" ? "🛠️ Équipe" : "Toi";
+    const when = new Date(msg.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const catTag = msg.category ? `<span class="support-message-category">${supportCategoryLabel(msg.category)}</span>` : "";
+    return `
+      <div class="support-message support-message-${msg.sender}">
+        <div class="support-message-meta">${author} · ${when} ${catTag}</div>
+        <div class="support-message-body">${escapeHTML(msg.body)}</div>
+      </div>
+    `;
+  }
+
+  function supportThreadListHTML(messages) {
+    if (messages.length === 0) return `<p class="account-hint">Aucun message pour l'instant.</p>`;
+    return messages.map(supportMessageHTML).join("");
+  }
+
+  let adminSupportOpenUsername = null;
+
+  async function renderAdminSupportThreads() {
+    els.adminSupportThreadsView.classList.remove("hidden");
+    els.adminSupportThreadView.classList.add("hidden");
+    els.adminSupportThreadsList.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    const threads = await CLOUD.adminListSupportThreads();
+    if (threads.length === 0) {
+      els.adminSupportThreadsList.innerHTML = `<p class="account-hint">Aucun message de joueur pour l'instant.</p>`;
+      return;
+    }
+    els.adminSupportThreadsList.innerHTML = threads.map((t) => `
+      <button class="admin-log-row admin-support-thread-row" data-username="${t.username}">
+        <span class="admin-log-user">${t.username}${t.unread_count > 0 ? ` <span class="admin-support-unread-badge">${t.unread_count}</span>` : ""}</span>
+        <span class="admin-log-reason">${t.last_sender === "admin" ? "🛠️ " : ""}${escapeHTML(t.last_body).slice(0, 80)}</span>
+        <span class="admin-log-date">${new Date(t.last_created_at).toLocaleString("fr-FR")}</span>
+      </button>
+    `).join("");
+    els.adminSupportThreadsList.querySelectorAll(".admin-support-thread-row").forEach((row) => {
+      row.addEventListener("click", () => openAdminSupportThread(row.dataset.username));
+    });
+  }
+
+  async function openAdminSupportThread(username) {
+    adminSupportOpenUsername = username;
+    els.adminSupportThreadsView.classList.add("hidden");
+    els.adminSupportThreadView.classList.remove("hidden");
+    els.adminSupportThreadTitle.textContent = `💬 ${username}`;
+    els.adminSupportThreadMessages.innerHTML = `<p class="account-hint">Chargement…</p>`;
+    els.adminSupportReplyInput.value = "";
+    els.adminSupportReplyError.classList.add("hidden");
+    const messages = await CLOUD.adminFetchSupportThread(username);
+    els.adminSupportThreadMessages.innerHTML = supportThreadListHTML(messages);
+  }
+
+  els.adminSupportBackBtn.addEventListener("click", () => {
+    adminSupportOpenUsername = null;
+    renderAdminSupportThreads();
+  });
+
+  els.adminSupportReplyBtn.addEventListener("click", async () => {
+    const body = els.adminSupportReplyInput.value.trim();
+    if (!adminSupportOpenUsername || !body) return;
+    els.adminSupportReplyBtn.disabled = true;
+    const res = await CLOUD.adminReplySupport(adminSupportOpenUsername, body);
+    els.adminSupportReplyBtn.disabled = false;
+    if (!res.ok) {
+      els.adminSupportReplyError.textContent = "Erreur : " + res.reason;
+      els.adminSupportReplyError.classList.remove("hidden");
+      return;
+    }
+    SFX.buy();
+    openAdminSupportThread(adminSupportOpenUsername);
+  });
+
   function showAdminView(view) {
     els.adminPlayersView.classList.toggle("hidden", view !== "players");
     els.adminBananasView.classList.toggle("hidden", view !== "bananas");
@@ -4096,6 +4267,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminEventsView.classList.toggle("hidden", view !== "events");
     els.adminMovementsView.classList.toggle("hidden", view !== "movements");
     els.adminLogView.classList.toggle("hidden", view !== "log");
+    els.adminSupportView.classList.toggle("hidden", view !== "support");
     els.adminTabPlayers.classList.toggle("active", view === "players");
     els.adminTabBananas.classList.toggle("active", view === "bananas");
     els.adminTabQuests.classList.toggle("active", view === "quests");
@@ -4106,6 +4278,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.adminTabEvents.classList.toggle("active", view === "events");
     els.adminTabMovements.classList.toggle("active", view === "movements");
     els.adminTabLog.classList.toggle("active", view === "log");
+    els.adminTabSupport.classList.toggle("active", view === "support");
   }
 
   function openAdminModal() {
@@ -4133,6 +4306,7 @@ document.addEventListener("DOMContentLoaded", () => {
   els.adminTabEvents.addEventListener("click", () => { showAdminView("events"); renderAdminEvents(); });
   els.adminTabMovements.addEventListener("click", () => { showAdminView("movements"); renderAdminMovements(); });
   els.adminTabLog.addEventListener("click", () => { showAdminView("log"); renderAdminLog(); });
+  els.adminTabSupport.addEventListener("click", () => { showAdminView("support"); renderAdminSupportThreads(); });
 
   /* ---------------- Son ---------------- */
 
@@ -4237,6 +4411,7 @@ document.addEventListener("DOMContentLoaded", () => {
   CLOUD.init().then(() => {
     updateAccountBtn();
     renderHeader();
+    refreshSupportBadge();
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });

@@ -523,6 +523,7 @@
         <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
         <button class="market-subtab-btn" id="admin-tab-movements" data-adminview="movements">💸 Mouvements</button>
         <button class="market-subtab-btn" id="admin-tab-log" data-adminview="log">📜 Journal</button>
+        <button class="market-subtab-btn" id="admin-tab-support" data-adminview="support">💬 Support</button>
       </div>
 
       <div id="admin-players-view">
@@ -628,6 +629,23 @@
       <div id="admin-log-view" class="hidden">
         <p class="shop-hint">Historique des actions admin (bannissements, corrections de solde).</p>
         <div id="admin-log-list" class="admin-log-list"></div>
+      </div>
+
+      <div id="admin-support-view" class="hidden">
+        <p class="shop-hint">Messages des joueurs (bugs, questions, suggestions) — réponds directement, le joueur voit ta réponse à sa prochaine visite.</p>
+        <div id="admin-support-threads-view">
+          <div id="admin-support-threads-list" class="admin-log-list"></div>
+        </div>
+        <div id="admin-support-thread-view" class="hidden">
+          <button class="btn game-back-btn" id="admin-support-back-btn">← Retour</button>
+          <h3 id="admin-support-thread-title"></h3>
+          <div id="admin-support-thread-messages" class="support-thread"></div>
+          <div class="support-form">
+            <textarea id="admin-support-reply-input" maxlength="1000" placeholder="Ta réponse..."></textarea>
+            <button class="btn" id="admin-support-reply-btn">Répondre</button>
+          </div>
+          <p id="admin-support-reply-error" class="account-error hidden"></p>
+        </div>
       </div>
     </div>
   </div>
