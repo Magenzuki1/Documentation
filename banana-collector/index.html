@@ -348,6 +348,7 @@
             <div class="market-subtabs market-subtabs-nested">
               <button class="market-subtab-btn active" id="market-tab-buy" data-marketview="buy">🛍️ Acheter</button>
               <button class="market-subtab-btn" id="market-tab-sell" data-marketview="sell">🏷️ Mes annonces</button>
+              <button class="market-subtab-btn" id="market-tab-requests" data-marketview="requests">🙋 Demandes</button>
             </div>
             <div id="market-buy-view" class="market-view">
               <div id="market-listings" class="market-listings"></div>
@@ -363,6 +364,22 @@
                 <div class="account-error" id="market-sell-error"></div>
               </div>
               <div id="market-my-listings" class="market-listings"></div>
+            </div>
+            <div id="market-requests-view" class="market-view hidden">
+              <p class="shop-hint">Il te manque juste quelques exemplaires d'une banane ? Propose un prix par pièce, un autre joueur pourra te la vendre directement.</p>
+              <div class="market-sell-form">
+                <div id="market-request-picker" class="market-sell-picker"></div>
+                <div class="market-sell-inputs">
+                  <input id="market-request-quantity" type="number" min="1" placeholder="Quantité" />
+                  <input id="market-request-price" type="number" min="1" placeholder="Prix / unité 🪙" />
+                  <button id="market-request-submit-btn" class="btn harvest-btn">Faire une demande</button>
+                </div>
+                <div class="account-error" id="market-request-error"></div>
+              </div>
+              <h3 class="admin-news-history-title">Demandes ouvertes</h3>
+              <div id="market-open-requests" class="market-listings"></div>
+              <h3 class="admin-news-history-title">Mes demandes</h3>
+              <div id="market-my-requests" class="market-listings"></div>
             </div>
           </div>
         </div>

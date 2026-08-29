@@ -917,7 +917,8 @@ h1, h2, h3,
 .market-listing-qty { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
 .market-listing-price { font-weight: 800; color: var(--accent-dark); margin-top: 6px; }
 .market-listing-status { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
-.market-listing-status.sold { color: #4caf50; }
+.market-listing-status.sold,
+.market-listing-status.fulfilled { color: #4caf50; }
 .market-listing-status.cancelled { color: #9c874f; }
 
 .market-buy-btn, .market-cancel-btn { margin-top: 8px; width: 100%; font-size: 0.82rem; padding: 8px 10px; }
