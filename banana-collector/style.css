@@ -404,6 +404,17 @@ h1, h2, h3,
   z-index: 1;
 }
 
+/* Flèche discrète (pas d'animation, opacité réduite) : signale qu'un niveau
+   est atteignable dès maintenant, sans avoir à ouvrir chaque fiche. */
+.banana-upgrade-hint {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  z-index: 1;
+}
+
 .banana-emoji {
   font-size: 2.4rem;
   line-height: 1;
@@ -757,6 +768,19 @@ h1, h2, h3,
   margin-bottom: 14px;
 }
 
+.collection-upgrade-all-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.collection-upgrade-all-hint {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7a6224;
+}
+
 .collection-control {
   display: flex;
   align-items: center;
@@ -807,6 +831,17 @@ h1, h2, h3,
   margin: 4px 0 18px;
   flex-wrap: wrap;
   border-bottom: 2px solid #f0dfa8;
+}
+
+.economie-coin-balance {
+  display: inline-block;
+  background: var(--card-bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
 }
 
 .market-subtab-btn {
@@ -2524,6 +2559,33 @@ h1, h2, h3,
 .rare-banner.show { transform: translate(-50%, 0); }
 .rare-banner-title { display: block; font-weight: 900; font-size: 1.2rem; }
 .rare-banner-name { display: block; font-size: 0.95rem; margin-top: 4px; }
+
+/* --- Toast discret : attaque PVP subie hors ligne, détectée à la connexion.
+   Volontairement plus sobre que .rare-banner (pas de dégradé vif, pas de
+   confettis) : un coin de l'écran plutôt qu'un centre-écran, une couleur
+   neutre — ce n'est pas une célébration, juste une information. --- */
+.pvp-notify-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  max-width: 260px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent);
+  z-index: 90;
+  transform: translateX(140%);
+  transition: transform 0.35s ease;
+}
+.pvp-notify-toast.show { transform: translateX(0); }
+.pvp-notify-toast.lost { border-left-color: var(--danger); }
+.pvp-notify-toast-title { font-weight: 800; font-size: 0.85rem; }
+.pvp-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
+
+@media (max-width: 520px) {
+  .pvp-notify-toast { left: 16px; right: 16px; max-width: none; bottom: 12px; }
+}
 
 /* --- Confettis --- */
 
