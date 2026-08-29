@@ -226,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pvpLocked: document.getElementById("pvp-locked"),
     pvpContent: document.getElementById("pvp-content"),
     pvpReports: document.getElementById("pvp-reports"),
+    pvpMyDivision: document.getElementById("pvp-my-division"),
     pvpTeamPicker: document.getElementById("pvp-team-picker"),
     pvpTeamCount: document.getElementById("pvp-team-count"),
     pvpTeamError: document.getElementById("pvp-team-error"),
@@ -2720,10 +2721,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     els.pvpOpponentCard.classList.remove("hidden");
     els.pvpAttackBtn.classList.remove("hidden");
+    const division = pvpDivisionForRating(pvpOpponent.rating);
     els.pvpOpponentCard.innerHTML = `
       <div class="pvp-opponent-name">${avatarIconHTML(pvpOpponent.avatarId, 1.4)} ${clickableUsernameHTML(pvpOpponent.username)}</div>
-      <div class="pvp-opponent-power">Puissance totale : ${pvpOpponent.power}</div>
+      <div class="pvp-opponent-power">Puissance totale : ${pvpOpponent.power} · ${division.icon} ${division.label}</div>
     `;
+  }
+
+  function renderPvpMyDivision() {
+    const rating = CLOUD.myPvpRating();
+    const division = pvpDivisionForRating(rating);
+    els.pvpMyDivision.innerHTML = `<span class="pvp-division-badge">${division.icon} Division ${division.label} — ${rating} pts</span>`;
   }
 
   els.pvpFindBtn.addEventListener("click", async () => {
@@ -2739,7 +2747,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showBanner("😕 PAS D'ADVERSAIRE", { emoji: "🔍", name: result.reason === "pas_equipe" ? "Sauvegarde d'abord ton équipe" : "Réessaie plus tard" }, 1800);
       return;
     }
-    pvpOpponent = { defenderId: result.defenderId, username: result.username, avatarId: result.avatarId, power: result.power };
+    pvpOpponent = { defenderId: result.defenderId, username: result.username, avatarId: result.avatarId, power: result.power, rating: result.rating };
     renderPvpOpponent();
   });
 
@@ -2760,9 +2768,23 @@ document.addEventListener("DOMContentLoaded", () => {
     state.coins += result.attackerDelta;
     saveState();
     renderHeader();
+
+    const divisionBefore = pvpDivisionForRating(CLOUD.myPvpRating());
+    CLOUD.setMyPvpRating(result.attackerRatingAfter);
+    const divisionAfter = pvpDivisionForRating(result.attackerRatingAfter);
+    renderPvpMyDivision();
+
+    const ratingSign = result.attackerRatingDelta >= 0 ? "+" : "";
+    let divisionLine = "";
+    if (divisionAfter.id !== divisionBefore.id) {
+      const promoted = divisionAfter.minRating > divisionBefore.minRating;
+      divisionLine = `<div class="pve-result-line">${promoted ? "🎉 Promotion" : "⬇️ Rétrogradation"} : ${divisionAfter.icon} Division ${divisionAfter.label} !</div>`;
+    }
     els.pvpAttackResult.innerHTML = `
       <div class="pve-result-title">${result.won ? "🎉 Victoire !" : "💥 Défaite..."}</div>
       <div class="pve-result-line">${result.won ? `Tu voles ${result.attackerDelta} 🪙 à ${pvpOpponent.username} !` : `Tu perds ${Math.abs(result.attackerDelta)} 🪙 face à ${pvpOpponent.username}.`}</div>
+      <div class="pve-result-line">${ratingSign}${result.attackerRatingDelta} pts de classement (${result.attackerRatingAfter} pts)</div>
+      ${divisionLine}
     `;
     els.pvpAttackResult.classList.remove("hidden");
     if (result.won) spawnConfetti(20);
@@ -2788,6 +2810,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.pvpAttackResult.classList.add("hidden");
     pvpOpponent = null;
     renderPvpOpponent();
+    renderPvpMyDivision();
 
     // Pousse tout de suite avant d'agir : évite qu'une équipe ne puisse pas
     // être sauvegardée parce que l'inventaire local n'a pas encore été
@@ -2982,8 +3005,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ],
     },
     pvp: {
-      sort: (a, b) => (b.pvp_wins - b.pvp_losses) - (a.pvp_wins - a.pvp_losses) || b.pvp_wins - a.pvp_wins,
+      sort: (a, b) => b.pvp_rating - a.pvp_rating || (b.pvp_wins - b.pvp_losses) - (a.pvp_wins - a.pvp_losses),
       columns: [
+        { label: "Division", value: (r) => { const d = pvpDivisionForRating(r.pvp_rating); return `${d.icon} ${d.label}`; } },
+        { label: "Points", value: (r) => r.pvp_rating },
         { label: "Victoires", value: (r) => r.pvp_wins },
         { label: "Défaites", value: (r) => r.pvp_losses },
       ],

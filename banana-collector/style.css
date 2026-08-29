@@ -2001,6 +2001,17 @@ h1, h2, h3,
 .pvp-report-title { font-weight: 800; }
 .pvp-report-line { font-size: 0.85rem; color: #5c4a1a; margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
+.pvp-division-banner { margin: 4px 0 14px; }
+.pvp-division-badge {
+  display: inline-block;
+  background: var(--card-bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+}
+
 /* --- Classement --- */
 
 .leaderboard-table {

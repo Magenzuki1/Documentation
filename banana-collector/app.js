@@ -2100,6 +2100,30 @@ function fightFruitEnemy(bananaId, stageIndex) {
   return { ok: true, won, coinsEarned, winChance, enemy, playerStats, stageAdvanced };
 }
 
+/* ---------------- Arène PVP : divisions de classement ----------------
+   Le classement (pvp_rating) est calculé et stocké côté serveur (façon
+   ELO, voir attack_player() sur Supabase) — cette table ne fait que
+   traduire un rating en division pour l'affichage, et sert aussi de
+   référence pour la fenêtre de matchmaking "adversaires de mon niveau"
+   côté serveur (± 150 points autour de sa propre division). */
+const PVP_DIVISIONS = [
+  { id: "fer", label: "Fer", icon: "🔩", minRating: 0 },
+  { id: "bronze", label: "Bronze", icon: "🥉", minRating: 1000 },
+  { id: "argent", label: "Argent", icon: "🥈", minRating: 1300 },
+  { id: "or", label: "Or", icon: "🥇", minRating: 1600 },
+  { id: "platine", label: "Platine", icon: "💠", minRating: 2000 },
+  { id: "diamant", label: "Diamant", icon: "💎", minRating: 2400 },
+  { id: "maitre", label: "Maître", icon: "👑", minRating: 2800 },
+];
+
+function pvpDivisionForRating(rating) {
+  let division = PVP_DIVISIONS[0];
+  for (const d of PVP_DIVISIONS) {
+    if (rating >= d.minRating) division = d;
+  }
+  return division;
+}
+
 /* ---------------- Prestige ---------------- */
 
 // Le Prestige débloque une fois la collection normale (hors bananes

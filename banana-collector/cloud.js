@@ -29,7 +29,7 @@ const CLOUD = (() => {
   let lastPushedBananasSnapshot = null;
   // Statut admin/ban du compte connecté, revalidé côté serveur à chaque
   // connexion (jamais déduit ou mis en cache côté client seul).
-  let accountStatus = { isAdmin: false, banned: false, bannedReason: null };
+  let accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
 
   function ensureCloudState() {
     if (!state.cloud) {
@@ -116,7 +116,7 @@ const CLOUD = (() => {
     // refreshAccountStatus() ne réinitialise plus ce statut à chaque appel
     // (voir son commentaire) : la déconnexion doit donc le faire elle-même,
     // sinon un ancien statut admin/banni resterait affiché après déconnexion.
-    accountStatus = { isAdmin: false, banned: false, bannedReason: null };
+    accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
   }
 
   function isLinked() {
@@ -130,7 +130,7 @@ const CLOUD = (() => {
 
   async function refreshAccountStatus() {
     if (!supabase || !isLinked()) {
-      accountStatus = { isAdmin: false, banned: false, bannedReason: null };
+      accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
       return;
     }
     // Un pépin réseau ponctuel ne doit jamais faire "perdre" le statut admin
@@ -142,7 +142,7 @@ const CLOUD = (() => {
     const { data, error } = await supabase.rpc("my_account_status");
     if (error || !data || data.length === 0) return;
     const row = data[0];
-    accountStatus = { isAdmin: row.is_admin === true, banned: row.banned === true, bannedReason: row.banned_reason || null };
+    accountStatus = { isAdmin: row.is_admin === true, banned: row.banned === true, bannedReason: row.banned_reason || null, pvpRating: row.pvp_rating || 1000 };
   }
 
   function isAdmin() {
@@ -155,6 +155,17 @@ const CLOUD = (() => {
 
   function banReason() {
     return accountStatus.bannedReason;
+  }
+
+  function myPvpRating() {
+    return accountStatus.pvpRating;
+  }
+
+  // attack_player() renvoie déjà le nouveau rating de l'attaquant : on
+  // met à jour le cache local directement avec cette valeur plutôt que de
+  // refaire un aller-retour réseau juste pour la relire.
+  function setMyPvpRating(rating) {
+    accountStatus.pvpRating = rating;
   }
 
   /* ---------------- Panneau admin ---------------- */
@@ -747,7 +758,7 @@ const CLOUD = (() => {
     if (error) return { ok: false, reason: error.message };
     if (!data || data.length === 0) return { ok: false, reason: "aucun_adversaire" };
     const row = data[0];
-    return { ok: true, defenderId: row.defender_id, username: row.username, avatarId: row.avatar_id, power: row.power };
+    return { ok: true, defenderId: row.defender_id, username: row.username, avatarId: row.avatar_id, power: row.power, rating: row.rating };
   }
 
   async function attackPlayer(defenderId) {
@@ -763,6 +774,10 @@ const CLOUD = (() => {
       defenderDelta: Number(row.defender_delta),
       attackerPower: row.attacker_power,
       defenderPower: row.defender_power,
+      attackerRatingDelta: row.attacker_rating_delta,
+      defenderRatingDelta: row.defender_rating_delta,
+      attackerRatingAfter: row.attacker_rating_after,
+      defenderRatingAfter: row.defender_rating_after,
     };
   }
 
@@ -921,6 +936,8 @@ const CLOUD = (() => {
     isAdmin,
     isBanned,
     banReason,
+    myPvpRating,
+    setMyPvpRating,
     refreshAccountStatus,
     adminListProfiles,
     adminSetBan,
