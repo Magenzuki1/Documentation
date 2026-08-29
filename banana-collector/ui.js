@@ -2394,6 +2394,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return `hsl(${hue}, 70%, ${light}%)`;
   }
 
+  // Chaque famille de FRUIT_ENEMIES suit toujours le même schéma de 6 noms
+  // (sauvage/endormi, acide/enragé, doré, de fer, légendaire, Roi/Reine/
+  // Empereur/Divinité) — la position dans la famille encode donc déjà le
+  // palier, sans avoir à reparser le nom du fruit.
+  const PVE_ENEMY_TIER_CLASSES = ["", "enemy-tier-acide", "enemy-tier-dore", "enemy-tier-fer", "enemy-tier-legendaire", "enemy-tier-royal"];
+  function pveEnemyTierClass(levelInFamily) {
+    return PVE_ENEMY_TIER_CLASSES[levelInFamily] || "";
+  }
+
   function renderPveFighters() {
     const enemy = FRUIT_ENEMIES[pveSelectedStage];
     const family = Math.floor(pveSelectedStage / 6);
@@ -2410,7 +2419,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ` : `<div class="pve-fighter-empty">Récolte une banane pour combattre</div>`;
 
     els.pveEnemyFighter.innerHTML = `
-      <div class="pve-enemy-icon" style="font-size:${enemySize}rem; filter:drop-shadow(0 0 10px ${pveStageGlow(pveSelectedStage)});">${enemy.emoji}</div>
+      <div class="pve-enemy-icon ${pveEnemyTierClass(levelInFamily)}" style="font-size:${enemySize}rem; --enemy-glow:${pveStageGlow(pveSelectedStage)};">${enemy.emoji}</div>
       <div class="pve-fighter-name">${enemy.name}${locked ? " 🔒" : ""}</div>
       <div class="pve-fighter-stats">⚔️ ${enemy.atk} · 🛡️ ${enemy.def} · 🪙 ${Math.round(enemy.reward * PVE_WIN_REWARD_MULT)}</div>
       <div class="pve-fighter-stats">Niveau ${pveSelectedStage + 1} / ${FRUIT_ENEMIES.length}</div>
@@ -2440,9 +2449,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const beaten = i <= state.pve.stage;
         const playable = i <= maxPlayablePveStage();
         const selected = i === pveSelectedStage;
+        const tierClass = playable ? pveEnemyTierClass(li) : "";
         return `
           <button class="pve-stage-chip ${selected ? "selected" : ""} ${!playable ? "locked" : ""}" data-stage="${i}" ${!playable ? "disabled" : ""}>
-            <span>${playable ? enemy.emoji : "🔒"}</span>
+            <span class="pve-enemy-icon ${tierClass}" style="--enemy-glow:${pveStageGlow(i)};">${playable ? enemy.emoji : "🔒"}</span>
             ${beaten ? '<span class="pve-stage-check">✅</span>' : ""}
           </button>
         `;
