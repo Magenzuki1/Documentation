@@ -18,6 +18,11 @@ document.addEventListener("DOMContentLoaded", () => {
     secretSection: document.getElementById("secret-section"),
     progressBarFill: document.getElementById("progress-bar-fill"),
     progressLabel: document.getElementById("progress-label"),
+    homeLevelTitle: document.getElementById("home-level-title"),
+    homeXpLabel: document.getElementById("home-xp-label"),
+    homeXpBarFill: document.getElementById("home-xp-bar-fill"),
+    homeCollectionLabel: document.getElementById("home-collection-label"),
+    homeCollectionBarFill: document.getElementById("home-collection-bar-fill"),
     shopList: document.getElementById("shop-list"),
     questsList: document.getElementById("quests-list"),
     weeklyQuestsList: document.getElementById("weekly-quests-list"),
@@ -240,6 +245,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
     els.statCollection.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
     els.statCoins.textContent = `🪙 Pièces : ${state.coins}`;
+    renderHomeDashboard(discoveredNormal);
+  }
+
+  // Tableau de bord de l'accueil : en quelques secondes, le joueur voit son
+  // niveau/titre, sa progression XP et l'avancement de sa collection — les
+  // trois infos "où j'en suis" les plus importantes du jeu.
+  function renderHomeDashboard(discoveredNormal) {
+    const progress = playerLevelProgress();
+    const title = titleForLevel(progress.level);
+    els.homeLevelTitle.textContent = `Niveau ${progress.level} — ${title}`;
+    els.homeXpLabel.textContent = progress.xpForLevel > 0
+      ? `${progress.xpIntoLevel} / ${progress.xpForLevel} XP (${progress.pct}%)`
+      : "Niveau maximum atteint !";
+    els.homeXpBarFill.style.width = `${progress.pct}%`;
+
+    const collectionPct = Math.round((discoveredNormal / TOTAL_NORMAL) * 100);
+    els.homeCollectionLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL} — ${collectionPct}% complétée`;
+    els.homeCollectionBarFill.style.width = `${collectionPct}%`;
   }
 
   /* ---------------- Icône banane (fusion glyphe + accessoires) ---------------- */
@@ -608,7 +631,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initCollectionControlsOnce();
 
     const discoveredNormal = state.discovered.filter((id) => !BANANAS_BY_ID[id].secret).length;
-    els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL}`;
+    const collectionPct = Math.round((discoveredNormal / TOTAL_NORMAL) * 100);
+    els.progressLabel.textContent = `Collection : ${discoveredNormal} / ${TOTAL_NORMAL} — ${collectionPct}% complétée`;
     els.progressBarFill.style.width = `${(discoveredNormal / TOTAL_NORMAL) * 100}%`;
 
     let bananas = collectionRarityFilter === "toutes"
@@ -920,6 +944,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.counts[bananaId] = (state.counts[bananaId] || 0) + qty;
         if (!state.discovered.includes(bananaId)) state.discovered.push(bananaId);
         if (result.newCoins != null) state.coins = result.newCoins;
+        grantXp(6);
         saveState();
         SFX.buy();
         renderHeader();
@@ -1029,6 +1054,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     state.counts[marketSelectedBananaId] -= quantity;
+    grantXp(6);
     saveState();
     SFX.buy();
     els.marketSellQuantity.value = "";
@@ -2441,6 +2467,23 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  function levelPanelHTML() {
+    const progress = playerLevelProgress();
+    const title = titleForLevel(progress.level);
+    const xpText = progress.xpForLevel > 0
+      ? `${progress.xpIntoLevel} / ${progress.xpForLevel} XP`
+      : "Niveau maximum atteint !";
+    return `
+      <div class="profile-level-panel">
+        <div class="profile-level-title">🏆 Niveau ${progress.level} — ${title}</div>
+        <div class="progress-wrap home-progress-wrap">
+          <span>${xpText}</span>
+          <div class="progress-bar"><div class="progress-bar-fill home-xp-bar-fill" style="width:${progress.pct}%;"></div></div>
+        </div>
+      </div>
+    `;
+  }
+
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
     const medal = currentPrestigeMedal(state);
@@ -2458,6 +2501,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="profile-current-name">${displayName}</div>
           ${medalHTML}
         </div>
+        ${levelPanelHTML()}
         ${prestigePanelHTML()}
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
         <div class="profile-avatar-grid">
