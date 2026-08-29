@@ -509,6 +509,7 @@
         <button class="market-subtab-btn" id="admin-tab-bananas" data-adminview="bananas">🍌 Bananes</button>
         <button class="market-subtab-btn" id="admin-tab-quests" data-adminview="quests">📜 Quêtes</button>
         <button class="market-subtab-btn" id="admin-tab-medals" data-adminview="medals">🎖️ Médailles</button>
+        <button class="market-subtab-btn" id="admin-tab-rewards" data-adminview="rewards">🎁 Récompenses</button>
         <button class="market-subtab-btn" id="admin-tab-stats" data-adminview="stats">📊 Statistiques</button>
         <button class="market-subtab-btn" id="admin-tab-news" data-adminview="news">📢 Actualités</button>
         <button class="market-subtab-btn" id="admin-tab-events" data-adminview="events">🗓️ Événements</button>
@@ -571,6 +572,19 @@
         <p id="admin-medals-success" class="account-hint hidden"></p>
         <h3 class="admin-news-history-title">Médailles créées</h3>
         <div id="admin-medals-list" class="admin-log-list"></div>
+      </div>
+
+      <div id="admin-rewards-view" class="hidden">
+        <p class="shop-hint">Modifie la récompense en pièces d'une quête existante, sans toucher à sa condition de complétion.</p>
+        <div class="admin-news-form admin-rewards-form">
+          <select id="admin-reward-quest"></select>
+          <input type="number" id="admin-reward-value" placeholder="Nouvelle récompense" min="1" max="1000000" />
+          <button class="btn" id="admin-reward-set-btn">🎁 Modifier</button>
+        </div>
+        <p id="admin-rewards-error" class="account-error hidden"></p>
+        <p id="admin-rewards-success" class="account-hint hidden"></p>
+        <h3 class="admin-news-history-title">Récompenses modifiées</h3>
+        <div id="admin-rewards-list" class="admin-log-list"></div>
       </div>
 
       <div id="admin-stats-view" class="hidden">

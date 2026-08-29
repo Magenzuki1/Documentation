@@ -1512,6 +1512,62 @@ function setAdminMedalsCache(rows) {
   }
 }
 
+/* Permet à un admin de modifier la récompense en pièces d'une quête
+   EXISTANTE (créée par le développeur, journalière/hebdomadaire/permanente)
+   sans jamais toucher à sa condition de complétion (need/progress) ni
+   redéployer de code. ORIGINAL_QUEST_REWARDS mémorise la récompense de base
+   de chaque quête AVANT tout override, pour pouvoir y revenir proprement si
+   l'admin retire l'override plus tard — sans ce snapshot, "annuler" un
+   override n'aurait aucune valeur de référence vers laquelle revenir. */
+const ALL_STATIC_QUEST_POOLS = [QUEST_POOL, WEEKLY_QUEST_POOL, PERMANENT_QUEST_POOL];
+const ORIGINAL_QUEST_REWARDS = new Map();
+for (const pool of ALL_STATIC_QUEST_POOLS) {
+  for (const quest of pool) {
+    // Une quête admin (déjà fusionnée à ce stade via loadAdminQuestsCache())
+    // n'est jamais "en dur" : jamais incluse dans ce snapshot, pour qu'un
+    // override ne puisse jamais la cibler, même en défense en profondeur du
+    // rejet déjà appliqué côté serveur.
+    if (quest.id.startsWith("admin_")) continue;
+    if (!ORIGINAL_QUEST_REWARDS.has(quest.id)) ORIGINAL_QUEST_REWARDS.set(quest.id, quest.reward);
+  }
+}
+const REWARD_OVERRIDES_CACHE_KEY = "banana-collector-reward-overrides-v1";
+
+function mergeRewardOverrides(rows) {
+  const overridesById = new Map();
+  for (const row of rows || []) {
+    if (!row || typeof row.quest_id !== "string") continue;
+    if (!ORIGINAL_QUEST_REWARDS.has(row.quest_id)) continue; // id inconnu ou quête admin : ignoré
+    if (!Number.isFinite(row.reward) || row.reward < 1) continue;
+    overridesById.set(row.quest_id, Math.round(row.reward));
+  }
+  for (const pool of ALL_STATIC_QUEST_POOLS) {
+    for (const quest of pool) {
+      if (!ORIGINAL_QUEST_REWARDS.has(quest.id)) continue; // quête admin : jamais concernée
+      quest.reward = overridesById.has(quest.id) ? overridesById.get(quest.id) : ORIGINAL_QUEST_REWARDS.get(quest.id);
+    }
+  }
+}
+
+function loadRewardOverridesCache() {
+  try {
+    const raw = localStorage.getItem(REWARD_OVERRIDES_CACHE_KEY);
+    if (raw) mergeRewardOverrides(JSON.parse(raw));
+  } catch (e) {
+    // Cache corrompu/absent : on retombe sur les récompenses par défaut.
+  }
+}
+loadRewardOverridesCache();
+
+function setRewardOverridesCache(rows) {
+  mergeRewardOverrides(rows);
+  try {
+    localStorage.setItem(REWARD_OVERRIDES_CACHE_KEY, JSON.stringify(rows));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
+}
+
 function checkMedals(context) {
   const unlockedNow = [];
   for (const medal of MEDALS) {

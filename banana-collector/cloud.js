@@ -323,6 +323,26 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  async function fetchRewardOverrides() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("list_reward_overrides");
+    return error || !data ? null : data;
+  }
+
+  async function adminSetRewardOverride(questId, reward) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_set_reward_override", { p_quest_id: questId, p_reward: reward });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function adminClearRewardOverride(questId) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_clear_reward_override", { p_quest_id: questId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -735,6 +755,13 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde le dernier lot de médailles admin connu en cache local.
     }
+    // Récompenses modifiées par un admin : même logique, contenu global public.
+    try {
+      const rewardOverrides = await fetchRewardOverrides();
+      if (rewardOverrides) setRewardOverridesCache(rewardOverrides);
+    } catch (e) {
+      // Hors ligne : on garde les derniers montants connus en cache local.
+    }
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       const meta = data.session.user.user_metadata || {};
@@ -821,6 +848,9 @@ const CLOUD = (() => {
     fetchAdminMedals,
     adminCreateMedal,
     adminDeleteMedal,
+    fetchRewardOverrides,
+    adminSetRewardOverride,
+    adminClearRewardOverride,
     init,
   };
 })();
