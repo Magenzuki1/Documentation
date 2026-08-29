@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let progressionView = "collection"; // "collection" | "quetes" | "minijeux"
   let economieView = "boutique"; // "boutique" | "marche" | "cosmetiques" | "pub"
   let bilanView = "classement"; // "classement" | "stats"
-  let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def"
+  let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def" | "ameliorable"
   let collectionRarityFilter = "toutes"; // "toutes" | une valeur de RARITY_ORDER (hors "secrete")
   let collectionSearchQuery = ""; // minuscules, sans espaces superflus
 
@@ -1026,16 +1026,20 @@ document.addEventListener("DOMContentLoaded", () => {
       bananas = bananas.filter((b) => state.discovered.includes(b.id) && b.name.toLowerCase().includes(collectionSearchQuery));
     }
 
-    // Un tri par niveau/ATK/DEF n'a de sens que sur les bananes déjà
-    // découvertes (les stats des bananes non découvertes ne sont pas
+    // Un tri par niveau/ATK/DEF/améliorable n'a de sens que sur les bananes
+    // déjà découvertes (les stats des bananes non découvertes ne sont pas
     // affichées) : on les trie donc entre elles puis on remet les cartes
     // "???" à la fin, dans leur ordre d'origine, pour ne rien laisser
-    // deviner de la puissance d'une banane pas encore trouvée.
+    // deviner de la puissance d'une banane pas encore trouvée. "Améliorable
+    // en premier" trie par nombre de niveaux gagnables dès maintenant
+    // (doublons + pièces) — les non améliorables (0) finissent après les
+    // améliorables, sans mélange avec les cartes verrouillées.
     if (collectionSort !== "defaut") {
       const discovered = bananas.filter((b) => state.discovered.includes(b.id));
       const locked = bananas.filter((b) => !state.discovered.includes(b.id));
       const metric = (b) => {
         if (collectionSort === "niveau") return bananaLevel(b.id);
+        if (collectionSort === "ameliorable") return levelsGainableFromDuplicates(b.id);
         const stats = bananaCombatStats(b);
         return collectionSort === "atk" ? stats.atk : stats.def;
       };
