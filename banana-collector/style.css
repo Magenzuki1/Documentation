@@ -1837,6 +1837,11 @@ body {
   max-width: 340px;
   text-align: center;
   box-shadow: var(--shadow);
+  /* Certains modals (le profil, avec son sélecteur d'avatars) peuvent
+     dépasser la hauteur de l'écran : sans ça, le bas du contenu devient
+     tout simplement inaccessible, sans aucun moyen d'y faire défiler. */
+  max-height: min(600px, 85vh);
+  overflow-y: auto;
 }
 
 .modal-actions {
