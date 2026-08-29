@@ -2739,13 +2739,19 @@ document.addEventListener("DOMContentLoaded", () => {
   function showPvpNotifyToast(title, line, lost) {
     const toast = document.createElement("div");
     toast.className = `pvp-notify-toast ${lost ? "lost" : ""}`;
-    toast.innerHTML = `<div class="pvp-notify-toast-title">${title}</div><div class="pvp-notify-toast-line">${line}</div>`;
+    toast.innerHTML = `
+      <button class="pvp-notify-toast-close" aria-label="Fermer">✕</button>
+      <div class="pvp-notify-toast-title">${title}</div>
+      <div class="pvp-notify-toast-line">${line}</div>
+    `;
     els.toastLayer.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add("show"));
-    setTimeout(() => {
+    // Reste affiché tant que le joueur n'a pas cliqué la croix lui-même —
+    // pas de disparition automatique, pour lui laisser le temps de tout lire.
+    toast.querySelector(".pvp-notify-toast-close").addEventListener("click", () => {
       toast.classList.remove("show");
       setTimeout(() => toast.remove(), 400);
-    }, 5000);
+    });
   }
 
   async function checkPvpAttackNotifications() {

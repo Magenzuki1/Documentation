@@ -11,8 +11,8 @@ const UPGRADES = [
     desc: "+5% de chance d'obtenir une banane peu commune",
     targets: ["peu_commune"],
     bonusPerLevel: 5,
-    basePrice: 225,
-    priceMult: 1.85,
+    basePrice: 150,
+    priceMult: 1.65,
     maxLevel: 5,
   },
   {
@@ -21,8 +21,8 @@ const UPGRADES = [
     desc: "+5% de chance d'obtenir une banane rare",
     targets: ["rare"],
     bonusPerLevel: 5,
-    basePrice: 675,
-    priceMult: 1.95,
+    basePrice: 450,
+    priceMult: 1.75,
     maxLevel: 5,
   },
   {
@@ -31,8 +31,8 @@ const UPGRADES = [
     desc: "+5% de chance d'obtenir une banane épique",
     targets: ["epique"],
     bonusPerLevel: 5,
-    basePrice: 1800,
-    priceMult: 2.05,
+    basePrice: 1200,
+    priceMult: 1.85,
     maxLevel: 5,
   },
   {
@@ -41,8 +41,8 @@ const UPGRADES = [
     desc: "+2% de chance d'obtenir une banane légendaire ou mythique",
     targets: ["legendaire", "mythique"],
     bonusPerLevel: 2,
-    basePrice: 4500,
-    priceMult: 2.3,
+    basePrice: 3000,
+    priceMult: 2.1,
     maxLevel: 5,
   },
   {
@@ -1876,13 +1876,13 @@ const BANANA_LEVEL_STAT_BONUS = {
 // sink de pièces de fin de partie plutôt qu'un simple recyclage gratuit de
 // doublons.
 const BANANA_LEVEL_UP_COIN_BASE = {
-  commune: 80,
-  peu_commune: 200,
-  rare: 600,
-  epique: 1600,
-  legendaire: 4000,
-  mythique: 12000,
-  secrete: 32000,
+  commune: 20,
+  peu_commune: 50,
+  rare: 150,
+  epique: 400,
+  legendaire: 1000,
+  mythique: 3000,
+  secrete: 8000,
 };
 
 function bananaLevelUpCoinCost(rarity, currentLevel) {
