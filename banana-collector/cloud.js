@@ -198,6 +198,25 @@ const CLOUD = (() => {
     return error || !data ? [] : data;
   }
 
+  async function adminGetStats() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("admin_get_stats");
+    return error || !data ? null : data;
+  }
+
+  async function adminSendAnnouncement(message) {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_send_announcement", { p_message: message });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchRecentAnnouncements(limit = 5) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_recent_announcements", { p_limit: limit });
+    return error || !data ? [] : data;
+  }
+
   function currentUserId() {
     return cachedUserId;
   }
@@ -648,6 +667,9 @@ const CLOUD = (() => {
     adminAdjustCoins,
     adminListWalletMovements,
     adminListActions,
+    adminGetStats,
+    adminSendAnnouncement,
+    fetchRecentAnnouncements,
     init,
   };
 })();
