@@ -288,7 +288,7 @@ function saveState() {
 // prime de connexion) passent par ici pour que le multiplicateur de boutique
 // s'applique partout de façon cohérente.
 function coinMultiplier() {
-  return 1 + (state.upgrades.multiplicateur || 0) * 0.1;
+  return 1 + (state.upgrades.multiplicateur || 0) * 0.1 + dailyCoinEventBonus();
 }
 
 function grantCoins(amount) {
@@ -355,6 +355,42 @@ function grantXp(amount) {
   state.playerXp = (state.playerXp || 0) + amount;
 }
 
+/* ---------------- Événements quotidiens ----------------
+   Un bonus différent chaque jour de la semaine (heure locale de l'appareil),
+   pour donner une raison de revenir jouer un jour précis. Indexé comme
+   Date#getDay() (0 = dimanche ... 6 = samedi). Les bonus de rareté sont des
+   points de poids ajoutés directement au pool de tirage, exactement comme
+   upgradeLevelBonus() le fait déjà pour les améliorations de la boutique
+   (ex: "🔍 Détecteur de bananes" ajoute +5 points à weights.rare par niveau)
+   — un joueur qui a l'habitude de ces descriptions retrouve le même sens. */
+const DAILY_EVENTS = [
+  { day: 0, icon: "💰", name: "Dimanche doré", desc: "+5% de pièces gagnées, toutes sources confondues", kind: "coins", value: 0.05 },
+  { day: 1, icon: "🔵", name: "Lundi chanceux", desc: "+20% de chance d'obtenir une banane Rare", kind: "rarity", rarity: "rare", value: 20 },
+  { day: 2, icon: "🟣", name: "Mardi épique", desc: "+15% de chance d'obtenir une banane Épique", kind: "rarity", rarity: "epique", value: 15 },
+  { day: 3, icon: "⚔️", name: "Mercredi guerrier", desc: "+10% de puissance de combat dans l'Arène Solo", kind: "combat", value: 0.10 },
+  { day: 4, icon: "🟠", name: "Jeudi légendaire", desc: "+10% de chance d'obtenir une banane Légendaire", kind: "rarity", rarity: "legendaire", value: 10 },
+  { day: 5, icon: "🌈", name: "Vendredi mythique", desc: "+5% de chance d'obtenir une banane Mythique", kind: "rarity", rarity: "mythique", value: 5 },
+  { day: 6, icon: "🕵️", name: "Samedi secret", desc: "+3% de chance d'obtenir une banane Secrète", kind: "rarity", rarity: "secrete", value: 3 },
+];
+
+function todayEvent() {
+  return DAILY_EVENTS[new Date().getDay()];
+}
+
+function tomorrowEvent() {
+  return DAILY_EVENTS[(new Date().getDay() + 1) % 7];
+}
+
+function dailyCoinEventBonus() {
+  const event = todayEvent();
+  return event.kind === "coins" ? event.value : 0;
+}
+
+function dailyCombatEventBonus() {
+  const event = todayEvent();
+  return event.kind === "combat" ? event.value : 0;
+}
+
 /* ---------------- Tirage pondéré avec système de pitié ---------------- */
 
 function upgradeLevelBonus(rarityKey) {
@@ -403,6 +439,13 @@ function computeWeights() {
     ["commune", "peu_commune", "rare", "epique"].forEach((r) => {
       weights[r] *= 0.05;
     });
+  }
+
+  // Événement du jour (voir DAILY_EVENTS) : bonus de rareté flat, appliqué
+  // après la pitié pour rester significatif même en fin de série sans rare+.
+  const event = todayEvent();
+  if (event.kind === "rarity") {
+    weights[event.rarity] += event.value;
   }
 
   return weights;
@@ -1435,7 +1478,8 @@ const STRATEGY_POWER_BONUS_PER_LEVEL = 0.08;
 
 function combatWinChance(playerStats, enemyStats) {
   const strategyMult = 1 + (state.upgrades.strategie || 0) * STRATEGY_POWER_BONUS_PER_LEVEL;
-  const playerPower = (playerStats.atk + playerStats.def) * strategyMult;
+  const eventMult = 1 + dailyCombatEventBonus();
+  const playerPower = (playerStats.atk + playerStats.def) * strategyMult * eventMult;
   const enemyPower = Math.max(enemyStats.atk + enemyStats.def, 1);
   const ratio = playerPower / enemyPower;
   const weighted = Math.pow(ratio, ARENA_WIN_CHANCE_STEEPNESS);
