@@ -230,7 +230,7 @@ const BANANA_DEFS = [
     image: "images/banana_173.png",
   },
 
-  // ================= Peu commune (28) =================
+  // ================= Peu commune (31) =================
   {
     id: 25, name: "Banane tachetée", rarity: "peu_commune", image: "images/banana_25.png", emoji: "🍌",
     deco: {
@@ -368,6 +368,18 @@ const BANANA_DEFS = [
   {
     id: 132, name: "Banane bavarde", rarity: "peu_commune", emoji: "🍌",
     image: "images/banana_132.png",
+  },
+  {
+    id: 174, name: "Banane nuage", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_174.png",
+  },
+  {
+    id: 175, name: "Banane araignée", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_175.png",
+  },
+  {
+    id: 176, name: "Banane citrouille", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_176.png",
   },
 
   // ================= Rare (29) =================
@@ -1075,6 +1087,9 @@ const BANANA_LORE = {
   130: { quote: "Elle attend patiemment, une canne à la main, sans jamais rien attraper.", story: "Banane pêcheuse passe ses journées au bord de l'évier, persuadée qu'un poisson finira par apparaître dans le lavabo. Elle n'a toujours rien attrapé, mais garde espoir." },
   131: { quote: "Elle prend des photos de tout, même de choses qui n'existent pas encore.", story: "Banane photographe possède un appareil qu'elle n'a jamais su allumer. Elle continue quand même à mimer des photos, \"pour le style\"." },
   132: { quote: "Elle a commencé une phrase il y a une heure et n'a toujours pas trouvé la fin.", story: "Banane bavarde peut parler à n'importe qui, de n'importe quoi, pendant des heures. Le panier tout entier a développé une technique très au point pour l'ignorer poliment." },
+  174: { quote: "Elle prédit la pluie avec une fiabilité de 0 % et une confiance de 100 %.", story: "Banane nuage flotte doucement au-dessus du panier sans jamais vraiment se poser. Elle se prend pour la météo officielle du verger, même si ses prévisions ne se réalisent presque jamais." },
+  175: { quote: "Elle a huit pattes et zéro envie de redescendre du panier.", story: "Personne ne sait vraiment si Banane araignée est une banane déguisée en araignée, ou l'inverse. Elle tisse sa toile entre deux fruits sans prévenir, surtout pour le plaisir de voir tout le monde sursauter." },
+  176: { quote: "Elle porte son déguisement de citrouille tous les jours, même en plein été.", story: "Banane citrouille refuse catégoriquement d'attendre Halloween pour sortir son costume. Elle affirme que \"l'esprit de la fête\" ne connaît pas de saison, et sourit large dès qu'on la regarde de travers." },
   45: { quote: "Elle dépasse du panier, littéralement et socialement.", story: "Banane géante a dû se faire construire un lit sur mesure. Elle adore rappeler qu'elle voit \"loin, très loin\" par-dessus les autres fruits." },
   46: { quote: "Elle ne demande jamais qu'on lui donne du feu, elle en a déjà trop.", story: "Personne ne sait pourquoi Banane enflammée brûle en permanence sans jamais se consumer. Le verger la garde loin des rideaux, par prudence." },
   47: { quote: "Elle prétend venir d'un endroit \"un peu chaud\", sans donner plus de détails.", story: "Banane des enfers aime jouer les mystérieuses, mais avoue en privé qu'elle vient surtout d'un panier resté trop longtemps au soleil." },
