@@ -3,6 +3,14 @@
    ============================================================ */
 
 const SAVE_KEY = "banana-collector-save-v1";
+// Snapshot de la progression "invité" (avant tout compte lié sur cet
+// appareil), mis de côté à la connexion et restauré à la déconnexion — voir
+// snapshotGuestStateIfGuest()/restoreGuestStateSnapshot() plus bas. Sans ça,
+// se déconnecter laisserait affichée la progression du compte qui vient de
+// partir (ancien problème signalé), mais la resynchroniser à zéro (ancien
+// correctif) détruisait tout ce qui n'est pas sauvegardé sur le cloud
+// (Arène solo avant son correctif, XP, quêtes, onglets débloqués...).
+const GUEST_SNAPSHOT_KEY = "banana-collector-guest-snapshot-v1";
 
 const UPGRADES = [
   {
@@ -365,6 +373,35 @@ function saveState() {
   } catch (e) {
     console.warn("Impossible de sauvegarder la partie.", e);
   }
+}
+
+// Appelée par CLOUD.signIn()/signUp() juste avant de rapatrier les données du
+// compte : si l'appareil n'était pas déjà lié à un compte, l'état actuel est
+// une vraie progression invité (jamais celle d'un compte qui vient de se
+// déconnecter, voir restoreGuestStateSnapshot()) et mérite d'être mise de
+// côté pour être restituée plus tard.
+function snapshotGuestStateIfGuest() {
+  if (state.cloud && state.cloud.linked) return;
+  try {
+    localStorage.setItem(GUEST_SNAPSHOT_KEY, JSON.stringify(state));
+  } catch (e) {
+    // Stockage plein/indisponible : tant pis, la déconnexion retombera sur
+    // un état neuf plutôt que sur l'invité d'avant — jamais bloquant.
+  }
+}
+
+// Appelée par CLOUD.signOut() : remet la progression invité mise de côté à
+// la dernière connexion, plutôt que de laisser affichée celle du compte qui
+// vient de partir. Un tout premier appareil n'ayant jamais eu de session
+// invité (créé un compte dès le premier lancement) retombe sur un état neuf.
+function restoreGuestStateSnapshot() {
+  try {
+    const raw = localStorage.getItem(GUEST_SNAPSHOT_KEY);
+    state = raw ? sanitizeState(Object.assign(defaultState(), JSON.parse(raw))) : defaultState();
+  } catch (e) {
+    state = defaultState();
+  }
+  saveState();
 }
 
 // Tous les gains de pièces (récolte, pub, roue, mini-jeux, combat, succès,
@@ -1602,10 +1639,19 @@ function checkQuests() {
    toujours visibles : la récolte et son retour direct (collection) sont le
    cœur du jeu, et Bilan n'est qu'un tableau de stats en lecture seule, sans
    risque de perdre qui que ce soit. */
+// totalRolls n'est jamais sauvegardé sur le cloud (comme playerXp, l'Arène
+// solo avant son correctif, etc.) : un joueur touché par le bug de
+// déconnexion qui remettait l'état local à zéro (voir cloud.js) se
+// retrouvait avec ce compteur figé à 0 malgré une collection déjà bien
+// avancée, et donc à nouveau derrière des onglets "nouveau joueur" alors
+// qu'il ne l'est clairement pas. discovered.length (la collection, elle
+// bien réelle et jamais remise à zéro par erreur) sert de filet de
+// sécurité : quiconque a déjà quelques bananes n'a jamais besoin de
+// re-débloquer quoi que ce soit.
 const TAB_UNLOCK_RULES = {
-  economie: (s) => s.totalRolls >= 3,
-  combat: (s) => s.totalRolls >= 5,
-  social: (s) => s.totalRolls >= 8,
+  economie: (s) => s.totalRolls >= 3 || s.discovered.length >= 3,
+  combat: (s) => s.totalRolls >= 5 || s.discovered.length >= 5,
+  social: (s) => s.totalRolls >= 8 || s.discovered.length >= 8,
 };
 
 const TAB_UNLOCK_LABELS = {
