@@ -3259,6 +3259,50 @@ h1, h2, h3,
 
 #admin-support-thread-view .support-thread { max-height: 320px; }
 
+/* --- Social : chat général, messagerie privée, amis --- */
+/* Réutilise .support-thread / .support-message(-player|-admin) (déjà
+   utilisées pour le fil support joueur/admin) pour les bulles de messages. */
+
+.chat-message-list { max-height: 420px; }
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.chat-input-row input[type="text"] {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.9rem;
+  border: 2px solid #f0dfa8;
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: var(--card-bg);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.friend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fffdf5;
+  border: 2px solid #f0dfa8;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.friend-row-name { font-weight: 800; }
+.friend-row-actions { display: flex; align-items: center; gap: 6px; }
+.friend-row-actions .btn { padding: 6px 12px; font-size: 0.78rem; }
+
+:root[data-theme="dark"] .friend-row,
+:root[data-theme="dark"] .chat-input-row input[type="text"] {
+  background: #2b3040;
+  border-color: #3a3f52;
+}
+
 /* --- Responsive --- */
 
 @media (max-width: 480px) {

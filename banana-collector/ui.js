@@ -297,6 +297,37 @@ document.addEventListener("DOMContentLoaded", () => {
     bilanTabStats: document.getElementById("bilan-tab-stats"),
     bilanClassementView: document.getElementById("bilan-classement-view"),
     bilanStatsView: document.getElementById("bilan-stats-view"),
+    tabSocial: document.querySelector('[data-tab="social"]'),
+    socialTabChat: document.getElementById("social-tab-chat"),
+    socialTabMessages: document.getElementById("social-tab-messages"),
+    socialTabFriends: document.getElementById("social-tab-friends"),
+    socialLocked: document.getElementById("social-locked"),
+    socialContent: document.getElementById("social-content"),
+    socialChatView: document.getElementById("social-chat-view"),
+    socialMessagesView: document.getElementById("social-messages-view"),
+    socialFriendsView: document.getElementById("social-friends-view"),
+    chatMessageList: document.getElementById("chat-message-list"),
+    chatMessageInput: document.getElementById("chat-message-input"),
+    chatSendBtn: document.getElementById("chat-send-btn"),
+    chatError: document.getElementById("chat-error"),
+    chatAdminDangerZone: document.getElementById("chat-admin-danger-zone"),
+    chatAdminResetBtn: document.getElementById("chat-admin-reset-btn"),
+    dmThreadListView: document.getElementById("dm-thread-list-view"),
+    dmThreadList: document.getElementById("dm-thread-list"),
+    dmThreadView: document.getElementById("dm-thread-view"),
+    dmThreadBackBtn: document.getElementById("dm-thread-back-btn"),
+    dmThreadTitle: document.getElementById("dm-thread-title"),
+    dmMessageList: document.getElementById("dm-message-list"),
+    dmMessageInput: document.getElementById("dm-message-input"),
+    dmSendBtn: document.getElementById("dm-send-btn"),
+    dmError: document.getElementById("dm-error"),
+    friendAddInput: document.getElementById("friend-add-input"),
+    friendAddBtn: document.getElementById("friend-add-btn"),
+    friendAddError: document.getElementById("friend-add-error"),
+    friendAddSuccess: document.getElementById("friend-add-success"),
+    friendRequestsSection: document.getElementById("friend-requests-section"),
+    friendRequestsList: document.getElementById("friend-requests-list"),
+    friendsList: document.getElementById("friends-list"),
   };
 
   /* ---------------- Onglets ---------------- */
@@ -304,6 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let progressionView = "collection"; // "collection" | "quetes" | "minijeux"
   let economieView = "boutique"; // "boutique" | "marche" | "cosmetiques" | "pub"
   let bilanView = "classement"; // "classement" | "stats"
+  let socialView = "chat"; // "chat" | "messages" | "friends"
   let collectionSort = "defaut"; // "defaut" | "niveau" | "atk" | "def" | "ameliorable"
   let collectionRarityFilter = "toutes"; // "toutes" | une valeur de RARITY_ORDER (hors "secrete")
   let collectionSearchQuery = ""; // minuscules, sans espaces superflus
@@ -375,6 +407,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (name === "combat") showCombatView(combatView);
     if (name === "bilan") showBilanView(bilanView);
     else stopLeaderboardPolling();
+    if (name === "social") showSocialView(socialView);
+    else stopSocialPolling();
   }
 
   els.tabButtons.forEach((btn) => {
@@ -3498,6 +3532,319 @@ document.addEventListener("DOMContentLoaded", () => {
     showCombatView("boss");
   });
 
+  /* ---------------- Social : chat général, messagerie privée, amis ----------------
+     Les messages privés sont réservés aux amis acceptés (voir get_or_create_dm_thread
+     côté Supabase) : la liste d'amis sert de porte d'entrée à la messagerie. */
+
+  const SOCIAL_POLL_MS = 5000;
+  let socialPollTimer = null;
+  let openDmThreadId = null;
+
+  function showSocialView(view) {
+    socialView = view;
+    els.socialTabChat.classList.toggle("active", view === "chat");
+    els.socialTabMessages.classList.toggle("active", view === "messages");
+    els.socialTabFriends.classList.toggle("active", view === "friends");
+    els.socialChatView.classList.toggle("hidden", view !== "chat");
+    els.socialMessagesView.classList.toggle("hidden", view !== "messages");
+    els.socialFriendsView.classList.toggle("hidden", view !== "friends");
+
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.socialLocked.classList.remove("hidden");
+      els.socialContent.classList.add("hidden");
+      return;
+    }
+    els.socialLocked.classList.add("hidden");
+    els.socialContent.classList.remove("hidden");
+    refreshSocialBadges();
+
+    if (view === "chat") { renderChat(); startSocialPolling(); }
+    else if (view === "messages") {
+      openDmThreadId = null;
+      showDmThreadListView();
+      startSocialPolling();
+    } else {
+      renderFriends();
+      stopSocialPolling();
+    }
+  }
+
+  els.socialTabChat.addEventListener("click", () => showSocialView("chat"));
+  els.socialTabMessages.addEventListener("click", () => showSocialView("messages"));
+  els.socialTabFriends.addEventListener("click", () => showSocialView("friends"));
+
+  function startSocialPolling() {
+    clearInterval(socialPollTimer);
+    socialPollTimer = setInterval(() => {
+      if (socialView === "chat") renderChat();
+      else if (socialView === "messages" && openDmThreadId) renderDmThread();
+    }, SOCIAL_POLL_MS);
+  }
+
+  function stopSocialPolling() {
+    clearInterval(socialPollTimer);
+    socialPollTimer = null;
+  }
+
+  function chatMessageHTML(msg, mineUsername) {
+    const mine = msg.username === mineUsername;
+    const when = new Date(msg.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const adminTag = msg.is_admin ? " 🛠️" : "";
+    return `
+      <div class="support-message ${mine ? "support-message-player" : "support-message-admin"}">
+        <div class="support-message-meta">${escapeHTML(msg.username)}${adminTag} · ${when}</div>
+        <div class="support-message-body">${escapeHTML(msg.body)}</div>
+      </div>
+    `;
+  }
+
+  async function renderChat() {
+    const messages = await CLOUD.fetchGlobalChatMessages(50);
+    const mineUsername = CLOUD.currentUsername();
+    els.chatMessageList.innerHTML = messages.length === 0
+      ? `<p class="account-hint">Aucun message pour l'instant — lance la discussion !</p>`
+      : messages.map((m) => chatMessageHTML(m, mineUsername)).join("");
+    els.chatMessageList.scrollTop = els.chatMessageList.scrollHeight;
+    els.chatAdminDangerZone.classList.toggle("hidden", !CLOUD.isAdmin());
+  }
+
+  async function sendChatMessage() {
+    const body = els.chatMessageInput.value.trim();
+    els.chatError.classList.add("hidden");
+    if (!body) return;
+    els.chatSendBtn.disabled = true;
+    const res = await CLOUD.sendGlobalChatMessage(body);
+    els.chatSendBtn.disabled = false;
+    if (!res.ok) {
+      els.chatError.textContent = res.reason === "trop_rapide" ? "Attends un peu avant d'envoyer un autre message." : (res.reason || "Erreur inconnue.");
+      els.chatError.classList.remove("hidden");
+      return;
+    }
+    els.chatMessageInput.value = "";
+    SFX.click();
+    await renderChat();
+  }
+
+  els.chatSendBtn.addEventListener("click", sendChatMessage);
+  els.chatMessageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendChatMessage();
+  });
+
+  els.chatAdminResetBtn.addEventListener("click", async () => {
+    if (!confirm("Vider le chat général pour TOUS les joueurs ? Action irréversible.")) return;
+    els.chatAdminResetBtn.disabled = true;
+    await CLOUD.adminResetGlobalChat();
+    els.chatAdminResetBtn.disabled = false;
+    await renderChat();
+  });
+
+  function dmThreadRowHTML(thread) {
+    const when = new Date(thread.last_message_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const unreadHTML = thread.unread_count > 0 ? ` <span class="admin-support-unread-badge">${thread.unread_count}</span>` : "";
+    const preview = thread.last_message_preview ? escapeHTML(thread.last_message_preview).slice(0, 60) : "Aucun message pour l'instant.";
+    return `
+      <button class="admin-log-row admin-support-thread-row" data-thread-id="${thread.thread_id}" data-username="${escapeHTML(thread.other_username)}">
+        <span class="admin-log-user">${avatarIconHTML(thread.other_avatar_id, 1.1)} ${escapeHTML(thread.other_username)}${unreadHTML}</span>
+        <span class="admin-log-reason">${preview}</span>
+        <span class="admin-log-date">${when}</span>
+      </button>
+    `;
+  }
+
+  function showDmThreadListView() {
+    els.dmThreadListView.classList.remove("hidden");
+    els.dmThreadView.classList.add("hidden");
+    renderDmThreadList();
+  }
+
+  async function renderDmThreadList() {
+    const threads = await CLOUD.fetchDmThreads();
+    els.dmThreadList.innerHTML = threads.length === 0
+      ? `<p class="account-hint">Aucune conversation pour l'instant.</p>`
+      : threads.map(dmThreadRowHTML).join("");
+    els.dmThreadList.querySelectorAll(".admin-support-thread-row").forEach((btn) => {
+      btn.addEventListener("click", () => openDmThread(Number(btn.dataset.threadId), btn.dataset.username));
+    });
+  }
+
+  async function openDmThread(threadId, username) {
+    openDmThreadId = threadId;
+    els.dmThreadListView.classList.add("hidden");
+    els.dmThreadView.classList.remove("hidden");
+    els.dmThreadTitle.textContent = `✉️ ${username}`;
+    await renderDmThread();
+    await CLOUD.markDmThreadRead(threadId);
+    refreshSocialBadges();
+  }
+
+  async function renderDmThread() {
+    if (!openDmThreadId) return;
+    const messages = await CLOUD.fetchDmMessages(openDmThreadId, 50);
+    els.dmMessageList.innerHTML = messages.length === 0
+      ? `<p class="account-hint">Dis bonjour !</p>`
+      : messages.map((m) => `
+          <div class="support-message ${m.is_mine ? "support-message-player" : "support-message-admin"}">
+            <div class="support-message-meta">${m.is_mine ? "Toi" : escapeHTML(m.sender_username)} · ${new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+            <div class="support-message-body">${escapeHTML(m.body)}</div>
+          </div>
+        `).join("");
+    els.dmMessageList.scrollTop = els.dmMessageList.scrollHeight;
+  }
+
+  async function sendDmMessage() {
+    const body = els.dmMessageInput.value.trim();
+    els.dmError.classList.add("hidden");
+    if (!body || !openDmThreadId) return;
+    els.dmSendBtn.disabled = true;
+    const res = await CLOUD.sendDm(openDmThreadId, body);
+    els.dmSendBtn.disabled = false;
+    if (!res.ok) {
+      els.dmError.textContent = res.reason || "Erreur inconnue.";
+      els.dmError.classList.remove("hidden");
+      return;
+    }
+    els.dmMessageInput.value = "";
+    SFX.click();
+    await renderDmThread();
+  }
+
+  els.dmSendBtn.addEventListener("click", sendDmMessage);
+  els.dmMessageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendDmMessage();
+  });
+  els.dmThreadBackBtn.addEventListener("click", () => {
+    openDmThreadId = null;
+    showDmThreadListView();
+  });
+
+  function friendRequestRowHTML(req) {
+    return `
+      <div class="friend-row">
+        <div>
+          ${avatarIconHTML(req.avatar_id, 1.3)}
+          <span class="friend-row-name">${escapeHTML(req.username)}</span>
+        </div>
+        <div class="friend-row-actions">
+          <button class="btn" data-accept="${escapeHTML(req.username)}">✅ Accepter</button>
+          <button class="btn danger" data-decline="${escapeHTML(req.username)}">✖️ Refuser</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function friendRowHTML(friend) {
+    return `
+      <div class="friend-row">
+        <div>
+          ${avatarIconHTML(friend.avatar_id, 1.3)}
+          <span class="friend-row-name">${escapeHTML(friend.username)}</span>${friend.is_admin ? " 🛠️" : ""}
+        </div>
+        <div class="friend-row-actions">
+          <button class="btn" data-message="${escapeHTML(friend.username)}">✉️ Message</button>
+          <button class="btn danger" data-remove="${escapeHTML(friend.username)}">🗑️</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function renderFriends() {
+    const [requests, friends] = await Promise.all([
+      CLOUD.fetchIncomingFriendRequests(),
+      CLOUD.fetchFriends(),
+    ]);
+
+    els.friendRequestsSection.classList.toggle("hidden", requests.length === 0);
+    els.friendRequestsList.innerHTML = requests.map(friendRequestRowHTML).join("");
+    els.friendRequestsList.querySelectorAll("[data-accept]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await CLOUD.respondFriendRequest(btn.dataset.accept, true);
+        SFX.click();
+        await renderFriends();
+        refreshSocialBadges();
+      });
+    });
+    els.friendRequestsList.querySelectorAll("[data-decline]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await CLOUD.respondFriendRequest(btn.dataset.decline, false);
+        await renderFriends();
+        refreshSocialBadges();
+      });
+    });
+
+    els.friendsList.innerHTML = friends.length === 0
+      ? `<p class="account-hint">Pas encore d'ami — ajoute un joueur par son pseudo ci-dessus.</p>`
+      : friends.map(friendRowHTML).join("");
+    els.friendsList.querySelectorAll("[data-message]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const res = await CLOUD.getOrCreateDmThread(btn.dataset.message);
+        if (!res.ok) return;
+        showSocialView("messages");
+        openDmThread(res.threadId, btn.dataset.message);
+      });
+    });
+    els.friendsList.querySelectorAll("[data-remove]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(`Retirer ${btn.dataset.remove} de tes amis ?`)) return;
+        await CLOUD.removeFriend(btn.dataset.remove);
+        await renderFriends();
+      });
+    });
+  }
+
+  els.friendAddBtn.addEventListener("click", async () => {
+    const username = els.friendAddInput.value.trim();
+    els.friendAddError.classList.add("hidden");
+    els.friendAddSuccess.classList.add("hidden");
+    if (!username) return;
+    els.friendAddBtn.disabled = true;
+    const res = await CLOUD.sendFriendRequest(username);
+    els.friendAddBtn.disabled = false;
+    if (!res.ok) {
+      const reasons = {
+        joueur_introuvable: "Joueur introuvable.",
+        pas_toi_meme: "Tu ne peux pas t'ajouter toi-même.",
+        deja_amis: "Vous êtes déjà amis.",
+        demande_deja_envoyee: "Demande déjà envoyée.",
+      };
+      els.friendAddError.textContent = reasons[res.reason] || res.reason || "Erreur inconnue.";
+      els.friendAddError.classList.remove("hidden");
+      return;
+    }
+    els.friendAddInput.value = "";
+    els.friendAddSuccess.textContent = res.status === "accepted" ? "Vous êtes maintenant amis !" : "Demande envoyée !";
+    els.friendAddSuccess.classList.remove("hidden");
+    SFX.click();
+    await renderFriends();
+  });
+
+  // Pastille rouge sur l'onglet Social, puis sur les sous-onglets Messages
+  // (DM non lus) et Amis (demandes en attente) — même logique que la
+  // pastille support ou celle des bananes améliorables.
+  async function refreshSocialBadges() {
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.tabSocial.classList.remove("has-badge");
+      els.socialTabMessages.classList.remove("has-badge");
+      els.socialTabFriends.classList.remove("has-badge");
+      return;
+    }
+    const counts = await CLOUD.fetchSocialBadgeCounts();
+    els.socialTabMessages.classList.toggle("has-badge", counts.unreadDmThreads > 0);
+    els.socialTabFriends.classList.toggle("has-badge", counts.pendingFriendRequests > 0);
+    els.tabSocial.classList.toggle("has-badge", counts.unreadDmThreads > 0 || counts.pendingFriendRequests > 0);
+  }
+
+  // Rappel discret à la connexion, comme pour le Boss : reste visible tant
+  // que des messages n'ont pas été lus (pas juste acquitté une fois).
+  async function checkNewDmNotifications() {
+    if (!CLOUD.available || !CLOUD.isLinked()) return;
+    const counts = await CLOUD.fetchSocialBadgeCounts();
+    if (counts.unreadDmThreads === 0) return;
+    showMarketNotifyToast(
+      "✉️ Nouveaux messages",
+      `Tu as des messages non lus dans l'onglet Social !`
+    );
+  }
+
   /* ---------------- Statistiques ---------------- */
 
   function renderAchievements() {
@@ -5434,6 +5781,8 @@ document.addEventListener("DOMContentLoaded", () => {
     checkRequestFulfilledNotifications();
     checkWeeklyBossRewards();
     renderBossEventBubble();
+    refreshSocialBadges();
+    checkNewDmNotifications();
     // Auto-réparation : si l'amélioration a été achetée avant que ce push
     // n'existe (ou hors ligne), le niveau serveur resterait bloqué à 0 sans
     // ce rattrapage à chaque connexion.
