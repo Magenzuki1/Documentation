@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     tabsNav: document.querySelector(".tabs"),
     tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
     tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
+    tabProgression: document.querySelector('[data-tab="progression"]'),
     bossEventBubble: document.getElementById("boss-event-bubble"),
     bossEventBubbleEmoji: document.getElementById("boss-event-bubble-emoji"),
     bossEventBubbleHp: document.getElementById("boss-event-bubble-hp"),
@@ -399,6 +400,16 @@ document.addEventListener("DOMContentLoaded", () => {
     els.statCoins.textContent = `🪙 Pièces : ${state.coins}`;
     els.economieCoinBalance.textContent = `🪙 ${state.coins} pièces`;
     renderHomeDashboard(discoveredNormal);
+    refreshUpgradeBadge();
+  }
+
+  // Pastille rouge sur l'onglet Progression puis sur le sous-onglet
+  // Collection dès qu'au moins une banane peut monter de niveau — évite au
+  // joueur d'aller vérifier "à l'aveugle" en ouvrant la collection à chaque fois.
+  function refreshUpgradeBadge() {
+    const hasUpgrade = state.discovered.some((id) => levelsGainableFromDuplicates(id) > 0);
+    els.tabProgression.classList.toggle("has-badge", hasUpgrade);
+    els.progressionTabCollection.classList.toggle("has-badge", hasUpgrade);
   }
 
   // Tableau de bord de l'accueil : en quelques secondes, le joueur voit son
@@ -3314,7 +3325,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (!bossSelectedBananaId || !owned.some((b) => b.id === bossSelectedBananaId)) {
-      bossSelectedBananaId = owned[0].id;
+      // Présélectionne la banane qui inflige le plus de dégâts, pour éviter au
+      // joueur de devoir parcourir toute la liste juste pour attaquer.
+      bossSelectedBananaId = owned.reduce((best, b) => (
+        bananaCombatStats(b).atk > bananaCombatStats(best).atk ? b : best
+      ), owned[0]).id;
     }
     els.bossBananaPicker.innerHTML = owned.map((b) => {
       const selected = b.id === bossSelectedBananaId;
