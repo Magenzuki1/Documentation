@@ -151,7 +151,6 @@ const BANANA_DEFS = [
   },
   {
     id: 17, name: "Banane sportive", rarity: "commune", image: "images/banana_17.png", emoji: "🍌",
-    deco: { accessories: [{ type: "text", text: "⚽", style: "bottom:-10%; left:-10%; font-size:.44em;" }] },
   },
   {
     id: 18, name: "Banane musicienne", rarity: "commune", image: "images/banana_18.png", emoji: "🍌",
