@@ -49,12 +49,12 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   premier lancement, et les onglets Économie/Combat/Social restent masqués
   puis se révèlent au fil des premiers tirages (avec toast), sans jamais se
   re-masquer une fois débloqués.
-- `sign-out-restores-guest-state.test.js` — se déconnecter restitue la
-  progression INVITÉE mise de côté à la connexion (jamais celle, plus
-  riche, du compte qui vient de partir, et jamais un état vide) ; sans
-  instantané invité préalable (compte créé dès le premier lancement),
-  retombe sur un état neuf plutôt que de laisser la progression du compte
-  affichée.
+- `account-save-slots.test.js` — chaque identité (invité, et chaque compte) a
+  SA propre sauvegarde locale complète : créer un compte démarre une partie
+  neuve (tutoriel compris) au lieu d'absorber celle de l'invité, se
+  déconnecter rend à l'invité sa partie, se reconnecter retrouve celle du
+  compte (y compris XP/quêtes/boutique, jamais synchronisés sur le serveur),
+  et une sauvegarde antérieure à ce mécanisme est adoptée telle quelle.
 - `account-login-visibility.test.js` — le bouton d'en-tête annonce clairement
   la connexion quand aucun compte n'est lié, et le formulaire de connexion/
   création de compte apparaît en premier dans la modale "Compte", avant toute

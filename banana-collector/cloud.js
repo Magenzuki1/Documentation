@@ -71,16 +71,17 @@ const CLOUD = (() => {
     }
     cachedUsername = username.toLowerCase();
     cachedUserId = data.session.user.id;
-    // Avant d'écraser l'état local avec celui du compte : met de côté la
-    // progression invité actuelle (voir son commentaire) pour pouvoir la
-    // restituer si ce compte se déconnecte plus tard sur cet appareil.
-    snapshotGuestStateIfGuest();
+    // Bascule sur la sauvegarde de ce compte AVANT tout rapatriement : la
+    // partie invité est rangée de son côté, et un compte tout neuf démarre
+    // sur une partie neuve (tutoriel compris) plutôt que d'absorber la
+    // progression de l'invité. Voir switchToIdentity() dans app.js.
+    switchToIdentity(accountIdentity(cachedUsername));
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
     await refreshAccountStatus();
     await pullLedger();
-    await pullBananas();
+    const pulled = await pullBananas();
     await pullPve();
     await pullAchievements();
     await pullMedals();
@@ -88,8 +89,10 @@ const CLOUD = (() => {
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
     // encore rien poussé côté serveur, il faut que solde/inventaire soient à
     // jour avant que le joueur tente d'acheter/vendre/attaquer juste après.
-    await pushAll();
-    return { ok: true };
+    // Mais JAMAIS si le rapatriement a échoué (coupure réseau) : la partie
+    // locale est alors encore vide et l'écraserait sur le serveur.
+    if (pulled) await pushAll();
+    return { ok: true, reload: true };
   }
 
   async function signIn(username, password) {
@@ -101,24 +104,27 @@ const CLOUD = (() => {
     if (error) return { ok: false, reason: error.message };
     cachedUsername = username.toLowerCase();
     cachedUserId = data.session.user.id;
-    // Voir signUp() : met de côté la progression invité actuelle avant de la
-    // remplacer par celle du compte, pour pouvoir la restituer à la
-    // déconnexion.
-    snapshotGuestStateIfGuest();
+    // Voir signUp() : chaque compte a sa propre sauvegarde locale, on bascule
+    // dessus avant de rapatrier quoi que ce soit. Une première connexion à ce
+    // compte sur cet appareil part d'une partie neuve que les pull* ci-dessous
+    // remplissent depuis le serveur (solde via le journal, collection, Arène
+    // solo, succès, médailles, préférences).
+    switchToIdentity(accountIdentity(cachedUsername));
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
     await refreshAccountStatus();
     await pullLedger();
-    await pullBananas();
+    const pulled = await pullBananas();
     await pullPve();
     await pullAchievements();
     await pullMedals();
     await pullAnimatedRollPref();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
-    // ou un inventaire périmé côté serveur juste après une connexion.
-    await pushAll();
-    return { ok: true };
+    // ou un inventaire périmé côté serveur juste après une connexion — mais
+    // jamais avant d'avoir vraiment rapatrié la collection du compte.
+    if (pulled) await pushAll();
+    return { ok: true, reload: true };
   }
 
   async function signOut() {
@@ -144,21 +150,20 @@ const CLOUD = (() => {
     // sinon un ancien statut admin/banni resterait affiché après déconnexion.
     accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
     // IMPORTANT — NE JAMAIS remettre l'état de jeu à zéro ici (resetSave()) :
-    // ça a été tenté, mais l'Arène solo, l'XP, les succès, les quêtes et les
-    // améliorations de la boutique ne sont PAS sauvegardés sur le cloud (seuls
-    // le solde, les bananes, les médailles et les cosmétiques le sont) — un
-    // reset local les détruisait définitivement, sans espoir de récupération
-    // à la reconnexion. On restitue à la place la progression invité mise de
-    // côté à la connexion (voir snapshotGuestStateIfGuest()) : ni la
-    // progression du compte qui vient de partir n'y reste affichée, ni la
-    // vraie progression (celle du compte, en sécurité côté cloud, ou celle de
-    // l'invité, dans ce instantané) n'est jamais perdue.
-    restoreGuestStateSnapshot();
+    // ça a été tenté, et l'Arène solo, l'XP, les succès, les quêtes et les
+    // améliorations de la boutique n'étant PAS tous sauvegardés sur le cloud,
+    // ce reset détruisait définitivement la partie du compte. On bascule à la
+    // place sur la sauvegarde de l'invité : celle du compte est rangée
+    // intacte de son côté (et retrouvée telle quelle à la prochaine
+    // connexion), et l'invité retrouve exactement SA partie — jamais celle du
+    // compte qui vient de partir. Voir switchToIdentity() dans app.js.
+    switchToIdentity(GUEST_IDENTITY);
     // L'état vient de changer intégralement (une autre partie peut s'afficher
     // à l'écran) : un rechargement redonne un rendu cohérent partout, plutôt
     // que de ré-appeler à la main chaque fonction d'affichage concernée.
     // Sans risque pour la progression, contrairement à l'ancien correctif :
-    // restoreGuestStateSnapshot() a déjà sauvegardé le nouvel état avant.
+    // switchToIdentity() a déjà rangé la partie du compte ET écrit la
+    // nouvelle partie active avant d'arriver ici.
     location.reload();
   }
 
@@ -557,14 +562,19 @@ const CLOUD = (() => {
   // ça, une banane ajoutée/corrigée côté serveur (autre appareil, correction
   // manuelle) n'apparaissait jamais dans le jeu, qui ne fait que pousser sa
   // version locale sans jamais relire celle du serveur.
+  // Renvoie true seulement si le serveur a vraiment répondu : l'appelant
+  // (signIn/signUp/init) doit pouvoir distinguer "collection rapatriée" de
+  // "coupure réseau", sans quoi il pousserait une collection locale encore
+  // vide par-dessus celle du compte. Voir le garde-fou correspondant dans
+  // sync_local_bananas() côté serveur.
   async function pullBananas() {
-    if (!isLinked() || !cachedUserId) return;
+    if (!isLinked() || !cachedUserId) return false;
     const { data, error } = await supabase
       .from("player_bananas")
       .select("banana_id, count")
       .eq("player_id", cachedUserId)
       .gt("count", 0);
-    if (error || !data) return;
+    if (error || !data) return false;
 
     let changed = false;
     for (const row of data) {
@@ -580,6 +590,7 @@ const CLOUD = (() => {
       }
     }
     if (changed) saveState();
+    return true;
   }
 
   // Pousse le solde local courant. Si le serveur a des événements plus
@@ -1460,25 +1471,46 @@ const CLOUD = (() => {
       // Hors ligne : on garde le dernier contenu connu en cache local.
     }
     const { data } = await supabase.auth.getSession();
-    if (data.session) {
+    if (!data.session) {
+      // Aucune session : la partie affichée est celle de l'invité. Première
+      // exécution de la version à sauvegardes séparées, on l'adopte comme
+      // telle plutôt que de la remplacer (voir adoptCurrentSaveAsIdentity()).
+      adoptCurrentSaveAsIdentity(GUEST_IDENTITY);
+      return;
+    }
+    {
       const meta = data.session.user.user_metadata || {};
       cachedUsername = (meta.username || "").toLowerCase() || null;
       cachedUserId = data.session.user.id;
+      // Première exécution de la version à sauvegardes séparées alors qu'une
+      // session est déjà active : la sauvegarde unique existante est celle de
+      // CE compte, on l'adopte telle quelle. Sans ça, tout joueur déjà
+      // connecté repartirait d'une partie neuve et perdrait au rechargement
+      // tout ce qui ne vit pas sur le serveur (XP, quêtes, boutique...).
+      const identity = accountIdentity(cachedUsername);
+      if (!adoptCurrentSaveAsIdentity(identity)) {
+        // Cas normal : bascule sur la sauvegarde de ce compte si la partie
+        // active appartient encore à quelqu'un d'autre (session restaurée
+        // par le navigateur alors que la dernière partie jouée ici était
+        // celle de l'invité, par exemple).
+        switchToIdentity(identity);
+      }
       const cloud = ensureCloudState();
       cloud.linked = true;
       saveState();
       try {
         await refreshAccountStatus();
         await pullLedger();
-        await pullBananas();
+        const pulled = await pullBananas();
         await pullPve();
         await pullAchievements();
         await pullMedals();
         await pullAnimatedRollPref();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
         // ligne depuis sa dernière visite — pousse tout de suite pour que
-        // Marché/PVP voient son vrai solde/inventaire sans attendre.
-        await pushAll();
+        // Marché/PVP voient son vrai solde/inventaire sans attendre, mais
+        // jamais avant d'avoir vraiment rapatrié sa collection.
+        if (pulled) await pushAll();
       } catch (e) {
         // Hors ligne au démarrage : le jeu solo continue normalement,
         // on retentera au prochain déclencheur réseau.

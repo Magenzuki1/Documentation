@@ -3,14 +3,110 @@
    ============================================================ */
 
 const SAVE_KEY = "banana-collector-save-v1";
-// Snapshot de la progression "invité" (avant tout compte lié sur cet
-// appareil), mis de côté à la connexion et restauré à la déconnexion — voir
-// snapshotGuestStateIfGuest()/restoreGuestStateSnapshot() plus bas. Sans ça,
-// se déconnecter laisserait affichée la progression du compte qui vient de
-// partir (ancien problème signalé), mais la resynchroniser à zéro (ancien
-// correctif) détruisait tout ce qui n'est pas sauvegardé sur le cloud
-// (Arène solo avant son correctif, XP, quêtes, onglets débloqués...).
+
+/* ---------------- Sauvegardes séparées par identité ----------------
+   Le jeu n'avait qu'UNE seule sauvegarde locale (SAVE_KEY), partagée par
+   l'invité et par tous les comptes. Se connecter ne changeait donc pas de
+   partie : la progression invité restait affichée telle quelle puis était
+   poussée dans le compte par pushAll() — invité et compte devenaient la
+   même partie. D'où les symptômes signalés en boucle : créer un compte
+   n'affichait pas le tutoriel (l'état invité était conservé), et se
+   déconnecter "gardait la save du compte" (les deux étaient identiques).
+   Les correctifs précédents (instantané invité) déplaçaient le problème
+   sans le régler, puisque l'instantané valait déjà la partie du compte.
+
+   Chaque identité (invité, et chaque compte) possède désormais SA propre
+   sauvegarde complète. Changer d'identité = changer de partie, y compris
+   pour tout ce qui n'est PAS synchronisé sur le serveur (XP, quêtes,
+   améliorations de boutique, prestige, Passe saisonnier...). SAVE_KEY reste
+   la partie active — tout le reste du jeu continue de lire/écrire par
+   loadState()/saveState() sans rien savoir de ce mécanisme. */
+const SAVE_SLOT_PREFIX = "banana-collector-save-slot-v1:";
+const ACTIVE_IDENTITY_KEY = "banana-collector-active-identity-v1";
+// Ancien mécanisme (une seule sauvegarde + un instantané invité) : relu une
+// dernière fois par la migration ci-dessous pour ne perdre aucune partie.
 const GUEST_SNAPSHOT_KEY = "banana-collector-guest-snapshot-v1";
+
+const GUEST_IDENTITY = "guest";
+function accountIdentity(username) {
+  return "user:" + String(username || "").trim().toLowerCase();
+}
+
+function activeIdentity() {
+  try {
+    return localStorage.getItem(ACTIVE_IDENTITY_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveSlotKey(identity) {
+  return SAVE_SLOT_PREFIX + identity;
+}
+
+function writeSaveSlot(identity, s) {
+  try {
+    localStorage.setItem(saveSlotKey(identity), JSON.stringify(s));
+  } catch (e) {
+    // Stockage plein/indisponible : la partie active (SAVE_KEY) reste
+    // écrite de son côté, on ne bloque jamais le jeu pour autant.
+  }
+}
+
+function readSaveSlot(identity) {
+  try {
+    const raw = localStorage.getItem(saveSlotKey(identity));
+    if (!raw) return null;
+    return sanitizeState(Object.assign(defaultState(), JSON.parse(raw)));
+  } catch (e) {
+    return null;
+  }
+}
+
+// Première exécution de cette version : la sauvegarde unique existante
+// appartient à l'identité active à ce moment-là (déterminée par cloud.js une
+// fois la session connue). On l'adopte telle quelle plutôt que de la
+// remplacer par une partie neuve — sans ça, tout joueur déjà connecté
+// perdrait au rechargement tout ce qui ne vit pas sur le serveur.
+function adoptCurrentSaveAsIdentity(identity) {
+  if (activeIdentity()) return false;
+  try {
+    localStorage.setItem(ACTIVE_IDENTITY_KEY, identity);
+  } catch (e) {
+    return false;
+  }
+  writeSaveSlot(identity, state);
+  // L'ancien instantané invité (mécanisme précédent) devient la sauvegarde
+  // de l'invité, s'il n'en a pas déjà une : une partie invité mise de côté
+  // par la version précédente reste ainsi récupérable à la déconnexion.
+  if (identity !== GUEST_IDENTITY && !readSaveSlot(GUEST_IDENTITY)) {
+    try {
+      const raw = localStorage.getItem(GUEST_SNAPSHOT_KEY);
+      if (raw) localStorage.setItem(saveSlotKey(GUEST_IDENTITY), raw);
+    } catch (e) {
+      // Pas d'instantané récupérable : l'invité repartira d'une partie neuve.
+    }
+  }
+  return true;
+}
+
+// Bascule la partie active vers une autre identité : la partie courante est
+// rangée dans sa propre sauvegarde, celle de la cible est chargée (ou une
+// partie neuve si cette identité n'a jamais joué sur cet appareil — c'est ce
+// qui redonne le tutoriel à la création d'un compte).
+function switchToIdentity(identity) {
+  const current = activeIdentity();
+  if (current === identity) return false;
+  if (current) writeSaveSlot(current, state);
+  state = readSaveSlot(identity) || defaultState();
+  try {
+    localStorage.setItem(ACTIVE_IDENTITY_KEY, identity);
+  } catch (e) {
+    // Voir writeSaveSlot() : jamais bloquant.
+  }
+  saveState();
+  return true;
+}
 
 const UPGRADES = [
   {
@@ -300,6 +396,17 @@ function defaultState() {
 
 let state = loadState();
 
+// Migration (première exécution de la version à sauvegardes séparées) pour le
+// cas où cloud.js ne pourra pas la faire lui-même : partie non liée à un
+// compte, ou service de compte indisponible (hors ligne, CDN Supabase
+// bloqué). La partie affichée est alors forcément celle de l'invité.
+// Une partie liée à un compte est laissée non réclamée exprès : seul
+// CLOUD.init() connaît le pseudo auquel elle appartient (voir son appel à
+// adoptCurrentSaveAsIdentity()).
+if (!activeIdentity() && !(state.cloud && state.cloud.linked)) {
+  adoptCurrentSaveAsIdentity(GUEST_IDENTITY);
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -370,38 +477,15 @@ function effectiveShowcaseMedalSlots(s) {
 function saveState() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    // La partie active est aussi écrite dans la sauvegarde de son identité,
+    // à chaque fois : une fermeture d'onglet brutale (ou un plantage) ne peut
+    // donc jamais faire perdre la progression au prochain changement
+    // d'identité, qui relit cette sauvegarde-là.
+    const identity = activeIdentity();
+    if (identity) writeSaveSlot(identity, state);
   } catch (e) {
     console.warn("Impossible de sauvegarder la partie.", e);
   }
-}
-
-// Appelée par CLOUD.signIn()/signUp() juste avant de rapatrier les données du
-// compte : si l'appareil n'était pas déjà lié à un compte, l'état actuel est
-// une vraie progression invité (jamais celle d'un compte qui vient de se
-// déconnecter, voir restoreGuestStateSnapshot()) et mérite d'être mise de
-// côté pour être restituée plus tard.
-function snapshotGuestStateIfGuest() {
-  if (state.cloud && state.cloud.linked) return;
-  try {
-    localStorage.setItem(GUEST_SNAPSHOT_KEY, JSON.stringify(state));
-  } catch (e) {
-    // Stockage plein/indisponible : tant pis, la déconnexion retombera sur
-    // un état neuf plutôt que sur l'invité d'avant — jamais bloquant.
-  }
-}
-
-// Appelée par CLOUD.signOut() : remet la progression invité mise de côté à
-// la dernière connexion, plutôt que de laisser affichée celle du compte qui
-// vient de partir. Un tout premier appareil n'ayant jamais eu de session
-// invité (créé un compte dès le premier lancement) retombe sur un état neuf.
-function restoreGuestStateSnapshot() {
-  try {
-    const raw = localStorage.getItem(GUEST_SNAPSHOT_KEY);
-    state = raw ? sanitizeState(Object.assign(defaultState(), JSON.parse(raw))) : defaultState();
-  } catch (e) {
-    state = defaultState();
-  }
-  saveState();
 }
 
 // Tous les gains de pièces (récolte, pub, roue, mini-jeux, combat, succès,
