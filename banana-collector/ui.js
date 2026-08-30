@@ -4825,6 +4825,52 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Pastille cliquable pour un cosmétique déjà possédé — équipe en un clic,
+  // sans passer par l'écran d'achat (Économie → Cosmétiques, qui reste le
+  // seul endroit pour ACHETER un nouveau cosmétique ; ici on ne montre que
+  // ce que le joueur a déjà, pour le voir et le changer d'un coup d'œil
+  // directement depuis son profil).
+  function cosmeticOwnedPillHTML(item, kind, equippedId) {
+    const equipped = equippedId === item.id;
+    return `<button class="cosmetic-pill ${equipped ? "equipped" : ""}" data-kind="${kind}" data-id="${item.id}">${item.icon ? item.icon + " " : ""}${item.name}${equipped ? " ✓" : ""}</button>`;
+  }
+
+  function cosmeticsProfileSectionHTML() {
+    const ownedFrames = COSMETIC_FRAMES.filter((f) => isCosmeticOwned(f, state));
+    const ownedEffects = COSMETIC_EFFECTS.filter((e) => isCosmeticOwned(e, state));
+    const ownedTitles = COSMETIC_TITLES.filter((t) => isCosmeticOwned(t, state));
+
+    const titlePills = [
+      `<button class="cosmetic-pill ${state.cosmetics.equippedTitle == null ? "equipped" : ""}" data-kind="title" data-id="">🎯 Automatique${state.cosmetics.equippedTitle == null ? " ✓" : ""}</button>`,
+      ...ownedTitles.map((t) => cosmeticOwnedPillHTML(t, "title", state.cosmetics.equippedTitle)),
+    ].join("");
+    const framePills = ownedFrames.length > 0
+      ? ownedFrames.map((f) => cosmeticOwnedPillHTML(f, "frame", state.cosmetics.equippedFrame)).join("")
+      : `<p class="secret-hint">Aucun cadre débloqué pour l'instant.</p>`;
+    const effectPills = ownedEffects.length > 0
+      ? ownedEffects.map((e) => cosmeticOwnedPillHTML(e, "effect", state.cosmetics.equippedEffect)).join("")
+      : `<p class="secret-hint">Aucun effet débloqué pour l'instant.</p>`;
+
+    return `
+      <div class="profile-cosmetics-section">
+        <h4>🎭 Mes cosmétiques</h4>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Titre (${ownedTitles.length}/${COSMETIC_TITLES.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${titlePills}</div>
+        </div>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Cadre (${ownedFrames.length}/${COSMETIC_FRAMES.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${framePills}</div>
+        </div>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Effet (${ownedEffects.length}/${COSMETIC_EFFECTS.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${effectPills}</div>
+        </div>
+        <p class="account-hint">D'autres cosmétiques à débloquer ou acheter dans Économie → Cosmétiques.</p>
+      </div>
+    `;
+  }
+
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
     const medal = currentPrestigeMedal(state);
@@ -4843,6 +4889,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="profile-current-title">🏷️ ${currentDisplayTitle()}</div>
           ${medalHTML}
         </div>
+        ${cosmeticsProfileSectionHTML()}
         ${showcaseSectionHTML()}
         ${levelPanelHTML()}
         ${prestigePanelHTML()}
@@ -4903,6 +4950,19 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAccountModal();
         if (CLOUD.available && CLOUD.isLinked()) {
           CLOUD.setShowcaseMedals(state.profile.showcaseMedals);
+        }
+      });
+    });
+    container.querySelectorAll(".cosmetic-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = equipCosmetic(btn.dataset.kind, btn.dataset.id || null);
+        if (res.ok) {
+          SFX.click();
+          renderAccountModal();
+          // Pousse vers la vitrine publique, comme l'équivalent dans
+          // Économie → Cosmétiques : sans ça, le changement resterait
+          // invisible pour les autres joueurs qui consultent ce profil.
+          if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushCosmetics();
         }
       });
     });

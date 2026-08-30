@@ -33,6 +33,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   restent affichables sans bouton détail ni erreur.
 - `chance-panel.test.js` — le panneau "Voir mes chances" du Tirage affiche
   les vraies probabilités (somme ≈ 100%) et les bonus temporaires actifs.
+- `profile-cosmetics.test.js` — la section "Mes cosmétiques" du profil ne
+  montre que ce qui est possédé et permet de changer le titre équipé en un
+  clic.
 
 ## Ajouter un test
 
