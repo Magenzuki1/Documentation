@@ -83,6 +83,7 @@ const CLOUD = (() => {
     await pullLedger();
     await pullAchievements();
     await pullMedals();
+    await pullGameState();
     const pulled = await pullBananas();
     await pullPve();
     await pullAnimatedRollPref();
@@ -117,6 +118,7 @@ const CLOUD = (() => {
     await pullLedger();
     await pullAchievements();
     await pullMedals();
+    await pullGameState();
     const pulled = await pullBananas();
     await pullPve();
     await pullAnimatedRollPref();
@@ -712,6 +714,30 @@ const CLOUD = (() => {
     return !error;
   }
 
+  // Reste de la progression du compte (XP, prestige, boutique, quêtes,
+  // niveaux de banane, minijeux, Passe saisonnier, onglets débloqués...) —
+  // tout ce qui n'a pas déjà sa propre synchronisation dédiée. La fusion se
+  // fait côté client par maximum/union (voir mergeRemoteState() dans app.js),
+  // donc rapatrier ne peut jamais faire reculer une progression locale, et
+  // pousser ne peut jamais effacer une progression faite ailleurs.
+  async function pullGameState() {
+    if (!isLinked()) return false;
+    const { data, error } = await supabase.rpc("get_my_game_state");
+    if (error) return false;
+    if (data) mergeRemoteState(data);
+    return true;
+  }
+
+  let lastPushedGameStateSnapshot = null;
+  async function pushGameState() {
+    if (!isLinked()) return;
+    const payload = collectSyncableState();
+    const snapshotKey = JSON.stringify(payload);
+    if (snapshotKey === lastPushedGameStateSnapshot) return;
+    const { error } = await supabase.rpc("sync_game_state", { p_state: payload });
+    if (!error) lastPushedGameStateSnapshot = snapshotKey;
+  }
+
   // Pousse (écrase) la progression PVE locale — même logique que
   // pushBananas : l'état local est la source de vérité, jamais additif.
   let lastPushedPveSnapshot = null;
@@ -809,7 +835,7 @@ const CLOUD = (() => {
   }
 
   async function pushAll() {
-    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase(), pushSeasonPoints(), pushAchievements(), pushAnimatedRollPref()]);
+    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase(), pushSeasonPoints(), pushAchievements(), pushAnimatedRollPref(), pushGameState()]);
   }
 
   // Le bouton "Réinitialiser la sauvegarde" ne touchait que le local — un
@@ -1508,6 +1534,7 @@ const CLOUD = (() => {
         await pullLedger();
         await pullAchievements();
         await pullMedals();
+        await pullGameState();
         const pulled = await pullBananas();
         await pullPve();
         await pullAnimatedRollPref();
@@ -1541,6 +1568,8 @@ const CLOUD = (() => {
     pushBananas,
     pushPve,
     pushAll,
+    pullGameState,
+    pushGameState,
     pushAnimatedRollPref,
     fetchSeasonPassTiers,
     getMySeasonStatus,

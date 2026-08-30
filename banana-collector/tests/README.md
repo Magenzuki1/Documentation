@@ -49,12 +49,18 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   premier lancement, et les onglets Économie/Combat/Social restent masqués
   puis se révèlent au fil des premiers tirages (avec toast), sans jamais se
   re-masquer une fois débloqués.
+- `game-state-sync.test.js` — synchronisation par compte du reste de la
+  progression (XP, prestige, boutique, quêtes, niveaux de banane, minijeux,
+  Passe saisonnier, onglets débloqués...) : la fusion se fait par
+  maximum/union, donc un appareil en retard ne peut jamais faire reculer une
+  progression réalisée ailleurs, une saison révolue ne remplace jamais la
+  saison courante, et un état serveur absent ou invalide est sans effet.
 - `account-save-slots.test.js` — chaque identité (invité, et chaque compte) a
   SA propre sauvegarde locale complète : créer un compte démarre une partie
   neuve (tutoriel compris) au lieu d'absorber celle de l'invité, se
   déconnecter rend à l'invité sa partie, se reconnecter retrouve celle du
-  compte (y compris XP/quêtes/boutique, jamais synchronisés sur le serveur),
-  et une sauvegarde antérieure à ce mécanisme est adoptée telle quelle.
+  compte (y compris XP/quêtes/boutique), et une sauvegarde antérieure à ce
+  mécanisme est adoptée telle quelle.
 - `account-login-visibility.test.js` — le bouton d'en-tête annonce clairement
   la connexion quand aucun compte n'est lié, et le formulaire de connexion/
   création de compte apparaît en premier dans la modale "Compte", avant toute
