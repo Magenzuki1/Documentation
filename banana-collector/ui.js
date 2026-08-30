@@ -235,6 +235,15 @@ document.addEventListener("DOMContentLoaded", () => {
     marketMyRequests: document.getElementById("market-my-requests"),
     combatTabSolo: document.getElementById("combat-tab-solo"),
     combatTabPvp: document.getElementById("combat-tab-pvp"),
+    combatTabBoss: document.getElementById("combat-tab-boss"),
+    combatBossView: document.getElementById("combat-boss-view"),
+    bossLocked: document.getElementById("boss-locked"),
+    bossContent: document.getElementById("boss-content"),
+    bossRewardBanner: document.getElementById("boss-reward-banner"),
+    bossCard: document.getElementById("boss-card"),
+    bossBananaPicker: document.getElementById("boss-banana-picker"),
+    bossAttackBtn: document.getElementById("boss-attack-btn"),
+    bossAttackResult: document.getElementById("boss-attack-result"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -1249,6 +1258,12 @@ document.addEventListener("DOMContentLoaded", () => {
           renderHeader();
           renderShop();
           updateAutoHarvestTimer();
+          // Le plafond d'essais/jour du Boss hebdomadaire est appliqué
+          // côté serveur (attack_weekly_boss) : il faut lui pousser le
+          // nouveau niveau dès l'achat, sinon il resterait bloqué à 5.
+          if (btn.dataset.id === "bossessais" && CLOUD.available && CLOUD.isLinked()) {
+            CLOUD.setBossAttemptsBonus(state.upgrades.bossessais || 0);
+          }
           const unlocked = checkAchievements();
           if (unlocked.length > 0) {
             renderHeader();
@@ -2911,23 +2926,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Combat : sous-onglets Solo / PVP ---------------- */
 
-  let combatView = "solo"; // "solo" | "pvp"
+  let combatView = "solo"; // "solo" | "pvp" | "boss"
 
   function showCombatView(view) {
     combatView = view;
     els.combatTabSolo.classList.toggle("active", view === "solo");
     els.combatTabPvp.classList.toggle("active", view === "pvp");
+    els.combatTabBoss.classList.toggle("active", view === "boss");
     els.combatSoloView.classList.toggle("hidden", view !== "solo");
     els.combatPvpView.classList.toggle("hidden", view !== "pvp");
+    els.combatBossView.classList.toggle("hidden", view !== "boss");
     if (view === "solo") {
       renderPveTab();
-    } else {
+    } else if (view === "pvp") {
       renderPvpTab();
+    } else {
+      renderBossTab();
     }
   }
 
   els.combatTabSolo.addEventListener("click", () => showCombatView("solo"));
   els.combatTabPvp.addEventListener("click", () => showCombatView("pvp"));
+  els.combatTabBoss.addEventListener("click", () => showCombatView("boss"));
 
   /* ---------------- Arène PVP ---------------- */
 
@@ -3267,6 +3287,170 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderPvpTeamPicker();
     await syncBestPvpTeam();
+  }
+
+  /* ---------------- Boss d'Arène hebdomadaire ----------------
+     Un seul boss communautaire par semaine, PV partagés par tous les
+     joueurs — voir attack_weekly_boss côté Supabase pour le calcul de
+     dégâts (server-side, jamais confié au client). Le bonus hebdomadaire
+     (cosmétique exclusif ou boost de chance temporaire) revient à TOUT
+     joueur ayant porté au moins un coup dans la semaine, que le boss ait
+     été vaincu ou non. */
+
+  let bossSelectedBananaId = null;
+  let currentBossStatus = null;
+
+  function renderBossBananaPicker() {
+    const owned = sellableBananas();
+    if (owned.length === 0) {
+      els.bossBananaPicker.innerHTML = `<p class="secret-hint">Récolte des bananes avant de pouvoir attaquer le Boss !</p>`;
+      bossSelectedBananaId = null;
+      return;
+    }
+    if (!bossSelectedBananaId || !owned.some((b) => b.id === bossSelectedBananaId)) {
+      bossSelectedBananaId = owned[0].id;
+    }
+    els.bossBananaPicker.innerHTML = owned.map((b) => {
+      const selected = b.id === bossSelectedBananaId;
+      return `
+        <button class="market-sell-option ${selected ? "selected" : ""}" data-id="${b.id}" title="${b.name}">
+          ${bananaIconHTML(b, 2)}
+          <span class="market-sell-option-count">x${state.counts[b.id] || 0}</span>
+        </button>
+      `;
+    }).join("");
+    els.bossBananaPicker.querySelectorAll(".market-sell-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        bossSelectedBananaId = Number(btn.dataset.id);
+        renderBossBananaPicker();
+      });
+    });
+  }
+
+  function bossCardHTML(boss, status) {
+    const defeated = !!boss.defeated_at;
+    const pct = Math.max(0, Math.min(100, (Number(boss.current_hp) / Number(boss.max_hp)) * 100));
+    return `
+      <div class="boss-card-header">
+        <span class="boss-card-emoji">${boss.emoji}</span>
+        <div>
+          <div class="boss-card-name">${boss.name}</div>
+          <div class="boss-card-hp-label">${defeated ? "🏆 Vaincu cette semaine !" : `${Number(boss.current_hp).toLocaleString("fr-FR")} / ${Number(boss.max_hp).toLocaleString("fr-FR")} PV`}</div>
+        </div>
+      </div>
+      <div class="boss-hp-bar"><div class="boss-hp-bar-fill ${defeated ? "defeated" : ""}" style="width:${pct}%;"></div></div>
+      ${status ? `<div class="boss-attempts-label">Essais aujourd'hui : ${status.attempts_used_today} / ${status.attempts_allowed_today}${status.total_damage_this_week > 0 ? ` · Tes dégâts cette semaine : ${Number(status.total_damage_this_week).toLocaleString("fr-FR")}` : ""}</div>` : ""}
+    `;
+  }
+
+  function weeklyBossRewardDesc(reward) {
+    return reward.reward_type === "cosmetic"
+      ? "🖼️ Cadre exclusif « Boss vaincu » débloqué !"
+      : `🍀 +${reward.reward_payload.percent}% de chance (rare et mieux) pendant ${reward.reward_payload.hours}h !`;
+  }
+
+  async function renderBossRewardBanner() {
+    if (!currentBossStatus || !currentBossStatus.has_unclaimed_reward) {
+      els.bossRewardBanner.classList.add("hidden");
+      els.bossRewardBanner.innerHTML = "";
+      return;
+    }
+    els.bossRewardBanner.classList.remove("hidden");
+    els.bossRewardBanner.innerHTML = `
+      <p>🎁 Tu as une récompense de la semaine dernière à réclamer !</p>
+      <button class="btn harvest-btn" id="boss-claim-btn">Réclamer</button>
+    `;
+    document.getElementById("boss-claim-btn").addEventListener("click", async () => {
+      const rewards = await CLOUD.claimWeeklyBossRewards();
+      if (rewards.length === 0) {
+        els.bossRewardBanner.classList.add("hidden");
+        return;
+      }
+      rewards.forEach((r) => applyWeeklyBossReward(r.reward_type, r.reward_payload));
+      renderHeader();
+      SFX.buy();
+      spawnConfetti(20);
+      showBanner("🎁 RÉCOMPENSE RÉCLAMÉE !", { emoji: "🐲", name: weeklyBossRewardDesc(rewards[rewards.length - 1]) }, 2400);
+      await renderBossTab();
+    });
+  }
+
+  async function renderBossTab() {
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.bossLocked.classList.remove("hidden");
+      els.bossContent.classList.add("hidden");
+      return;
+    }
+    els.bossLocked.classList.add("hidden");
+    els.bossContent.classList.remove("hidden");
+    els.bossAttackResult.classList.add("hidden");
+
+    // Pousse tout de suite : évite un faux "banane non possédée" si un
+    // dernier tirage local n'a pas encore eu le temps d'être synchronisé.
+    await CLOUD.pushAll();
+
+    const [boss, status] = await Promise.all([CLOUD.getWeeklyBoss(), CLOUD.getMyWeeklyBossStatus()]);
+    currentBossStatus = status;
+    if (!boss) {
+      els.bossCard.innerHTML = `<p class="secret-hint">Impossible de charger le Boss pour l'instant.</p>`;
+      return;
+    }
+    els.bossCard.innerHTML = bossCardHTML(boss, status);
+    renderBossBananaPicker();
+
+    const defeated = !!boss.defeated_at;
+    const noAttemptsLeft = !!status && status.attempts_used_today >= status.attempts_allowed_today;
+    els.bossAttackBtn.disabled = defeated || noAttemptsLeft || !bossSelectedBananaId;
+    els.bossAttackBtn.textContent = defeated ? "🏆 Boss vaincu cette semaine" : noAttemptsLeft ? "⏳ Plus d'essais aujourd'hui" : "⚔️ Attaquer le Boss";
+
+    await renderBossRewardBanner();
+  }
+
+  els.bossAttackBtn.addEventListener("click", async () => {
+    if (!bossSelectedBananaId) return;
+    els.bossAttackBtn.disabled = true;
+    const result = await CLOUD.attackWeeklyBoss(bossSelectedBananaId);
+    if (!result.ok) {
+      showBanner("❌ Attaque impossible", { emoji: "🚫", name: result.reason || "Erreur" }, 1800);
+      await renderBossTab();
+      return;
+    }
+    SFX.buy();
+    els.bossAttackResult.innerHTML = `
+      <div class="pve-result-title">${result.bossDefeated ? "🏆 BOSS VAINCU !" : "⚔️ Coup porté !"}</div>
+      <div class="pve-result-line">${Number(result.damageDealt).toLocaleString("fr-FR")} dégâts infligés — ${Number(result.bossHpAfter).toLocaleString("fr-FR")} PV restants</div>
+    `;
+    els.bossAttackResult.classList.remove("hidden");
+    if (result.bossDefeated) spawnConfetti(30);
+    grantXp(6);
+    saveState();
+    renderHeader();
+    CLOUD.scheduleSync();
+    const unlocked = checkAchievements();
+    if (unlocked.length > 0) {
+      renderHeader();
+      showAchievementToasts(unlocked);
+    }
+    const questsDone = checkQuests();
+    if (questsDone.length > 0) {
+      renderHeader();
+      showQuestToasts(questsDone);
+    }
+    await renderBossTab();
+  });
+
+  // Rappel discret à la connexion : une récompense de la semaine dernière
+  // attend d'être réclamée. Contrairement aux autres alertes, elle reste
+  // volontairement "vivante" tant qu'elle n'est pas réclamée — ce n'est pas
+  // un événement ponctuel à acquitter, mais un rappel de tâche en attente.
+  async function checkWeeklyBossRewards() {
+    if (!CLOUD.available || !CLOUD.isLinked()) return;
+    const status = await CLOUD.getMyWeeklyBossStatus();
+    if (!status || !status.has_unclaimed_reward) return;
+    showMarketNotifyToast(
+      "🐲 Récompense du Boss",
+      "Une récompense de la semaine dernière t'attend dans l'onglet Boss !"
+    );
   }
 
   /* ---------------- Statistiques ---------------- */
@@ -5203,6 +5387,13 @@ document.addEventListener("DOMContentLoaded", () => {
     checkPvpAttackNotifications();
     checkMarketSaleNotifications();
     checkRequestFulfilledNotifications();
+    checkWeeklyBossRewards();
+    // Auto-réparation : si l'amélioration a été achetée avant que ce push
+    // n'existe (ou hors ligne), le niveau serveur resterait bloqué à 0 sans
+    // ce rattrapage à chaque connexion.
+    if (CLOUD.isLinked() && (state.upgrades.bossessais || 0) > 0) {
+      CLOUD.setBossAttemptsBonus(state.upgrades.bossessais);
+    }
   }).catch(() => {
     // Hors ligne / service indisponible au démarrage : jeu solo inchangé.
   });

@@ -146,6 +146,15 @@ const UPGRADES = [
     priceMult: 1.8,
     maxLevel: 5,
   },
+  {
+    id: "bossessais",
+    name: "🐲 Essais de Boss",
+    desc: "+1 essai par jour contre le Boss d'Arène hebdomadaire, par niveau",
+    targets: [],
+    basePrice: 15000,
+    priceMult: 2.5,
+    maxLevel: 5,
+  },
 ];
 
 /* ---------------- Profil & avatars ---------------- */
@@ -206,7 +215,7 @@ function defaultState() {
     bananaLevels: {}, // bananaId -> niveau (1 si absent), voir "Niveaux de banane"
     pityRare: 0,
     pityLegendary: 0,
-    upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0, questbonushebdo: 0, chercheur: 0, recycleur: 0, trefle: 0, filet: 0, butin: 0 },
+    upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0, questbonushebdo: 0, chercheur: 0, recycleur: 0, trefle: 0, filet: 0, butin: 0, bossessais: 0 },
     lastBananaId: null,
     mythicCount: 0,
     rarestId: null,
@@ -244,6 +253,10 @@ function defaultState() {
       requestsFulfilledAsSeller: 0,
       requestsFulfilledAsRequester: 0,
     },
+    // Boost de chance temporaire — l'une des deux récompenses possibles du
+    // Boss d'Arène hebdomadaire (voir claimWeeklyBossReward côté ui.js).
+    // percent/expiresAt à 0/null quand aucun boost n'est actif.
+    chanceBoost: { percent: 0, expiresAt: null },
     settings: { muted: false, animatedRoll: true, darkMode: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -486,6 +499,40 @@ function upgradeLevelBonus(rarityKey) {
   return bonus;
 }
 
+// Pourcentage de boost de chance actif en ce moment (0 si aucun n'a jamais
+// été accordé, ou s'il a expiré) — récompense hebdomadaire du Boss d'Arène,
+// voir claimWeeklyBossRewards()/applyWeeklyBossReward() dans ui.js.
+function activeChanceBoostPercent() {
+  const boost = state.chanceBoost;
+  if (!boost || !boost.expiresAt || boost.expiresAt <= Date.now()) return 0;
+  return boost.percent || 0;
+}
+
+// Applique une récompense hebdomadaire du Boss d'Arène (voir
+// claimWeeklyBossRewards() dans ui.js) — l'une des deux formes possibles :
+// un cosmétique exclusif débloqué directement, ou un boost de chance
+// temporaire. Si un boost est déjà actif au moment de la réclamation
+// (plusieurs semaines réclamées d'un coup après une absence), les deux se
+// cumulent plutôt que de s'écraser — jamais de perte pour le joueur.
+function applyWeeklyBossReward(rewardType, rewardPayload) {
+  if (rewardType === "cosmetic") {
+    const id = rewardPayload && rewardPayload.cosmetic_id;
+    if (id && !state.cosmetics.unlocked.includes(id)) {
+      state.cosmetics.unlocked.push(id);
+    }
+  } else if (rewardType === "chance_boost") {
+    const percent = (rewardPayload && rewardPayload.percent) || 0;
+    const hours = (rewardPayload && rewardPayload.hours) || 0;
+    const newExpiry = Date.now() + hours * 3600000;
+    const stillActive = activeChanceBoostPercent() > 0;
+    state.chanceBoost = {
+      percent: (stillActive ? state.chanceBoost.percent : 0) + percent,
+      expiresAt: stillActive ? Math.max(state.chanceBoost.expiresAt, newExpiry) : newExpiry,
+    };
+  }
+  saveState();
+}
+
 function computeWeights() {
   const weights = {};
   for (const key of RARITY_ORDER) {
@@ -528,6 +575,19 @@ function computeWeights() {
   const event = todayEvent();
   if (event.kind === "rarity") {
     weights[event.rarity] += event.value;
+  }
+
+  // Boost de chance temporaire (récompense du Boss hebdomadaire) : réparti
+  // entre "rare" et mieux, proportionnellement à leurs poids actuels — même
+  // logique que la pitié ci-dessus, pour ne jamais gonfler artificiellement
+  // le mythique/secrète plus que le rare lui-même.
+  const chanceBoostPercent = activeChanceBoostPercent();
+  if (chanceBoostPercent > 0) {
+    const targets = ["rare", "epique", "legendaire", "mythique", "secrete"];
+    const base = targets.reduce((s, r) => s + weights[r], 0) || 1;
+    targets.forEach((r) => {
+      weights[r] += chanceBoostPercent * (weights[r] / base);
+    });
   }
 
   return weights;
@@ -1786,6 +1846,12 @@ const COSMETIC_FRAMES = [
   { id: "frame_legendaire", name: "Cadre légendaire", rarity: "Légendaire", unlock: (s) => (s.prestige.level || 0) >= 1 },
   { id: "frame_anime", name: "Cadre animé", rarity: "Animé", unlock: (s) => s.medals.unlocked.length >= 3 },
   { id: "frame_veteran", name: "Cadre vétéran", rarity: "Très rare", unlock: (s) => playerLevel() >= 50 },
+  // eventOnly : ni achetable ni débloqué par une condition vérifiable
+  // localement — uniquement accordé par claimWeeklyBossRewards() (voir
+  // ui.js) quand le Boss hebdomadaire tire cette récompense pour la
+  // semaine. isCosmeticOwned() traite ce cas comme les cosmétiques
+  // achetables (vérifie juste state.cosmetics.unlocked).
+  { id: "frame_boss_vainqueur", name: "Cadre du Boss vaincu", rarity: "Événement", eventOnly: true },
 ];
 
 const COSMETIC_TITLES = [
@@ -1812,7 +1878,7 @@ const COSMETIC_EFFECTS = [
 
 function isCosmeticOwned(item, s) {
   if (item.cost === 0) return true;
-  if (item.cost != null) return s.cosmetics.unlocked.includes(item.id);
+  if (item.cost != null || item.eventOnly) return s.cosmetics.unlocked.includes(item.id);
   return item.unlock ? !!item.unlock(s) : false;
 }
 

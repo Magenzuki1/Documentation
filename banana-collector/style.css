@@ -2065,6 +2065,46 @@ h1, h2, h3,
   box-shadow: var(--shadow);
 }
 
+/* --- Boss d'Arène hebdomadaire --- */
+.boss-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin: 14px 0;
+}
+.boss-card-header { display: flex; align-items: center; gap: 12px; }
+.boss-card-emoji { font-size: 2.4rem; line-height: 1; }
+.boss-card-name { font-weight: 800; font-size: 1.05rem; }
+.boss-card-hp-label { font-size: 0.85rem; color: #7a6224; margin-top: 2px; }
+.boss-hp-bar {
+  margin-top: 10px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+.boss-hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e63946, #ff9f1c);
+  transition: width 0.4s ease;
+}
+.boss-hp-bar-fill.defeated { background: linear-gradient(90deg, #4caf50, #7be08a); }
+.boss-attempts-label { margin-top: 8px; font-size: 0.8rem; color: #5c4a1a; }
+.boss-reward-banner {
+  background: var(--accent-soft, rgba(255, 193, 7, 0.18));
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.boss-reward-banner p { margin: 0; font-weight: 700; }
+
 /* --- Classement --- */
 
 .leaderboard-table {
