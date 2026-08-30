@@ -500,37 +500,13 @@ function upgradeLevelBonus(rarityKey) {
 }
 
 // Pourcentage de boost de chance actif en ce moment (0 si aucun n'a jamais
-// été accordé, ou s'il a expiré) — récompense hebdomadaire du Boss d'Arène,
-// voir claimWeeklyBossRewards()/applyWeeklyBossReward() dans ui.js.
+// été accordé, ou s'il a expiré). Rien ne l'accorde plus depuis la refonte
+// des récompenses du Boss (désormais pièces + bananes fixes), mais le
+// mécanisme reste en place pour un futur événement/bonus temporaire.
 function activeChanceBoostPercent() {
   const boost = state.chanceBoost;
   if (!boost || !boost.expiresAt || boost.expiresAt <= Date.now()) return 0;
   return boost.percent || 0;
-}
-
-// Applique une récompense hebdomadaire du Boss d'Arène (voir
-// claimWeeklyBossRewards() dans ui.js) — l'une des deux formes possibles :
-// un cosmétique exclusif débloqué directement, ou un boost de chance
-// temporaire. Si un boost est déjà actif au moment de la réclamation
-// (plusieurs semaines réclamées d'un coup après une absence), les deux se
-// cumulent plutôt que de s'écraser — jamais de perte pour le joueur.
-function applyWeeklyBossReward(rewardType, rewardPayload) {
-  if (rewardType === "cosmetic") {
-    const id = rewardPayload && rewardPayload.cosmetic_id;
-    if (id && !state.cosmetics.unlocked.includes(id)) {
-      state.cosmetics.unlocked.push(id);
-    }
-  } else if (rewardType === "chance_boost") {
-    const percent = (rewardPayload && rewardPayload.percent) || 0;
-    const hours = (rewardPayload && rewardPayload.hours) || 0;
-    const newExpiry = Date.now() + hours * 3600000;
-    const stillActive = activeChanceBoostPercent() > 0;
-    state.chanceBoost = {
-      percent: (stillActive ? state.chanceBoost.percent : 0) + percent,
-      expiresAt: stillActive ? Math.max(state.chanceBoost.expiresAt, newExpiry) : newExpiry,
-    };
-  }
-  saveState();
 }
 
 function computeWeights() {
@@ -1868,12 +1844,6 @@ const COSMETIC_FRAMES = [
   { id: "frame_legendaire", name: "Cadre légendaire", rarity: "Légendaire", unlock: (s) => (s.prestige.level || 0) >= 1 },
   { id: "frame_anime", name: "Cadre animé", rarity: "Animé", unlock: (s) => s.medals.unlocked.length >= 3 },
   { id: "frame_veteran", name: "Cadre vétéran", rarity: "Très rare", unlock: (s) => playerLevel() >= 50 },
-  // eventOnly : ni achetable ni débloqué par une condition vérifiable
-  // localement — uniquement accordé par claimWeeklyBossRewards() (voir
-  // ui.js) quand le Boss hebdomadaire tire cette récompense pour la
-  // semaine. isCosmeticOwned() traite ce cas comme les cosmétiques
-  // achetables (vérifie juste state.cosmetics.unlocked).
-  { id: "frame_boss_vainqueur", name: "Cadre du Boss vaincu", rarity: "Événement", eventOnly: true },
 ];
 
 const COSMETIC_TITLES = [

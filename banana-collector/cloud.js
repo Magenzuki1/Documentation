@@ -1003,13 +1003,36 @@ const CLOUD = (() => {
     };
   }
 
-  // Réclame tous les bonus hebdomadaires en attente (semaines passées) en un
-  // seul appel — peut renvoyer plusieurs lignes si le joueur était absent
-  // plus d'une semaine.
-  async function claimWeeklyBossRewards() {
+  // Classement public des dégâts infligés au Boss de la semaine en cours —
+  // lecture publique, comme fetchLeaderboard().
+  async function fetchWeeklyBossLeaderboard(limit) {
     if (!supabase) return [];
-    const { data, error } = await supabase.rpc("claim_weekly_boss_rewards");
+    const { data, error } = await supabase.rpc("get_weekly_boss_leaderboard", { p_limit: limit || 50 });
     return error || !data ? [] : data;
+  }
+
+  // Les récompenses du Boss sont désormais distribuées automatiquement
+  // (cron serveur, tous les lundis) directement dans wallet_ledger /
+  // player_bananas — plus de réclamation manuelle. Ces fonctions ne servent
+  // qu'à la "boîte à cadeaux" : combien de reçus non vus (pastille rouge) et
+  // le détail des derniers gains reçus, pour affichage seulement.
+  async function fetchUnseenBossGiftCount() {
+    if (!supabase || !isLinked()) return 0;
+    const { data, error } = await supabase.rpc("get_my_unseen_boss_gift_count");
+    return error || data == null ? 0 : data;
+  }
+
+  async function fetchBossGifts(limit) {
+    if (!supabase || !isLinked()) return [];
+    const { data, error } = await supabase.rpc("get_my_boss_gifts", { p_limit: limit || 20 });
+    return error || !data ? [] : data;
+  }
+
+  async function markBossGiftsSeen() {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("mark_boss_gifts_seen");
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
   }
 
   // Pousse le niveau de l'amélioration "Essais de Boss" (voir buyUpgrade
@@ -1118,6 +1141,16 @@ const CLOUD = (() => {
   async function adminResetGlobalChat() {
     if (!supabase) return unavailable;
     const { error } = await supabase.rpc("admin_reset_global_chat");
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  // Force la distribution des récompenses du Boss (semaines closes, vaincu,
+  // pas encore distribuées) sans attendre le cron du lundi — pratique pour
+  // tester sans avoir à patienter jusqu'à la semaine suivante.
+  async function adminForceDistributeBossRewards() {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_force_distribute_boss_rewards");
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
   }
@@ -1255,7 +1288,10 @@ const CLOUD = (() => {
     getWeeklyBoss,
     getMyWeeklyBossStatus,
     attackWeeklyBoss,
-    claimWeeklyBossRewards,
+    fetchWeeklyBossLeaderboard,
+    fetchUnseenBossGiftCount,
+    fetchBossGifts,
+    markBossGiftsSeen,
     setBossAttemptsBonus,
     sendFriendRequest,
     respondFriendRequest,
@@ -1271,6 +1307,7 @@ const CLOUD = (() => {
     sendGlobalChatMessage,
     fetchGlobalChatMessages,
     adminResetGlobalChat,
+    adminForceDistributeBossRewards,
     isAdmin,
     isBanned,
     banReason,
