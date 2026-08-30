@@ -50,6 +50,7 @@
       <button class="tab-btn" data-tab="economie">💰 Économie</button>
       <button class="tab-btn" data-tab="combat">⚔️ Combat</button>
       <button class="tab-btn" data-tab="bilan">📋 Bilan</button>
+      <button class="tab-btn" data-tab="social">💬 Social</button>
     </nav>
 
     <main>
@@ -506,6 +507,70 @@
           <div id="achievements-content"></div>
 
           <button id="reset-btn" class="btn danger reset-btn">🗑️ Réinitialiser la sauvegarde</button>
+        </div>
+      </section>
+
+      <section id="tab-social" class="tab-panel">
+        <div class="market-subtabs">
+          <button class="market-subtab-btn active" id="social-tab-chat" data-socialview="chat">🌍 Chat général</button>
+          <button class="market-subtab-btn" id="social-tab-messages" data-socialview="messages">✉️ Messages</button>
+          <button class="market-subtab-btn" id="social-tab-friends" data-socialview="friends">🧑‍🤝‍🧑 Amis</button>
+        </div>
+
+        <div id="social-locked" class="secret-hint hidden">🔒 Connecte-toi (bouton "👤 Compte" en haut de la page) pour accéder au Social.</div>
+
+        <div id="social-content" class="hidden">
+          <div id="social-chat-view">
+            <h2>🌍 Chat général</h2>
+            <p class="shop-hint">Un seul salon, ouvert à tous les joueurs connectés.</p>
+            <div id="chat-message-list" class="support-thread chat-message-list"></div>
+            <div class="chat-input-row">
+              <input type="text" id="chat-message-input" maxlength="300" placeholder="Écris un message…" autocomplete="off" />
+              <button id="chat-send-btn" class="btn">Envoyer</button>
+            </div>
+            <p id="chat-error" class="account-error hidden"></p>
+            <div id="chat-admin-danger-zone" class="hidden">
+              <h3 class="admin-news-history-title">Zone de danger</h3>
+              <button class="btn danger" id="chat-admin-reset-btn">🗑️ Réinitialiser le chat général</button>
+            </div>
+          </div>
+
+          <div id="social-messages-view" class="hidden">
+            <div id="dm-thread-list-view">
+              <h2>✉️ Messages privés</h2>
+              <p class="shop-hint">Réservé à tes amis — ajoute quelqu'un dans l'onglet "Amis" pour pouvoir lui écrire.</p>
+              <div id="dm-thread-list" class="admin-log-list"></div>
+            </div>
+            <div id="dm-thread-view" class="hidden">
+              <button id="dm-thread-back-btn" class="btn">← Retour aux conversations</button>
+              <h2 id="dm-thread-title"></h2>
+              <div id="dm-message-list" class="support-thread chat-message-list"></div>
+              <div class="chat-input-row">
+                <input type="text" id="dm-message-input" maxlength="500" placeholder="Écris un message…" autocomplete="off" />
+                <button id="dm-send-btn" class="btn">Envoyer</button>
+              </div>
+              <p id="dm-error" class="account-error hidden"></p>
+            </div>
+          </div>
+
+          <div id="social-friends-view" class="hidden">
+            <h2>🧑‍🤝‍🧑 Amis</h2>
+            <p class="shop-hint">Ajoute un joueur par son pseudo pour débloquer la messagerie privée avec lui.</p>
+            <div class="admin-news-form">
+              <input type="text" id="friend-add-input" placeholder="Pseudo du joueur…" autocomplete="off" />
+              <button id="friend-add-btn" class="btn">➕ Ajouter</button>
+            </div>
+            <p id="friend-add-error" class="account-error hidden"></p>
+            <p id="friend-add-success" class="account-hint hidden"></p>
+
+            <div id="friend-requests-section" class="hidden">
+              <h3 class="admin-news-history-title">Demandes reçues</h3>
+              <div id="friend-requests-list" class="admin-log-list"></div>
+            </div>
+
+            <h3 class="admin-news-history-title">Mes amis</h3>
+            <div id="friends-list" class="admin-log-list"></div>
+          </div>
         </div>
       </section>
     </main>

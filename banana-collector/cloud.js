@@ -1023,6 +1023,105 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  /* ---------------- Social : amis, messagerie privée, chat général ----------------
+     Les messages privés sont réservés aux amis acceptés (voir get_or_create_dm_thread
+     côté Supabase) — la liste d'amis sert donc de porte d'entrée à la messagerie. */
+
+  async function sendFriendRequest(username) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { data, error } = await supabase.rpc("send_friend_request", { p_username: username });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, status: data };
+  }
+
+  async function respondFriendRequest(username, accept) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("respond_friend_request", { p_username: username, p_accept: accept });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function removeFriend(username) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("remove_friend", { p_username: username });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchFriends() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_friends");
+    return error || !data ? [] : data;
+  }
+
+  async function fetchIncomingFriendRequests() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_incoming_friend_requests");
+    return error || !data ? [] : data;
+  }
+
+  async function fetchSocialBadgeCounts() {
+    if (!supabase || !isLinked()) return { pendingFriendRequests: 0, unreadDmThreads: 0 };
+    const { data, error } = await supabase.rpc("get_social_badge_counts");
+    const row = !error && data && data[0];
+    return row
+      ? { pendingFriendRequests: row.pending_friend_requests, unreadDmThreads: row.unread_dm_threads }
+      : { pendingFriendRequests: 0, unreadDmThreads: 0 };
+  }
+
+  async function getOrCreateDmThread(username) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { data, error } = await supabase.rpc("get_or_create_dm_thread", { p_username: username });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true, threadId: data };
+  }
+
+  async function sendDm(threadId, body) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("send_dm", { p_thread_id: threadId, p_body: body });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchDmThreads() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_dm_threads");
+    return error || !data ? [] : data;
+  }
+
+  async function fetchDmMessages(threadId, limit = 50) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_dm_messages", { p_thread_id: threadId, p_limit: limit });
+    return error || !data ? [] : data.slice().reverse();
+  }
+
+  async function markDmThreadRead(threadId) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("mark_dm_thread_read", { p_thread_id: threadId });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function sendGlobalChatMessage(body) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("send_global_chat_message", { p_body: body });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
+  async function fetchGlobalChatMessages(limit = 50) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_recent_global_chat_messages", { p_limit: limit });
+    return error || !data ? [] : data.slice().reverse();
+  }
+
+  async function adminResetGlobalChat() {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_reset_global_chat");
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   // Synchronisation débounced : appelée librement par le reste du jeu à
   // chaque action pertinente (achat, vente, fin de combat...) sans jamais
   // ralentir l'action elle-même — la requête réseau part quelques secondes
@@ -1158,6 +1257,20 @@ const CLOUD = (() => {
     attackWeeklyBoss,
     claimWeeklyBossRewards,
     setBossAttemptsBonus,
+    sendFriendRequest,
+    respondFriendRequest,
+    removeFriend,
+    fetchFriends,
+    fetchIncomingFriendRequests,
+    fetchSocialBadgeCounts,
+    getOrCreateDmThread,
+    sendDm,
+    fetchDmThreads,
+    fetchDmMessages,
+    markDmThreadRead,
+    sendGlobalChatMessage,
+    fetchGlobalChatMessages,
+    adminResetGlobalChat,
     isAdmin,
     isBanned,
     banReason,
