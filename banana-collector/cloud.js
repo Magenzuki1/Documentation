@@ -81,10 +81,10 @@ const CLOUD = (() => {
     saveState();
     await refreshAccountStatus();
     await pullLedger();
-    const pulled = await pullBananas();
-    await pullPve();
     await pullAchievements();
     await pullMedals();
+    const pulled = await pullBananas();
+    await pullPve();
     await pullAnimatedRollPref();
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
     // encore rien poussé côté serveur, il faut que solde/inventaire soient à
@@ -115,10 +115,10 @@ const CLOUD = (() => {
     saveState();
     await refreshAccountStatus();
     await pullLedger();
-    const pulled = await pullBananas();
-    await pullPve();
     await pullAchievements();
     await pullMedals();
+    const pulled = await pullBananas();
+    await pullPve();
     await pullAnimatedRollPref();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
     // ou un inventaire périmé côté serveur juste après une connexion — mais
@@ -622,11 +622,16 @@ const CLOUD = (() => {
 
   // Pousse (upsert) l'inventaire local complet — uniquement les entrées
   // ayant changé depuis le dernier envoi, pour garder les requêtes légères.
+  // Les entrées à zéro sont envoyées elles aussi, et ne sont PAS filtrées :
+  // côté serveur, sync_local_bananas() ne supprime plus que ce qui lui est
+  // explicitement signalé à zéro (voir sa migration). Sans elles, une banane
+  // dont tous les exemplaires ont été fusionnés resterait pour toujours au
+  // serveur ; avec elles, aucune banane ne peut plus disparaître par simple
+  // silence d'un état local en retard (achat au Marché, autre appareil...).
   async function pushBananas() {
     if (!isLinked()) return;
     const rows = Object.keys(state.counts)
-      .map((id) => ({ banana_id: Number(id), count: state.counts[id] }))
-      .filter((row) => row.count > 0);
+      .map((id) => ({ banana_id: Number(id), count: Math.max(state.counts[id] || 0, 0) }));
 
     const snapshotKey = JSON.stringify(rows);
     if (snapshotKey === lastPushedBananasSnapshot) return;
@@ -1501,10 +1506,10 @@ const CLOUD = (() => {
       try {
         await refreshAccountStatus();
         await pullLedger();
-        const pulled = await pullBananas();
-        await pullPve();
         await pullAchievements();
         await pullMedals();
+        const pulled = await pullBananas();
+        await pullPve();
         await pullAnimatedRollPref();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
         // ligne depuis sa dernière visite — pousse tout de suite pour que

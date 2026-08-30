@@ -157,7 +157,82 @@ async function run() {
   }
 }
 
-module.exports = { run };
+// Exigence explicite : TOUT compte nouvellement créé doit voir le mini
+// tutoriel. Vérifié par le vrai parcours d'interface (formulaire + création
+// + rechargement), pas seulement sur l'état — c'est ce que le joueur voit.
+async function runSignUpShowsTutorialScenario() {
+  const { server, url } = await startServer();
+  const browser = await launchChromium();
+  try {
+    const page = await browser.newPage();
+    const pageErrors = [];
+    page.on("pageerror", (e) => pageErrors.push(String(e)));
+
+    await page.goto(`${url}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(300);
+
+    // Une partie invité qui a déjà vu le tutoriel et bien avancé : sans
+    // sauvegardes séparées, le compte créé héritait de ce welcomeSeen et le
+    // tutoriel ne s'affichait jamais (symptôme signalé).
+    await page.evaluate(() => {
+      document.getElementById("welcome-modal").classList.add("hidden");
+      state.onboarding.welcomeSeen = true;
+      state.coins = 9999;
+      state.totalRolls = 60;
+      saveState();
+
+      CLOUD.available = true;
+      // Reproduit fidèlement ce que fait le vrai signUp() : bascule sur la
+      // sauvegarde du nouveau compte, marque le lien, demande un rechargement.
+      CLOUD.signUp = async (username) => {
+        switchToIdentity(accountIdentity(username));
+        state.cloud.linked = true;
+        saveState();
+        return { ok: true, reload: true };
+      };
+      CLOUD.setAvatar = () => {};
+      CLOUD.isAdmin = () => false;
+      CLOUD.isBanned = () => false;
+      CLOUD.hasUnreadSupportReply = async () => false;
+      CLOUD.adminListSupportThreads = async () => [];
+      CLOUD.pushAll = async () => {};
+    });
+
+    await page.click("#account-btn");
+    await page.waitForTimeout(200);
+    // Bascule le formulaire en mode création de compte.
+    await page.click("#account-switch-mode-btn");
+    await page.waitForTimeout(200);
+    await page.fill("#account-username-input", "toutneuf");
+    await page.fill("#account-password-input", "motdepasse123");
+
+    await Promise.all([
+      page.waitForEvent("load", { timeout: 15000 }),
+      page.click("#account-submit-btn"),
+    ]);
+    await page.waitForTimeout(400);
+
+    const welcomeVisible = await page.$eval("#welcome-modal", (el) => !el.classList.contains("hidden"));
+    assert.ok(welcomeVisible, "a newly created account MUST show the welcome tutorial, even when the guest had already dismissed it");
+
+    const fresh = await page.evaluate(() => ({ coins: state.coins, totalRolls: state.totalRolls }));
+    assert.strictEqual(fresh.coins, 0, `a newly created account must start from a fresh save, got ${fresh.coins} coins`);
+    assert.strictEqual(fresh.totalRolls, 0, "a newly created account must start with no rolls");
+
+    assert.strictEqual(pageErrors.length, 0, `unexpected page errors: ${pageErrors.join(", ")}`);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+}
+
+const baseRun = run;
+async function runAll() {
+  await baseRun();
+  await runSignUpShowsTutorialScenario();
+}
+
+module.exports = { run: runAll };
 if (require.main === module) {
   run()
     .then(() => console.log("OK — account-save-slots.test.js"))
