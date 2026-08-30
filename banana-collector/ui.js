@@ -3667,6 +3667,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   els.revealModalClose.addEventListener("click", () => els.revealModal.classList.add("hidden"));
+  els.revealModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.revealModal) els.revealModal.classList.add("hidden");
+  });
 
   /* ---------------- Boîte à cadeaux du Boss ----------------
      Deux sortes de contenu : les récompenses du Boss, déjà créditées
@@ -3797,6 +3800,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.giftBoxBtn.addEventListener("click", openGiftBoxModal);
   els.giftBoxClose.addEventListener("click", () => els.giftBoxModal.classList.add("hidden"));
+  els.giftBoxModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.giftBoxModal) els.giftBoxModal.classList.add("hidden");
+  });
 
   /* ---------------- Passe saisonnier ----------------
      Une saison = un mois calendaire. La piste (paliers/récompenses) vient du
@@ -3919,6 +3925,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.seasonPassBtn.addEventListener("click", openSeasonPassModal);
   els.seasonPassClose.addEventListener("click", () => els.seasonPassModal.classList.add("hidden"));
+  els.seasonPassModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.seasonPassModal) els.seasonPassModal.classList.add("hidden");
+  });
 
   // Comme la "championne" en Arène solo : pas de liste à parcourir, la plus
   // forte banane possédée (rareté puis valeur, sans le niveau — voir
@@ -4874,14 +4883,14 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  // Pastille cliquable pour un cosmétique déjà possédé — équipe en un clic,
-  // sans passer par l'écran d'achat (Économie → Cosmétiques, qui reste le
-  // seul endroit pour ACHETER un nouveau cosmétique ; ici on ne montre que
-  // ce que le joueur a déjà, pour le voir et le changer d'un coup d'œil
-  // directement depuis son profil).
-  function cosmeticOwnedPillHTML(item, kind, equippedId) {
-    const equipped = equippedId === item.id;
-    return `<button class="cosmetic-pill ${equipped ? "equipped" : ""}" data-kind="${kind}" data-id="${item.id}">${item.icon ? item.icon + " " : ""}${item.name}${equipped ? " ✓" : ""}</button>`;
+  // Option de liste déroulante pour un cosmétique déjà possédé — même
+  // principe que les 3 menus de médailles de la Vitrine juste en dessous
+  // (showcaseSectionHTML) : une liste déroulante par catégorie plutôt qu'une
+  // grille de boutons, pour rester cohérent et rapide à utiliser même avec
+  // beaucoup de cosmétiques débloqués.
+  function cosmeticOptionHTML(item, equippedId) {
+    const selected = equippedId === item.id ? "selected" : "";
+    return `<option value="${item.id}" ${selected}>${item.icon ? item.icon + " " : ""}${item.name}</option>`;
   }
 
   function cosmeticsProfileSectionHTML() {
@@ -4889,31 +4898,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const ownedEffects = COSMETIC_EFFECTS.filter((e) => isCosmeticOwned(e, state));
     const ownedTitles = COSMETIC_TITLES.filter((t) => isCosmeticOwned(t, state));
 
-    const titlePills = [
-      `<button class="cosmetic-pill ${state.cosmetics.equippedTitle == null ? "equipped" : ""}" data-kind="title" data-id="">🎯 Automatique${state.cosmetics.equippedTitle == null ? " ✓" : ""}</button>`,
-      ...ownedTitles.map((t) => cosmeticOwnedPillHTML(t, "title", state.cosmetics.equippedTitle)),
+    const titleOptions = [
+      `<option value="" ${state.cosmetics.equippedTitle == null ? "selected" : ""}>🎯 Automatique (titre de niveau)</option>`,
+      ...ownedTitles.map((t) => cosmeticOptionHTML(t, state.cosmetics.equippedTitle)),
     ].join("");
-    const framePills = ownedFrames.length > 0
-      ? ownedFrames.map((f) => cosmeticOwnedPillHTML(f, "frame", state.cosmetics.equippedFrame)).join("")
-      : `<p class="secret-hint">Aucun cadre débloqué pour l'instant.</p>`;
-    const effectPills = ownedEffects.length > 0
-      ? ownedEffects.map((e) => cosmeticOwnedPillHTML(e, "effect", state.cosmetics.equippedEffect)).join("")
-      : `<p class="secret-hint">Aucun effet débloqué pour l'instant.</p>`;
+    const frameOptions = ownedFrames.map((f) => cosmeticOptionHTML(f, state.cosmetics.equippedFrame)).join("");
+    const effectOptions = ownedEffects.map((e) => cosmeticOptionHTML(e, state.cosmetics.equippedEffect)).join("");
 
     return `
       <div class="profile-cosmetics-section">
         <h4>🎭 Mes cosmétiques</h4>
         <div class="profile-cosmetics-group">
-          <div class="profile-cosmetics-group-title">Titre (${ownedTitles.length}/${COSMETIC_TITLES.length} débloqués)</div>
-          <div class="profile-cosmetics-pills">${titlePills}</div>
+          <label class="profile-cosmetics-group-title" for="profile-cosmetic-title-select">Titre (${ownedTitles.length}/${COSMETIC_TITLES.length} débloqués)</label>
+          <select id="profile-cosmetic-title-select" class="profile-cosmetics-select" data-kind="title">${titleOptions}</select>
         </div>
         <div class="profile-cosmetics-group">
-          <div class="profile-cosmetics-group-title">Cadre (${ownedFrames.length}/${COSMETIC_FRAMES.length} débloqués)</div>
-          <div class="profile-cosmetics-pills">${framePills}</div>
+          <label class="profile-cosmetics-group-title" for="profile-cosmetic-frame-select">Cadre (${ownedFrames.length}/${COSMETIC_FRAMES.length} débloqués)</label>
+          <select id="profile-cosmetic-frame-select" class="profile-cosmetics-select" data-kind="frame">${frameOptions}</select>
         </div>
         <div class="profile-cosmetics-group">
-          <div class="profile-cosmetics-group-title">Effet (${ownedEffects.length}/${COSMETIC_EFFECTS.length} débloqués)</div>
-          <div class="profile-cosmetics-pills">${effectPills}</div>
+          <label class="profile-cosmetics-group-title" for="profile-cosmetic-effect-select">Effet (${ownedEffects.length}/${COSMETIC_EFFECTS.length} débloqués)</label>
+          <select id="profile-cosmetic-effect-select" class="profile-cosmetics-select" data-kind="effect">${effectOptions}</select>
         </div>
         <p class="account-hint">D'autres cosmétiques à débloquer ou acheter dans Économie → Cosmétiques.</p>
       </div>
@@ -5002,9 +5007,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
-    container.querySelectorAll(".cosmetic-pill").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const res = equipCosmetic(btn.dataset.kind, btn.dataset.id || null);
+    container.querySelectorAll(".profile-cosmetics-select").forEach((select) => {
+      select.addEventListener("change", () => {
+        const res = equipCosmetic(select.dataset.kind, select.value || null);
         if (res.ok) {
           SFX.click();
           renderAccountModal();

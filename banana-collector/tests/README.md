@@ -42,6 +42,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `season-tier-notification.test.js` — franchir un palier du Passe
   saisonnier déclenche un toast immédiatement (sans rouvrir la modale), une
   seule fois par palier et par saison.
+- `modal-backdrop-close.test.js` — cliquer en dehors de la boîte de dialogue
+  ferme la fenêtre (Passe saisonnier, boîte à cadeaux), un clic à l'intérieur
+  ne la ferme pas.
 
 ## Ajouter un test
 

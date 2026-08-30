@@ -36,6 +36,14 @@ async function run() {
       // normal — un seul palier à seuil bas suffit pour ce test.
       setSeasonPassTiersCache([{ tier: 1, threshold: 100 }]);
       state.seasonPass = { points: 90, seasonKey: currentSeasonKey(), questProgress: {}, questsCompleted: [], notifiedTiers: [] };
+      // Mode rapide (pas de roulette de rareté animée) et rareté toujours
+      // "commune" (Math.random figé à 0) : sans ça, un tirage rare/légendaire
+      // obtenu par pur hasard peut compléter une Quête de saison en même
+      // temps que le palier, et l'animation ajoute un délai variable avant
+      // que checkQuests() ne tourne — deux sources de flakiness pour un test
+      // qui ne s'intéresse qu'au franchissement de palier lui-même.
+      state.settings.animatedRoll = false;
+      Math.random = () => 0;
       document.querySelectorAll(".rare-banner").forEach((b) => b.remove());
     });
 

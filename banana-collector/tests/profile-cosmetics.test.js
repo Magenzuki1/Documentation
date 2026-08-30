@@ -1,6 +1,7 @@
-// Vérifie la section "Mes cosmétiques" du profil (Compte) : montre tout ce
-// que le joueur possède déjà (titres/cadres/effets) et permet de changer le
-// titre équipé en un clic, sans passer par l'écran d'achat.
+// Vérifie la section "Mes cosmétiques" du profil (Compte) : une liste
+// déroulante par catégorie (titre/cadre/effet), ne montrant que ce que le
+// joueur possède déjà, et permettant de changer d'équipement en un choix,
+// sans passer par l'écran d'achat.
 const assert = require("assert");
 const { launchChromium } = require("./lib/launch");
 const { startServer } = require("./lib/server");
@@ -25,30 +26,30 @@ async function run() {
     await page.click("#account-btn");
     await page.waitForTimeout(300);
 
-    const equippedPillText = await page.$eval(".cosmetic-pill.equipped", (el) => el.textContent);
-    assert.ok(equippedPillText.includes("Ami des Fruits"), `expected the equipped title pill to show 'Ami des Fruits', got: ${equippedPillText}`);
+    const titleSelectValue = await page.$eval("#profile-cosmetic-title-select", (el) => el.value);
+    assert.strictEqual(titleSelectValue, "title_ami_fruits", "the title dropdown must show the currently equipped title as selected");
 
-    const ownedTitlePillCount = await page.evaluate(() => {
-      const group = [...document.querySelectorAll(".profile-cosmetics-group")].find((g) => g.textContent.includes("Titre ("));
-      return group.querySelectorAll(".cosmetic-pill").length;
-    });
-    // Automatique + 2 titres possédés = 3 pastilles, jamais les titres non débloqués.
-    assert.strictEqual(ownedTitlePillCount, 3, `expected 3 title pills (auto + 2 owned), got ${ownedTitlePillCount}`);
+    const titleOptionCount = await page.$$eval("#profile-cosmetic-title-select option", (els) => els.length);
+    // "Automatique" + 2 titres possédés = 3 options, jamais les titres non débloqués.
+    assert.strictEqual(titleOptionCount, 3, `expected 3 title options (auto + 2 owned), got ${titleOptionCount}`);
 
-    const clicked = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll(".cosmetic-pill")].find((b) => b.textContent.includes("Insomniaque"));
-      if (!btn) return false;
-      btn.click();
-      return true;
-    });
-    assert.ok(clicked, "could not find the Insomniaque pill to click");
+    // Le cadre et l'effet doivent aussi être des listes déroulantes, chacune
+    // avec au moins l'option "Aucun cadre"/"Aucun effet" (toujours possédée).
+    assert.ok(await page.$("#profile-cosmetic-frame-select"), "frame dropdown missing");
+    assert.ok(await page.$("#profile-cosmetic-effect-select"), "effect dropdown missing");
+    const frameOptionCount = await page.$$eval("#profile-cosmetic-frame-select option", (els) => els.length);
+    assert.ok(frameOptionCount >= 1, "expected at least the default 'no frame' option");
+
+    // Changer la sélection du titre l'équipe immédiatement.
+    await page.selectOption("#profile-cosmetic-title-select", "title_insomniaque");
     await page.waitForTimeout(200);
-
     const equippedAfter = await page.evaluate(() => state.cosmetics.equippedTitle);
-    assert.strictEqual(equippedAfter, "title_insomniaque", "clicking an owned title pill must equip it immediately");
+    assert.strictEqual(equippedAfter, "title_insomniaque", "selecting an owned title in the dropdown must equip it immediately");
 
-    const newEquippedPillText = await page.$eval(".cosmetic-pill.equipped", (el) => el.textContent);
-    assert.ok(newEquippedPillText.includes("Insomniaque"), "the newly equipped pill must now show the checkmark");
+    // La modale se re-rend après un changement : le menu doit refléter la
+    // nouvelle sélection (pas rester bloqué sur l'ancienne valeur).
+    const titleSelectValueAfter = await page.$eval("#profile-cosmetic-title-select", (el) => el.value);
+    assert.strictEqual(titleSelectValueAfter, "title_insomniaque", "the dropdown must reflect the newly equipped title after re-render");
 
     assert.strictEqual(pageErrors.length, 0, `unexpected page errors: ${pageErrors.join(", ")}`);
   } finally {
