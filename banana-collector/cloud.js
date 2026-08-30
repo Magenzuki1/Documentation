@@ -1206,6 +1206,15 @@ const CLOUD = (() => {
     return { ok: true };
   }
 
+  // Force le boost du dimanche (semaine en cours, si le boss n'est pas
+  // encore vaincu) sans attendre le cron — même logique de confort de test.
+  async function adminForceSundayBoost() {
+    if (!supabase) return unavailable;
+    const { error } = await supabase.rpc("admin_force_sunday_boost");
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   // Synchronisation débounced : appelée librement par le reste du jeu à
   // chaque action pertinente (achat, vente, fin de combat...) sans jamais
   // ralentir l'action elle-même — la requête réseau part quelques secondes
@@ -1359,6 +1368,7 @@ const CLOUD = (() => {
     fetchGlobalChatMessages,
     adminResetGlobalChat,
     adminForceDistributeBossRewards,
+    adminForceSundayBoost,
     isAdmin,
     isBanned,
     banReason,

@@ -487,7 +487,7 @@
 
         <div id="combat-boss-view" class="hidden">
           <h2>🐲 Boss d'Arène hebdomadaire</h2>
-          <p class="shop-hint">Un boss communautaire chaque semaine : une seule barre de vie partagée par tous les joueurs. 5 essais par jour (achetables en boutique jusqu'à 10), chaque essai inflige des dégâts selon la banane choisie. Le boss se réinitialise chaque lundi. S'il est vaincu, tout joueur ayant infligé des dégâts reçoit automatiquement pièces + bananes le lundi suivant à 01h (bonus supplémentaire pour les 10 meilleurs au classement des dégâts) — voir l'onglet "🏆 Dégâts" pour le détail. Pas de boss vaincu, pas de récompense.</p>
+          <p class="shop-hint">Un boss communautaire chaque semaine : une seule barre de vie partagée par tous les joueurs. 5 essais par jour (achetables en boutique jusqu'à 10, à racheter chaque semaine), chaque essai inflige des dégâts selon la banane choisie. Le boss se réinitialise chaque lundi. S'il n'est pas encore vaincu le dimanche, il devient 20% plus fort et les récompenses de la semaine sont augmentées de 20%. S'il est vaincu, tout joueur ayant infligé des dégâts reçoit automatiquement pièces + bananes le lundi suivant à 01h (bonus supplémentaire pour les 10 meilleurs au classement des dégâts) — voir l'onglet "🏆 Dégâts" pour le détail. Pas de boss vaincu, pas de récompense.</p>
           <div id="boss-locked" class="secret-hint hidden">🔒 Connecte-toi (bouton "👤 Compte" en haut de la page) pour affronter le Boss hebdomadaire.</div>
 
           <div id="boss-content" class="hidden">
@@ -509,7 +509,7 @@
               <h3>🏆 Classement des dégâts (cette semaine)</h3>
               <div id="boss-leaderboard"></div>
               <h3>🎁 Récompenses possibles (si le boss est vaincu)</h3>
-              <p class="shop-hint">Deux gains distincts, cumulables : la récompense de participation (individuelle, pour tous) et le bonus de classement (collectif, en plus, pour le top 10 des dégâts).</p>
+              <p class="shop-hint">Deux gains distincts, cumulables : la récompense de participation (individuelle, pour tous) et le bonus de classement (collectif, en plus, pour le top 10 des dégâts). Montants ci-dessous pour une semaine normale — si le boss n'est pas encore vaincu le dimanche, tout est augmenté de 20% pour cette semaine-là.</p>
               <div id="boss-reward-tiers"></div>
             </div>
           </div>
@@ -825,6 +825,9 @@
         <p class="shop-hint">Distribue immédiatement les récompenses du Boss des semaines closes (vaincu, pas encore distribué), sans attendre le cron du lundi 01:00.</p>
         <button class="btn" id="admin-boss-force-distribute-btn">🎁 Forcer la distribution des récompenses du Boss</button>
         <p id="admin-boss-force-distribute-result" class="account-hint hidden"></p>
+        <p class="shop-hint">Force le boost du dimanche (PV +20%, récompenses +20%) sur la semaine en cours, si le boss n'est pas encore vaincu, sans attendre dimanche.</p>
+        <button class="btn" id="admin-boss-force-sunday-boost-btn">🔥 Forcer le boost du dimanche</button>
+        <p id="admin-boss-force-sunday-boost-result" class="account-hint hidden"></p>
       </div>
 
       <div id="admin-events-view" class="hidden">
