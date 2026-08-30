@@ -10,6 +10,9 @@ document.addEventListener("DOMContentLoaded", () => {
     tabsNav: document.querySelector(".tabs"),
     tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
     tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
+    bossEventBubble: document.getElementById("boss-event-bubble"),
+    bossEventBubbleEmoji: document.getElementById("boss-event-bubble-emoji"),
+    bossEventBubbleHp: document.getElementById("boss-event-bubble-hp"),
     harvestBtn: document.getElementById("harvest-btn"),
     lastBanana: document.getElementById("last-banana"),
     collectionGrid: document.getElementById("collection-grid"),
@@ -362,7 +365,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // onglets, et tourne en continu (voir startActivityFeedPolling() plus
     // bas) ; on force juste un rafraîchissement immédiat au retour sur
     // l'Accueil pour une info toujours à jour.
-    if (name === "accueil") renderActivityFeed();
+    if (name === "accueil") {
+      renderActivityFeed();
+      renderBossEventBubble();
+    }
     if (name === "progression") showProgressionView(progressionView);
     if (name === "economie") showEconomieView(economieView);
     if (name === "combat") showCombatView(combatView);
@@ -3404,6 +3410,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.bossAttackBtn.textContent = defeated ? "🏆 Boss vaincu cette semaine" : noAttemptsLeft ? "⏳ Plus d'essais aujourd'hui" : "⚔️ Attaquer le Boss";
 
     await renderBossRewardBanner();
+    renderBossEventBubble(boss);
   }
 
   els.bossAttackBtn.addEventListener("click", async () => {
@@ -3452,6 +3459,40 @@ document.addEventListener("DOMContentLoaded", () => {
       "Une récompense de la semaine dernière t'attend dans l'onglet Boss !"
     );
   }
+
+  // Bulle flottante sur la page Tirage : rend le Boss hebdomadaire visible
+  // en permanence, pas juste caché dans un sous-onglet du Combat. `preloadedBoss`
+  // évite un second appel réseau quand renderBossTab() vient déjà d'en récupérer un.
+  async function renderBossEventBubble(preloadedBoss) {
+    if (!els.bossEventBubble) return;
+    if (!CLOUD.available) {
+      els.bossEventBubble.classList.add("hidden");
+      return;
+    }
+    if (!CLOUD.isLinked()) {
+      els.bossEventBubble.classList.remove("hidden");
+      els.bossEventBubbleEmoji.textContent = "🐲";
+      els.bossEventBubbleHp.textContent = "";
+      els.bossEventBubbleHp.classList.remove("defeated");
+      return;
+    }
+    const boss = preloadedBoss !== undefined ? preloadedBoss : await CLOUD.getWeeklyBoss();
+    if (!boss) {
+      els.bossEventBubble.classList.add("hidden");
+      return;
+    }
+    els.bossEventBubble.classList.remove("hidden");
+    els.bossEventBubbleEmoji.textContent = boss.emoji;
+    const defeated = !!boss.defeated_at;
+    const pct = Math.max(0, Math.min(100, Math.round((Number(boss.current_hp) / Number(boss.max_hp)) * 100)));
+    els.bossEventBubbleHp.textContent = defeated ? "Vaincu !" : `${pct}% PV`;
+    els.bossEventBubbleHp.classList.toggle("defeated", defeated);
+  }
+
+  els.bossEventBubble.addEventListener("click", () => {
+    showTab("combat");
+    showCombatView("boss");
+  });
 
   /* ---------------- Statistiques ---------------- */
 
@@ -5388,6 +5429,7 @@ document.addEventListener("DOMContentLoaded", () => {
     checkMarketSaleNotifications();
     checkRequestFulfilledNotifications();
     checkWeeklyBossRewards();
+    renderBossEventBubble();
     // Auto-réparation : si l'amélioration a été achetée avant que ce push
     // n'existe (ou hors ligne), le niveau serveur resterait bloqué à 0 sans
     // ce rattrapage à chaque connexion.
