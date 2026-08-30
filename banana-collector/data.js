@@ -230,7 +230,7 @@ const BANANA_DEFS = [
     image: "images/banana_173.png",
   },
 
-  // ================= Peu commune (31) =================
+  // ================= Peu commune (34) =================
   {
     id: 25, name: "Banane tachetée", rarity: "peu_commune", image: "images/banana_25.png", emoji: "🍌",
     deco: {
@@ -380,6 +380,18 @@ const BANANA_DEFS = [
   {
     id: 176, name: "Banane citrouille", rarity: "peu_commune", emoji: "🍌",
     image: "images/banana_176.png",
+  },
+  {
+    id: 177, name: "Banane gros bide", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_177.png",
+  },
+  {
+    id: 178, name: "Banane costume", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_178.png",
+  },
+  {
+    id: 179, name: "Banane génie", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_179.png",
   },
 
   // ================= Rare (29) =================
@@ -1090,6 +1102,9 @@ const BANANA_LORE = {
   174: { quote: "Elle prédit la pluie avec une fiabilité de 0 % et une confiance de 100 %.", story: "Banane nuage flotte doucement au-dessus du panier sans jamais vraiment se poser. Elle se prend pour la météo officielle du verger, même si ses prévisions ne se réalisent presque jamais." },
   175: { quote: "Elle a huit pattes et zéro envie de redescendre du panier.", story: "Personne ne sait vraiment si Banane araignée est une banane déguisée en araignée, ou l'inverse. Elle tisse sa toile entre deux fruits sans prévenir, surtout pour le plaisir de voir tout le monde sursauter." },
   176: { quote: "Elle porte son déguisement de citrouille tous les jours, même en plein été.", story: "Banane citrouille refuse catégoriquement d'attendre Halloween pour sortir son costume. Elle affirme que \"l'esprit de la fête\" ne connaît pas de saison, et sourit large dès qu'on la regarde de travers." },
+  177: { quote: "Elle jure que c'est juste \"de la rétention d'eau\" depuis six mois.", story: "Banane gros bide a arrêté de compter les goûters vers le troisième de la journée. Elle refuse tout régime, préférant l'excuse du \"gros os\", même si elle n'a techniquement pas d'os." },
+  178: { quote: "Elle porte un smoking même pour aller chercher le courrier.", story: "Banane costume est convaincue qu'aucune occasion n'est trop banale pour un nœud papillon. Elle a une canne qu'elle n'utilise que pour le style, et une moustache qu'elle peigne trois fois par jour." },
+  179: { quote: "Elle exauce trois vœux, à condition qu'ils soient tous pour elle.", story: "Banane génie vit dans une lampe qu'elle refuse obstinément de dépoussiérer. Elle promet monts et merveilles à qui la libère, puis négocie chaque vœu pendant des heures avant de céder, à contrecœur." },
   45: { quote: "Elle dépasse du panier, littéralement et socialement.", story: "Banane géante a dû se faire construire un lit sur mesure. Elle adore rappeler qu'elle voit \"loin, très loin\" par-dessus les autres fruits." },
   46: { quote: "Elle ne demande jamais qu'on lui donne du feu, elle en a déjà trop.", story: "Personne ne sait pourquoi Banane enflammée brûle en permanence sans jamais se consumer. Le verger la garde loin des rideaux, par prudence." },
   47: { quote: "Elle prétend venir d'un endroit \"un peu chaud\", sans donner plus de détails.", story: "Banane des enfers aime jouer les mystérieuses, mais avoue en privé qu'elle vient surtout d'un panier resté trop longtemps au soleil." },
