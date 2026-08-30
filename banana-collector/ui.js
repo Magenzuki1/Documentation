@@ -280,6 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
     seasonPassHeaderPoints: document.getElementById("season-pass-points"),
     seasonPassHeaderDays: document.getElementById("season-pass-days"),
     seasonPassTrack: document.getElementById("season-pass-track"),
+    seasonPassQuests: document.getElementById("season-pass-quests"),
     revealModal: document.getElementById("reveal-modal"),
     revealModalClose: document.getElementById("reveal-modal-close"),
     revealModalTitle: document.getElementById("reveal-modal-title"),
@@ -927,7 +928,11 @@ document.addEventListener("DOMContentLoaded", () => {
     quests.forEach((quest, i) => {
       setTimeout(() => {
         if (playSound) SFX.quest();
-        showBanner("📜 QUÊTE TERMINÉE !", { emoji: "📜", name: `${quest.desc} (+${quest.reward} 🪙)` }, 2200);
+        const rewardLabel = quest.isSeasonQuest
+          ? `+${quest.xpReward} XP · +${quest.seasonPointsReward} pts saison`
+          : `+${quest.reward} 🪙`;
+        const title = quest.isSeasonQuest ? "🎫 QUÊTE DE SAISON TERMINÉE !" : "📜 QUÊTE TERMINÉE !";
+        showBanner(title, { emoji: quest.isSeasonQuest ? "🎫" : "📜", name: `${quest.desc} (${rewardLabel})` }, 2200);
         spawnConfetti(12);
       }, i * 900);
     });
@@ -1505,6 +1510,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
+  // Même gabarit que renderQuestList, mais la récompense est en XP + points
+  // de saison plutôt qu'en pièces (voir SEASON_QUEST_POOL côté app.js).
+  function renderSeasonQuestList(container, quests) {
+    container.innerHTML = quests.map((quest) => {
+      const pct = Math.round((quest.progress / quest.need) * 100);
+      return `
+        <div class="quest-item ${quest.done ? "done" : ""}">
+          <div class="quest-item-top">
+            <span class="quest-item-desc">${quest.done ? "✅ " : ""}${quest.desc}</span>
+            <span class="quest-item-reward">${quest.xpReward} XP · +${quest.seasonPointsReward} pts</span>
+          </div>
+          <div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${pct}%;"></div></div>
+          <div class="quest-item-count">${quest.progress} / ${quest.need}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   function renderQuests() {
     renderQuestList(els.questsList, questsForToday());
     renderQuestList(els.weeklyQuestsList, weeklyQuestsForToday());
@@ -1621,6 +1644,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!state.discovered.includes(bananaId)) state.discovered.push(bananaId);
         if (result.newCoins != null) state.coins = result.newCoins;
         grantXp(6);
+        bumpSeasonQuestProgress("marketTrades");
         saveState();
         SFX.buy();
         renderHeader();
@@ -1747,6 +1771,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.counts[marketSelectedBananaId] -= quantity;
     grantXp(6);
+    bumpSeasonQuestProgress("marketTrades");
     saveState();
     SFX.buy();
     els.marketSellQuantity.value = "";
@@ -3401,7 +3426,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     SFX[result.won ? "win" : "lose"]();
     state.coins += result.attackerDelta;
-    if (result.won) addSeasonPoints(8);
+    if (result.won) {
+      addSeasonPoints(8);
+      bumpSeasonQuestProgress("pvpWins");
+    }
     saveState();
     renderHeader();
 
@@ -3853,6 +3881,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function openSeasonPassModal() {
     els.seasonPassModal.classList.remove("hidden");
     els.seasonPassTrack.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    // Les quêtes de saison sont 100% locales (comme les quêtes du jour/de la
+    // semaine) : affichées même hors ligne ou sans compte lié, contrairement
+    // aux paliers ci-dessous qui exigent un compte pour être réclamés.
+    renderSeasonQuestList(els.seasonPassQuests, seasonQuestsView());
     const [tiers, status] = await Promise.all([CLOUD.fetchSeasonPassTiers(), CLOUD.getMySeasonStatus()]);
     if (!status) {
       els.seasonPassTrack.innerHTML = `<p class="secret-hint">Connecte-toi (bouton Compte) pour suivre ta progression et réclamer tes paliers.</p>`;
@@ -3970,6 +4002,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (result.bossDefeated) spawnConfetti(30);
     grantXp(6);
     addSeasonPoints(10);
+    bumpSeasonQuestProgress("bossAttacks");
     saveState();
     renderHeader();
     CLOUD.scheduleSync();

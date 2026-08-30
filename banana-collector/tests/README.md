@@ -36,6 +36,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `profile-cosmetics.test.js` — la section "Mes cosmétiques" du profil ne
   montre que ce qui est possédé et permet de changer le titre équipé en un
   clic.
+- `season-quests.test.js` — les Quêtes de saison se complètent une seule
+  fois, récompensent en XP + points de saison (jamais en pièces), et se
+  remettent à zéro avec le reste du Passe saisonnier au changement de mois.
 
 ## Ajouter un test
 
