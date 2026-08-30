@@ -165,6 +165,9 @@ document.addEventListener("DOMContentLoaded", () => {
     adminGiftCoins: document.getElementById("admin-gift-coins"),
     adminBananaSelect: document.getElementById("admin-banana-select"),
     adminBananaQuantity: document.getElementById("admin-banana-quantity"),
+    adminCosmeticKindSelect: document.getElementById("admin-cosmetic-kind-select"),
+    adminCosmeticIdSelect: document.getElementById("admin-cosmetic-id-select"),
+    adminMedalSelect: document.getElementById("admin-medal-select"),
     adminGiftMessage: document.getElementById("admin-gift-message"),
     adminBananaGrantBtn: document.getElementById("admin-banana-grant-btn"),
     adminBananasError: document.getElementById("admin-bananas-error"),
@@ -3509,12 +3512,20 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  const COSMETIC_LISTS_BY_KIND = { frame: COSMETIC_FRAMES, title: COSMETIC_TITLES, effect: COSMETIC_EFFECTS };
+
   function pendingGiftRowHTML(gift) {
     const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
     const bananaName = gift.banana_id ? BANANAS_BY_ID[gift.banana_id]?.name || "banane" : null;
+    const cosmeticName = gift.cosmetic_id
+      ? (COSMETIC_LISTS_BY_KIND[gift.cosmetic_kind] || []).find((c) => c.id === gift.cosmetic_id)?.name || gift.cosmetic_id
+      : null;
+    const medalDef = gift.medal_id ? MEDALS.find((m) => m.id === gift.medal_id) : null;
     const parts = [];
     if (gift.coins > 0) parts.push(`🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces`);
     if (bananaName) parts.push(`${gift.banana_quantity} × ${bananaName}`);
+    if (cosmeticName) parts.push(`🎨 ${cosmeticName}`);
+    if (medalDef) parts.push(`🏅 ${medalDef.icon} ${medalDef.name}`);
     return `
       <div class="admin-log-row">
         <div><strong>🎁 Cadeau reçu (${date})</strong></div>
@@ -3533,6 +3544,21 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.textContent = "Récupérer";
       showBanner("❌ Erreur", { emoji: "🚫", name: res.reason || "Impossible de récupérer ce cadeau" }, 1800);
       return;
+    }
+    // Pièces/bananes : déjà créditées côté serveur et rapatriées par
+    // claimGift() (pullLedger/pullBananas). Cosmétique/médaille n'ont pas de
+    // table serveur : c'est ici, et seulement ici (un seul claim possible
+    // par cadeau), qu'on les ajoute à l'état local — puis on pousse la
+    // médaille comme n'importe quel autre déblocage, pour qu'elle apparaisse
+    // sur le profil public.
+    if (res.cosmeticId && !state.cosmetics.unlocked.includes(res.cosmeticId)) {
+      state.cosmetics.unlocked.push(res.cosmeticId);
+      saveState();
+    }
+    if (res.medalId && !state.medals.unlocked.includes(res.medalId)) {
+      state.medals.unlocked.push(res.medalId);
+      saveState();
+      CLOUD.syncMedals(state.medals.unlocked);
     }
     SFX.buy();
     spawnConfetti(20);
@@ -5179,6 +5205,28 @@ document.addEventListener("DOMContentLoaded", () => {
     .map((b) => `<option value="${b.id}">${b.name} — ${RARITIES[b.rarity].label}</option>`)
     .join(""));
 
+  // Cadres/titres/effets/médailles n'ont pas de catalogue serveur (voir
+  // admin_send_gift côté Supabase) : ces listes viennent directement de
+  // app.js, comme tout le reste de l'UI cosmétique/médailles du jeu (voir
+  // aussi COSMETIC_LISTS_BY_KIND ci-dessus, utilisé côté boîte à cadeaux).
+  function refreshAdminCosmeticIdSelect() {
+    const kind = els.adminCosmeticKindSelect.value;
+    if (!kind) {
+      els.adminCosmeticIdSelect.innerHTML = "";
+      els.adminCosmeticIdSelect.classList.add("hidden");
+      return;
+    }
+    els.adminCosmeticIdSelect.innerHTML = COSMETIC_LISTS_BY_KIND[kind]
+      .map((c) => `<option value="${c.id}">${c.name}</option>`)
+      .join("");
+    els.adminCosmeticIdSelect.classList.remove("hidden");
+  }
+  els.adminCosmeticKindSelect.addEventListener("change", refreshAdminCosmeticIdSelect);
+
+  els.adminMedalSelect.insertAdjacentHTML("beforeend", MEDALS
+    .map((m) => `<option value="${m.id}">${m.icon} ${m.name}</option>`)
+    .join(""));
+
   function renderAdminBananas() {
     els.adminBananasError.classList.add("hidden");
     els.adminBananasSuccess.classList.add("hidden");
@@ -5190,6 +5238,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const bananaIdRaw = els.adminBananaSelect.value;
     const bananaId = bananaIdRaw ? Number(bananaIdRaw) : null;
     const quantity = bananaId ? Math.floor(Number(els.adminBananaQuantity.value)) : 0;
+    const cosmeticKind = els.adminCosmeticKindSelect.value || null;
+    const cosmeticId = cosmeticKind ? els.adminCosmeticIdSelect.value : null;
+    const medalId = els.adminMedalSelect.value || null;
     const message = els.adminGiftMessage.value.trim();
     els.adminBananasError.classList.add("hidden");
     els.adminBananasSuccess.classList.add("hidden");
@@ -5203,13 +5254,13 @@ document.addEventListener("DOMContentLoaded", () => {
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    if (coins <= 0 && !bananaId) {
-      els.adminBananasError.textContent = "Indique au moins des pièces ou une banane à offrir.";
+    if (coins <= 0 && !bananaId && !cosmeticId && !medalId) {
+      els.adminBananasError.textContent = "Indique au moins des pièces, une banane, un cosmétique ou une médaille à offrir.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
     els.adminBananaGrantBtn.disabled = true;
-    const res = await CLOUD.adminSendGift(username, coins, bananaId, quantity, message);
+    const res = await CLOUD.adminSendGift(username, coins, bananaId, quantity, cosmeticKind, cosmeticId, medalId, message);
     els.adminBananaGrantBtn.disabled = false;
     if (!res.ok) {
       els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
@@ -5217,13 +5268,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const bananaName = bananaId ? BANANAS_BY_ID[bananaId]?.name || "banane" : null;
+    const cosmeticName = cosmeticId ? COSMETIC_LISTS_BY_KIND[cosmeticKind].find((c) => c.id === cosmeticId)?.name : null;
+    const medalName = medalId ? MEDALS.find((m) => m.id === medalId)?.name : null;
     const parts = [];
     if (coins > 0) parts.push(`${coins} pièces`);
     if (bananaName) parts.push(`${quantity} × ${bananaName}`);
+    if (cosmeticName) parts.push(cosmeticName);
+    if (medalName) parts.push(`médaille ${medalName}`);
     els.adminBananasSuccess.textContent = `Cadeau envoyé à ${username} (${parts.join(" + ")}) — il devra le récupérer dans sa boîte à cadeaux.`;
     els.adminBananasSuccess.classList.remove("hidden");
     els.adminBananaUsername.value = "";
     els.adminGiftCoins.value = 0;
+    els.adminCosmeticKindSelect.value = "";
+    refreshAdminCosmeticIdSelect();
+    els.adminMedalSelect.value = "";
     els.adminBananaSelect.value = "";
     els.adminBananaQuantity.value = 1;
     els.adminGiftMessage.value = "";
