@@ -124,6 +124,27 @@ h1, h2, h3,
   padding: 0 3px;
 }
 
+.reward-banana-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.reward-banana-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--rarity-color);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
 .settings-gear-btn {
   border: none;
   background: var(--card-bg);
