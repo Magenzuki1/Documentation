@@ -2765,6 +2765,12 @@ h1, h2, h3,
 }
 .modal.hidden { display: none; }
 
+/* Le modal de confirmation générique peut s'ouvrir PAR-DESSUS un autre modal
+   déjà affiché (ex: reset chat/fil d'actualité depuis le panneau admin) —
+   sans ce z-index plus élevé, les deux partagent le même 110 et c'est
+   l'ordre du DOM qui décide lequel reçoit les clics, pas lequel est ouvert. */
+#action-confirm-modal { z-index: 120; }
+
 .modal-box {
   background: var(--card-bg);
   border-radius: var(--radius);

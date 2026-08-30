@@ -50,6 +50,10 @@ document.addEventListener("DOMContentLoaded", () => {
     confirmModal: document.getElementById("confirm-modal"),
     confirmYes: document.getElementById("confirm-yes"),
     confirmNo: document.getElementById("confirm-no"),
+    actionConfirmModal: document.getElementById("action-confirm-modal"),
+    actionConfirmMessage: document.getElementById("action-confirm-message"),
+    actionConfirmYes: document.getElementById("action-confirm-yes"),
+    actionConfirmNo: document.getElementById("action-confirm-no"),
     toastLayer: document.getElementById("toast-layer"),
     minigamesMenu: document.getElementById("minigames-menu"),
     openCatchGame: document.getElementById("open-catch-game"),
@@ -3630,12 +3634,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") sendChatMessage();
   });
 
-  els.chatAdminResetBtn.addEventListener("click", async () => {
-    if (!confirm("Vider le chat général pour TOUS les joueurs ? Action irréversible.")) return;
-    els.chatAdminResetBtn.disabled = true;
-    await CLOUD.adminResetGlobalChat();
-    els.chatAdminResetBtn.disabled = false;
-    await renderChat();
+  els.chatAdminResetBtn.addEventListener("click", () => {
+    confirmAction("Vider le chat général pour TOUS les joueurs ? Action irréversible.", async () => {
+      els.chatError.classList.add("hidden");
+      els.chatAdminResetBtn.disabled = true;
+      const res = await CLOUD.adminResetGlobalChat();
+      els.chatAdminResetBtn.disabled = false;
+      if (!res.ok) {
+        els.chatError.textContent = res.reason || "Erreur inconnue.";
+        els.chatError.classList.remove("hidden");
+        return;
+      }
+      await renderChat();
+    });
   });
 
   function dmThreadRowHTML(thread) {
@@ -3783,10 +3794,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
     els.friendsList.querySelectorAll("[data-remove]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        if (!confirm(`Retirer ${btn.dataset.remove} de tes amis ?`)) return;
-        await CLOUD.removeFriend(btn.dataset.remove);
-        await renderFriends();
+      btn.addEventListener("click", () => {
+        confirmAction(`Retirer ${btn.dataset.remove} de tes amis ?`, async () => {
+          await CLOUD.removeFriend(btn.dataset.remove);
+          await renderFriends();
+        });
       });
     });
   }
@@ -4889,26 +4901,25 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminNewsHistory();
   });
 
-  els.adminNewsResetBtn.addEventListener("click", async () => {
+  els.adminNewsResetBtn.addEventListener("click", () => {
     els.adminNewsError.classList.add("hidden");
     els.adminNewsSuccess.classList.add("hidden");
-    if (!confirm("Vider le fil d'actualité pour TOUS les joueurs (événements notables + annonces) ? Action irréversible.")) {
-      return;
-    }
-    els.adminNewsResetBtn.disabled = true;
-    const res = await CLOUD.adminResetActivityFeed();
-    els.adminNewsResetBtn.disabled = false;
-    if (!res.ok) {
-      els.adminNewsError.textContent = res.reason || "Erreur inconnue.";
-      els.adminNewsError.classList.remove("hidden");
-      return;
-    }
-    els.adminNewsSuccess.textContent = "Fil d'actualité réinitialisé !";
-    els.adminNewsSuccess.classList.remove("hidden");
-    renderAdminNewsHistory();
-    // Rafraîchit tout de suite le bandeau global (visible sur tous les
-    // onglets) plutôt que d'attendre le prochain tick de polling.
-    renderActivityFeed();
+    confirmAction("Vider le fil d'actualité pour TOUS les joueurs (événements notables + annonces) ? Action irréversible.", async () => {
+      els.adminNewsResetBtn.disabled = true;
+      const res = await CLOUD.adminResetActivityFeed();
+      els.adminNewsResetBtn.disabled = false;
+      if (!res.ok) {
+        els.adminNewsError.textContent = res.reason || "Erreur inconnue.";
+        els.adminNewsError.classList.remove("hidden");
+        return;
+      }
+      els.adminNewsSuccess.textContent = "Fil d'actualité réinitialisé !";
+      els.adminNewsSuccess.classList.remove("hidden");
+      renderAdminNewsHistory();
+      // Rafraîchit tout de suite le bandeau global (visible sur tous les
+      // onglets) plutôt que d'attendre le prochain tick de polling.
+      renderActivityFeed();
+    });
   });
 
   // Rempli une seule fois : les 7 événements sont un contenu fixe côté client.
@@ -5699,6 +5710,32 @@ document.addEventListener("DOMContentLoaded", () => {
     animatedBtn.classList.toggle("active", animated);
     fastBtn.classList.toggle("active", !animated);
   }
+
+  /* ---------------- Confirmation générique ---------------- */
+
+  // Remplace window.confirm() pour les actions destructrices ajoutées après
+  // coup (reset chat/fil d'actualité, retrait d'ami...) : le confirm()
+  // natif est parfois bloqué ou muet selon le navigateur/webview, auquel cas
+  // "if (!confirm(...)) return;" sort silencieusement sans jamais agir — vu
+  // en prod sur le reset du chat général. Un modal maison est fiable partout.
+  let pendingConfirmAction = null;
+
+  function confirmAction(message, onConfirm) {
+    els.actionConfirmMessage.textContent = message;
+    pendingConfirmAction = onConfirm;
+    els.actionConfirmModal.classList.remove("hidden");
+  }
+
+  els.actionConfirmYes.addEventListener("click", async () => {
+    const action = pendingConfirmAction;
+    pendingConfirmAction = null;
+    els.actionConfirmModal.classList.add("hidden");
+    if (action) await action();
+  });
+  els.actionConfirmNo.addEventListener("click", () => {
+    pendingConfirmAction = null;
+    els.actionConfirmModal.classList.add("hidden");
+  });
 
   /* ---------------- Réinitialisation ---------------- */
 

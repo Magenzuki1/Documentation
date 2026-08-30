@@ -621,6 +621,20 @@
     </div>
   </div>
 
+  <!-- Modal de confirmation générique, réutilisée par toutes les actions
+       destructrices qui ont besoin d'une confirmation (reset chat/fil
+       d'actualité, retrait d'ami...) — window.confirm() natif n'est pas
+       fiable partout (bloqué ou muet dans certains navigateurs/webviews). -->
+  <div id="action-confirm-modal" class="modal hidden">
+    <div class="modal-box">
+      <p id="action-confirm-message"></p>
+      <div class="modal-actions">
+        <button id="action-confirm-yes" class="btn danger">Confirmer</button>
+        <button id="action-confirm-no" class="btn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
   <div id="admin-modal" class="modal hidden">
     <div class="modal-box admin-modal-box">
       <button id="admin-modal-close" class="modal-close-btn" aria-label="Fermer">✕</button>
