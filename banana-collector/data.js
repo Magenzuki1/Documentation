@@ -230,7 +230,7 @@ const BANANA_DEFS = [
     image: "images/banana_173.png",
   },
 
-  // ================= Peu commune (34) =================
+  // ================= Peu commune (37) =================
   {
     id: 25, name: "Banane tachetée", rarity: "peu_commune", image: "images/banana_25.png", emoji: "🍌",
     deco: {
@@ -392,6 +392,18 @@ const BANANA_DEFS = [
   {
     id: 179, name: "Banane génie", rarity: "peu_commune", emoji: "🍌",
     image: "images/banana_179.png",
+  },
+  {
+    id: 180, name: "Banane de terre", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_180.png",
+  },
+  {
+    id: 181, name: "Banane rose", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_181.png",
+  },
+  {
+    id: 182, name: "Banane écrivain", rarity: "peu_commune", emoji: "🍌",
+    image: "images/banana_182.png",
   },
 
   // ================= Rare (29) =================
@@ -1105,6 +1117,9 @@ const BANANA_LORE = {
   177: { quote: "Elle jure que c'est juste \"de la rétention d'eau\" depuis six mois.", story: "Banane gros bide a arrêté de compter les goûters vers le troisième de la journée. Elle refuse tout régime, préférant l'excuse du \"gros os\", même si elle n'a techniquement pas d'os." },
   178: { quote: "Elle porte un smoking même pour aller chercher le courrier.", story: "Banane costume est convaincue qu'aucune occasion n'est trop banale pour un nœud papillon. Elle a une canne qu'elle n'utilise que pour le style, et une moustache qu'elle peigne trois fois par jour." },
   179: { quote: "Elle exauce trois vœux, à condition qu'ils soient tous pour elle.", story: "Banane génie vit dans une lampe qu'elle refuse obstinément de dépoussiérer. Elle promet monts et merveilles à qui la libère, puis négocie chaque vœu pendant des heures avant de céder, à contrecœur." },
+  180: { quote: "Elle cherche des gisements de pépites depuis vingt ans. Elle n'a trouvé que de la terre.", story: "Banane de terre a arpenté toutes les mines abandonnées du verger avec sa pioche et son sac à dos usé. De la mousse a fini par pousser sur elle pendant l'attente, mais elle refuse d'abandonner sa quête d'un trésor qui n'existe probablement pas." },
+  181: { quote: "Elle prend le thé à 16h précises, même seule au milieu d'un champ.", story: "Banane rose porte toujours son plus beau chapeau, même pour une simple sieste au soleil. Elle juge sévèrement quiconque tient sa tasse par le mauvais côté de l'anse." },
+  182: { quote: "Elle travaille sur son premier roman depuis quinze ans. Toujours le même chapitre.", story: "Banane écrivain porte des lunettes qu'elle n'a jamais fait vérifier, et un gilet qu'elle estime \"littéraire\". Elle prétend souffrir de la page blanche, alors que sa page est déjà couverte d'un brouillon illisible." },
   45: { quote: "Elle dépasse du panier, littéralement et socialement.", story: "Banane géante a dû se faire construire un lit sur mesure. Elle adore rappeler qu'elle voit \"loin, très loin\" par-dessus les autres fruits." },
   46: { quote: "Elle ne demande jamais qu'on lui donne du feu, elle en a déjà trop.", story: "Personne ne sait pourquoi Banane enflammée brûle en permanence sans jamais se consumer. Le verger la garde loin des rideaux, par prudence." },
   47: { quote: "Elle prétend venir d'un endroit \"un peu chaud\", sans donner plus de détails.", story: "Banane des enfers aime jouer les mystérieuses, mais avoue en privé qu'elle vient surtout d'un panier resté trop longtemps au soleil." },
