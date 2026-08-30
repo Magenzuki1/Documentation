@@ -927,6 +927,22 @@ document.addEventListener("DOMContentLoaded", () => {
   function showQuestToasts(quests, playSound = true) {
     quests.forEach((quest, i) => {
       setTimeout(() => {
+        if (quest.isSeasonTierUnlock) {
+          // Jamais réclamé automatiquement (comme la boîte à cadeaux) —
+          // juste signalé tout de suite, sans attendre que le joueur pense
+          // à rouvrir la modale du Passe saisonnier de lui-même. On pousse
+          // le total à jour AVANT de rafraîchir la pastille : sinon le
+          // serveur verrait encore l'ancien total (la synchronisation
+          // normale est débounced) et la pastille resterait à 0 malgré le
+          // toast qui vient d'annoncer le palier.
+          if (playSound) SFX.quest();
+          showBanner("🎫 PALIER DÉBLOQUÉ !", { emoji: "🎫", name: `Palier ${quest.tier} du Passe saisonnier prêt à réclamer !` }, 2200);
+          spawnConfetti(12);
+          if (CLOUD.available && CLOUD.isLinked()) {
+            CLOUD.pushSeasonPoints().then(refreshSeasonPassBadge);
+          }
+          return;
+        }
         if (playSound) SFX.quest();
         const rewardLabel = quest.isSeasonQuest
           ? `+${quest.xpReward} XP · +${quest.seasonPointsReward} pts saison`

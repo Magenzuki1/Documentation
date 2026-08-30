@@ -543,16 +543,47 @@ function currentSeasonKey() {
 // jamais deux logiques de reset qui pourraient un jour diverger.
 function ensureCurrentSeasonPass() {
   const key = currentSeasonKey();
-  const sp = (state.seasonPass = state.seasonPass || { points: 0, seasonKey: null, questProgress: {}, questsCompleted: [] });
+  const sp = (state.seasonPass = state.seasonPass || { points: 0, seasonKey: null, questProgress: {}, questsCompleted: [], notifiedTiers: [] });
   if (sp.seasonKey !== key) {
     sp.seasonKey = key;
     sp.points = 0;
     sp.questProgress = {};
     sp.questsCompleted = [];
+    sp.notifiedTiers = [];
   }
   if (!sp.questProgress) sp.questProgress = {};
   if (!sp.questsCompleted) sp.questsCompleted = [];
+  if (!sp.notifiedTiers) sp.notifiedTiers = [];
   return sp;
+}
+
+// Aperçu des paliers du Passe saisonnier (list_season_pass_tiers, contenu
+// public identique pour tout le monde) mis en cache localement — comme les
+// quêtes admin/événements — pour pouvoir détecter un franchissement de
+// palier immédiatement après CHAQUE action qui rapporte des points, sans
+// dépendre d'un aller-retour réseau à chaque fois (voir checkQuests()).
+const SEASON_PASS_TIERS_CACHE_KEY = "banana-collector-season-pass-tiers-v1";
+let seasonPassTiersCache = [];
+
+function loadSeasonPassTiersCache() {
+  try {
+    const raw = localStorage.getItem(SEASON_PASS_TIERS_CACHE_KEY);
+    if (raw) seasonPassTiersCache = JSON.parse(raw);
+  } catch (e) {
+    // Cache corrompu/absent : pas de détection de palier avant la prochaine
+    // synchronisation réussie, rien de plus grave (le badge/la modale du
+    // Passe saisonnier restent, eux, toujours exacts car serveur-autoritaires).
+  }
+}
+loadSeasonPassTiersCache();
+
+function setSeasonPassTiersCache(rows) {
+  seasonPassTiersCache = Array.isArray(rows) ? rows : [];
+  try {
+    localStorage.setItem(SEASON_PASS_TIERS_CACHE_KEY, JSON.stringify(seasonPassTiersCache));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
 }
 
 function addSeasonPoints(amount) {
@@ -1500,6 +1531,20 @@ function checkQuests() {
       // isSeasonQuest : distingue ce type de quête dans showQuestToasts()
       // (récompense en XP + points de saison, jamais en pièces).
       completedNow.push({ ...quest, isSeasonQuest: true });
+    }
+  }
+
+  // Notifie dès qu'un palier du Passe saisonnier vient d'être atteint —
+  // jamais réclamé automatiquement (toujours à la main, comme la boîte à
+  // cadeaux), juste signalé tout de suite plutôt que de dépendre du joueur
+  // qui pense à rouvrir la modale. notifiedTiers (jamais désynchronisé des
+  // paliers réellement réclamés : un palier notifié-mais-pas-réclamé reste
+  // simplement visible avec son bouton "Réclamer" dans la modale) empêche
+  // de re-notifier le même palier plusieurs fois dans la même saison.
+  for (const tier of seasonPassTiersCache) {
+    if (state.seasonPass.points >= tier.threshold && !state.seasonPass.notifiedTiers.includes(tier.tier)) {
+      state.seasonPass.notifiedTiers.push(tier.tier);
+      completedNow.push({ isSeasonTierUnlock: true, tier: tier.tier });
     }
   }
 

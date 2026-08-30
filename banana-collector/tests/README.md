@@ -39,6 +39,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `season-quests.test.js` — les Quêtes de saison se complètent une seule
   fois, récompensent en XP + points de saison (jamais en pièces), et se
   remettent à zéro avec le reste du Passe saisonnier au changement de mois.
+- `season-tier-notification.test.js` — franchir un palier du Passe
+  saisonnier déclenche un toast immédiatement (sans rouvrir la modale), une
+  seule fois par palier et par saison.
 
 ## Ajouter un test
 

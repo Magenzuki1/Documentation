@@ -1315,6 +1315,15 @@ const CLOUD = (() => {
     } catch (e) {
       // Hors ligne : on garde les derniers montants connus en cache local.
     }
+    // Paliers du Passe saisonnier : même logique, contenu global public —
+    // mis en cache pour détecter un franchissement de palier tout de suite
+    // après chaque action (voir checkQuests()), sans réseau à chaque fois.
+    try {
+      const seasonPassTiers = await fetchSeasonPassTiers();
+      if (seasonPassTiers && seasonPassTiers.length > 0) setSeasonPassTiersCache(seasonPassTiers);
+    } catch (e) {
+      // Hors ligne : on garde la dernière échelle de paliers connue en cache local.
+    }
     // Nom/citation/histoire de bananes modifiés par un admin : même logique, contenu global public.
     try {
       const bananaContentOverrides = await fetchBananaContentOverrides();
@@ -1365,6 +1374,7 @@ const CLOUD = (() => {
     fetchSeasonPassTiers,
     getMySeasonStatus,
     claimSeasonTier,
+    pushSeasonPoints,
     resetCloudProgress,
     scheduleSync,
     fetchLeaderboard,
