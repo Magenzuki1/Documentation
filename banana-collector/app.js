@@ -488,6 +488,187 @@ function saveState() {
   }
 }
 
+/* ---------------- Progression synchronisée par compte ----------------
+   Ce qui a SA propre synchronisation dédiée n'est jamais repris ici, pour
+   ne pas avoir deux sources de vérité sur la même donnée : le solde (journal
+   d'événements), la collection (counts/discovered), l'Arène solo, les succès,
+   les médailles, les cosmétiques équipés, le profil, les points de saison et
+   la préférence d'animation. Tout le RESTE de la progression ne vivait
+   qu'en local — un compte retrouvé depuis un autre appareil repartait donc
+   avec cette partie-là vide.
+
+   Règle absolue de la fusion : maximum/union, jamais d'écrasement. Un
+   appareil en retard (ou hors ligne depuis longtemps) ne peut donc pas
+   effacer une progression réalisée ailleurs — c'est exactement le piège qui
+   a déjà coûté à des joueurs leurs achats du Marché. */
+const SYNCED_MAX_NUMBER_FIELDS = [
+  "totalCoinsEarned", "clicks", "totalRolls", "mythicCount", "playerXp",
+  "wheelSpinsTotal", "dailyQuestsCompletedTotal", "weeklyQuestsCompletedTotal",
+];
+
+function collectSyncableState(s = state) {
+  return {
+    v: 1,
+    nums: SYNCED_MAX_NUMBER_FIELDS.reduce((acc, k) => {
+      acc[k] = s[k] || 0;
+      return acc;
+    }, {}),
+    upgrades: { ...s.upgrades },
+    bananaLevels: { ...s.bananaLevels },
+    firstObtainedAt: { ...s.firstObtainedAt },
+    prestigeLevel: s.prestige.level || 0,
+    adsTotalWatched: (s.ads && s.ads.totalWatched) || 0,
+    streak: { ...s.streak },
+    catchGame: { ...s.catchGame },
+    memoryGame: { ...s.memoryGame },
+    blackjackGame: { ...s.blackjackGame },
+    slotGame: { ...s.slotGame },
+    quests: { ...s.quests },
+    weeklyQuests: { ...s.weeklyQuests },
+    permanentQuests: { completed: [...(s.permanentQuests.completed || [])] },
+    seasonPass: { ...s.seasonPass },
+    market: { ...s.market },
+    chanceBoost: { ...s.chanceBoost },
+    tabsUnlocked: [...(s.tabsUnlocked || [])],
+    onboardingWelcomeSeen: !!(s.onboarding && s.onboarding.welcomeSeen),
+    darkMode: !!(s.settings && s.settings.darkMode),
+  };
+}
+
+function maxNum(a, b) {
+  return Math.max(Number(a) || 0, Number(b) || 0);
+}
+
+function mergeMaxMap(localMap, remoteMap) {
+  const out = { ...(localMap || {}) };
+  for (const key of Object.keys(remoteMap || {})) {
+    out[key] = maxNum(out[key], remoteMap[key]);
+  }
+  return out;
+}
+
+function mergeUnion(localList, remoteList) {
+  return Array.from(new Set([...(localList || []), ...(remoteList || [])]));
+}
+
+// Fusionne un lot de quêtes daté (journalières/hebdomadaires) : à période
+// identique on cumule (progression au max, terminées en union) ; si le
+// serveur porte une période PLUS RÉCENTE, c'est lui qui fait foi (le tirage
+// de quêtes de cette période a déjà eu lieu ailleurs, on l'adopte plutôt que
+// d'en générer un second, différent, sur cet appareil).
+function mergeDatedQuests(local, remote, periodKey) {
+  if (!remote || !remote[periodKey]) return local;
+  if (!local[periodKey] || String(remote[periodKey]) > String(local[periodKey])) {
+    return {
+      [periodKey]: remote[periodKey],
+      assigned: [...(remote.assigned || [])],
+      progress: { ...(remote.progress || {}) },
+      completed: [...(remote.completed || [])],
+    };
+  }
+  if (String(remote[periodKey]) < String(local[periodKey])) return local;
+  return {
+    [periodKey]: local[periodKey],
+    assigned: local.assigned,
+    progress: mergeMaxMap(local.progress, remote.progress),
+    completed: mergeUnion(local.completed, remote.completed),
+  };
+}
+
+// Applique l'état d'un compte rapatrié du serveur à l'état local. Retourne
+// true si quelque chose a changé (pour ne sauvegarder que si utile).
+function mergeRemoteState(remote) {
+  if (!remote || typeof remote !== "object") return false;
+  const before = JSON.stringify(collectSyncableState());
+
+  for (const key of SYNCED_MAX_NUMBER_FIELDS) {
+    state[key] = maxNum(state[key], remote.nums && remote.nums[key]);
+  }
+  state.upgrades = mergeMaxMap(state.upgrades, remote.upgrades);
+  state.bananaLevels = mergeMaxMap(state.bananaLevels, remote.bananaLevels);
+  state.prestige.level = maxNum(state.prestige.level, remote.prestigeLevel);
+  state.ads.totalWatched = maxNum(state.ads.totalWatched, remote.adsTotalWatched);
+
+  // Date de première découverte : c'est la PLUS ANCIENNE qui est la vraie.
+  for (const id of Object.keys(remote.firstObtainedAt || {})) {
+    const mine = state.firstObtainedAt[id];
+    const theirs = remote.firstObtainedAt[id];
+    if (theirs && (!mine || String(theirs) < String(mine))) state.firstObtainedAt[id] = theirs;
+  }
+
+  if (remote.streak) {
+    state.streak.count = maxNum(state.streak.count, remote.streak.count);
+    if (remote.streak.lastLoginDate && (!state.streak.lastLoginDate || String(remote.streak.lastLoginDate) > String(state.streak.lastLoginDate))) {
+      state.streak.lastLoginDate = remote.streak.lastLoginDate;
+    }
+  }
+
+  // Records de minijeux : le meilleur des deux, en tenant compte du fait
+  // qu'un score bas est meilleur pour les coups et le temps de la Mémoire.
+  state.catchGame.bestScore = maxNum(state.catchGame.bestScore, remote.catchGame && remote.catchGame.bestScore);
+  state.catchGame.bestCoins = maxNum(state.catchGame.bestCoins, remote.catchGame && remote.catchGame.bestCoins);
+  if (remote.memoryGame) {
+    state.memoryGame.gamesPlayed = maxNum(state.memoryGame.gamesPlayed, remote.memoryGame.gamesPlayed);
+    const bestOfLower = (mine, theirs) => {
+      if (theirs == null) return mine;
+      if (mine == null) return theirs;
+      return Math.min(mine, theirs);
+    };
+    state.memoryGame.bestMoves = bestOfLower(state.memoryGame.bestMoves, remote.memoryGame.bestMoves);
+    state.memoryGame.bestTimeMs = bestOfLower(state.memoryGame.bestTimeMs, remote.memoryGame.bestTimeMs);
+    state.memoryGame.records = { ...(remote.memoryGame.records || {}), ...(state.memoryGame.records || {}) };
+  }
+  for (const g of ["blackjackGame", "slotGame"]) {
+    if (!remote[g]) continue;
+    for (const k of Object.keys(remote[g])) {
+      state[g][k] = maxNum(state[g][k], remote[g][k]);
+    }
+  }
+
+  state.quests = mergeDatedQuests(state.quests, remote.quests, "date");
+  state.weeklyQuests = mergeDatedQuests(state.weeklyQuests, remote.weeklyQuests, "weekKey");
+  state.permanentQuests.completed = mergeUnion(state.permanentQuests.completed, remote.permanentQuests && remote.permanentQuests.completed);
+
+  // Passe saisonnier : une saison serveur plus récente remplace la locale
+  // (la locale appartient alors à un mois révolu) ; à saison égale, on cumule.
+  if (remote.seasonPass && remote.seasonPass.seasonKey) {
+    const localKey = state.seasonPass.seasonKey;
+    if (!localKey || String(remote.seasonPass.seasonKey) > String(localKey)) {
+      state.seasonPass = {
+        points: remote.seasonPass.points || 0,
+        seasonKey: remote.seasonPass.seasonKey,
+        questProgress: { ...(remote.seasonPass.questProgress || {}) },
+        questsCompleted: [...(remote.seasonPass.questsCompleted || [])],
+        notifiedTiers: [...(remote.seasonPass.notifiedTiers || [])],
+      };
+    } else if (String(remote.seasonPass.seasonKey) === String(localKey)) {
+      state.seasonPass.points = maxNum(state.seasonPass.points, remote.seasonPass.points);
+      state.seasonPass.questProgress = mergeMaxMap(state.seasonPass.questProgress, remote.seasonPass.questProgress);
+      state.seasonPass.questsCompleted = mergeUnion(state.seasonPass.questsCompleted, remote.seasonPass.questsCompleted);
+      state.seasonPass.notifiedTiers = mergeUnion(state.seasonPass.notifiedTiers, remote.seasonPass.notifiedTiers);
+    }
+  }
+
+  state.market = mergeMaxMap(state.market, remote.market);
+
+  // Boost de chance : celui qui expire le plus tard gagne (un boost gagné
+  // ailleurs doit s'appliquer ici aussi).
+  if (remote.chanceBoost && remote.chanceBoost.expiresAt) {
+    const mine = state.chanceBoost.expiresAt || 0;
+    if (remote.chanceBoost.expiresAt > mine) {
+      state.chanceBoost = { percent: remote.chanceBoost.percent || 0, expiresAt: remote.chanceBoost.expiresAt };
+    }
+  }
+
+  state.tabsUnlocked = mergeUnion(state.tabsUnlocked, remote.tabsUnlocked);
+  if (remote.onboardingWelcomeSeen) state.onboarding.welcomeSeen = true;
+  if (typeof remote.darkMode === "boolean") state.settings.darkMode = remote.darkMode;
+
+  const changed = JSON.stringify(collectSyncableState()) !== before;
+  if (changed) saveState();
+  return changed;
+}
+
 // Tous les gains de pièces (récolte, pub, roue, mini-jeux, combat, succès,
 // prime de connexion) passent par ici pour que le multiplicateur de boutique
 // s'applique partout de façon cohérente.
