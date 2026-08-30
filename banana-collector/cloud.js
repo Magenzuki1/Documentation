@@ -71,6 +71,10 @@ const CLOUD = (() => {
     }
     cachedUsername = username.toLowerCase();
     cachedUserId = data.session.user.id;
+    // Avant d'écraser l'état local avec celui du compte : met de côté la
+    // progression invité actuelle (voir son commentaire) pour pouvoir la
+    // restituer si ce compte se déconnecte plus tard sur cet appareil.
+    snapshotGuestStateIfGuest();
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
@@ -94,6 +98,10 @@ const CLOUD = (() => {
     if (error) return { ok: false, reason: error.message };
     cachedUsername = username.toLowerCase();
     cachedUserId = data.session.user.id;
+    // Voir signUp() : met de côté la progression invité actuelle avant de la
+    // remplacer par celle du compte, pour pouvoir la restituer à la
+    // déconnexion.
+    snapshotGuestStateIfGuest();
     const cloud = ensureCloudState();
     cloud.linked = true;
     saveState();
@@ -134,9 +142,18 @@ const CLOUD = (() => {
     // améliorations de la boutique ne sont PAS sauvegardés sur le cloud (seuls
     // le solde, les bananes, les médailles et les cosmétiques le sont) — un
     // reset local les détruisait définitivement, sans espoir de récupération
-    // à la reconnexion. La progression locale reste donc simplement affichée
-    // telle quelle après déconnexion (voir la discussion produit sur ce
-    // compromis) plutôt que de risquer de perdre la partie du joueur.
+    // à la reconnexion. On restitue à la place la progression invité mise de
+    // côté à la connexion (voir snapshotGuestStateIfGuest()) : ni la
+    // progression du compte qui vient de partir n'y reste affichée, ni la
+    // vraie progression (celle du compte, en sécurité côté cloud, ou celle de
+    // l'invité, dans ce instantané) n'est jamais perdue.
+    restoreGuestStateSnapshot();
+    // L'état vient de changer intégralement (une autre partie peut s'afficher
+    // à l'écran) : un rechargement redonne un rendu cohérent partout, plutôt
+    // que de ré-appeler à la main chaque fonction d'affichage concernée.
+    // Sans risque pour la progression, contrairement à l'ancien correctif :
+    // restoreGuestStateSnapshot() a déjà sauvegardé le nouvel état avant.
+    location.reload();
   }
 
   function isLinked() {

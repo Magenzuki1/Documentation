@@ -49,10 +49,12 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   premier lancement, et les onglets Économie/Combat/Social restent masqués
   puis se révèlent au fil des premiers tirages (avec toast), sans jamais se
   re-masquer une fois débloqués.
-- `sign-out-preserves-progress.test.js` — se déconnecter ne touche QUE le
-  lien cloud : la progression de jeu (y compris l'Arène solo/XP, jamais
-  sauvegardés côté serveur) doit survivre intacte, contrairement à un
-  correctif précédent qui la détruisait sans espoir de récupération.
+- `sign-out-restores-guest-state.test.js` — se déconnecter restitue la
+  progression INVITÉE mise de côté à la connexion (jamais celle, plus
+  riche, du compte qui vient de partir, et jamais un état vide) ; sans
+  instantané invité préalable (compte créé dès le premier lancement),
+  retombe sur un état neuf plutôt que de laisser la progression du compte
+  affichée.
 - `account-login-visibility.test.js` — le bouton d'en-tête annonce clairement
   la connexion quand aucun compte n'est lié, et le formulaire de connexion/
   création de compte apparaît en premier dans la modale "Compte", avant toute
