@@ -31,6 +31,8 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `boss-gift-reveal.test.js` — le reçu de récompense du Boss permet de voir
   les bananes précises obtenues, et les anciens reçus sans cette donnée
   restent affichables sans bouton détail ni erreur.
+- `chance-panel.test.js` — le panneau "Voir mes chances" du Tirage affiche
+  les vraies probabilités (somme ≈ 100%) et les bonus temporaires actifs.
 
 ## Ajouter un test
 

@@ -233,6 +233,95 @@ h1, h2, h3,
   box-shadow: none;
 }
 
+.chance-panel-toggle {
+  display: block;
+  width: min(100%, 420px);
+  margin: 10px auto 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.chance-panel {
+  width: min(100%, 420px);
+  margin: 10px auto 0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.chance-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.chance-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 52px;
+  align-items: center;
+  gap: 8px;
+}
+
+.chance-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.chance-row-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--rarity-color);
+  flex: 0 0 auto;
+}
+
+.chance-row-bar {
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.chance-row-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+}
+
+.chance-row-pct {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chance-panel-bonuses {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chance-panel-bonus-line {
+  font-size: 0.76rem;
+  opacity: 0.85;
+}
+
 .reveal-modal-box {
   max-width: 640px;
   width: 94vw;

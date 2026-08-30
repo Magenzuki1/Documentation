@@ -284,6 +284,10 @@ document.addEventListener("DOMContentLoaded", () => {
     revealModalClose: document.getElementById("reveal-modal-close"),
     revealModalTitle: document.getElementById("reveal-modal-title"),
     revealModalGrid: document.getElementById("reveal-modal-grid"),
+    chancePanelToggle: document.getElementById("chance-panel-toggle"),
+    chancePanel: document.getElementById("chance-panel"),
+    chancePanelList: document.getElementById("chance-panel-list"),
+    chancePanelBonuses: document.getElementById("chance-panel-bonuses"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -746,6 +750,56 @@ document.addEventListener("DOMContentLoaded", () => {
     }, cooldown);
   }
 
+  // Chances réelles de tirage, tous bonus confondus (améliorations
+  // boutique, pitié, événement du jour, boost du Passe saisonnier) — les
+  // mêmes poids que ceux utilisés par rollBanana() lui-même (computeWeights),
+  // jamais une copie recalculée à part qui pourrait diverger.
+  function renderChancePanel() {
+    const weights = computeWeights();
+    const total = RARITY_ORDER.reduce((s, r) => s + Math.max(0, weights[r]), 0) || 1;
+    els.chancePanelList.innerHTML = RARITY_ORDER.map((r) => {
+      const pct = (Math.max(0, weights[r]) / total) * 100;
+      const label = pct > 0 && pct < 1 ? pct.toFixed(2) : pct.toFixed(1);
+      return `
+        <div class="chance-row">
+          <span class="chance-row-label" style="--rarity-color:${RARITIES[r].color}"><span class="chance-row-dot"></span>${RARITIES[r].label}</span>
+          <div class="chance-row-bar"><div class="chance-row-bar-fill" style="width:${Math.min(100, pct)}%; background:${RARITIES[r].color};"></div></div>
+          <span class="chance-row-pct">${label}%</span>
+        </div>
+      `;
+    }).join("");
+
+    const bonuses = [];
+    const event = todayEvent();
+    if (event.kind === "rarity") {
+      bonuses.push(`📅 Événement du jour : bonus sur ${RARITIES[event.rarity].label}`);
+    }
+    if (state.pityRare >= 10) {
+      bonuses.push(`🍀 Pitié en cours (${state.pityRare} tirages sans rare et mieux) : bonus progressif actif`);
+    }
+    if (state.pityLegendary >= 40) {
+      bonuses.push(`🍀 Pitié légendaire en cours (${state.pityLegendary} tirages sans légendaire et mieux) : bonus progressif actif`);
+    }
+    const boostPercent = activeChanceBoostPercent();
+    if (boostPercent > 0 && state.chanceBoost && state.chanceBoost.expiresAt) {
+      const hoursLeft = Math.max(1, Math.ceil((state.chanceBoost.expiresAt - Date.now()) / 3600000));
+      bonuses.push(`⚡ Boost du Passe saisonnier : +${boostPercent}% sur rare et mieux (encore ${hoursLeft} h)`);
+    }
+    if (RARITY_ORDER.some((r) => upgradeLevelBonus(r) > 0)) {
+      bonuses.push(`🛒 Améliorations de la boutique actives`);
+    }
+    els.chancePanelBonuses.innerHTML = bonuses.length > 0
+      ? bonuses.map((b) => `<div class="chance-panel-bonus-line">${b}</div>`).join("")
+      : `<div class="chance-panel-bonus-line secret-hint">Aucun bonus temporaire actif pour l'instant.</div>`;
+  }
+
+  els.chancePanelToggle.addEventListener("click", () => {
+    const willShow = els.chancePanel.classList.contains("hidden");
+    if (willShow) renderChancePanel();
+    els.chancePanel.classList.toggle("hidden", !willShow);
+    els.chancePanelToggle.textContent = willShow ? "🎲 Masquer mes chances" : "🎲 Voir mes chances";
+  });
+
   function harvest() {
     if (busy) return;
     busy = true;
@@ -757,6 +811,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), eventType: "banana_roll", rollRarity: rarity, coinsAtRoll: coinsBeforeRoll });
 
     renderHeader();
+    if (!els.chancePanel.classList.contains("hidden")) renderChancePanel();
     CLOUD.scheduleSync();
 
     const animated = !!(state.settings && state.settings.animatedRoll);
@@ -3783,6 +3838,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (res.chanceBoostPercent > 0) {
       state.chanceBoost = { percent: res.chanceBoostPercent, expiresAt: Date.now() + res.chanceBoostHours * 3600000 };
       saveState();
+      if (!els.chancePanel.classList.contains("hidden")) renderChancePanel();
     }
     SFX.buy();
     renderHeader();
