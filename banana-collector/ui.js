@@ -273,6 +273,13 @@ document.addEventListener("DOMContentLoaded", () => {
     giftBoxModal: document.getElementById("gift-box-modal"),
     giftBoxClose: document.getElementById("gift-box-close"),
     giftBoxList: document.getElementById("gift-box-list"),
+    seasonPassBtn: document.getElementById("season-pass-btn"),
+    seasonPassBadge: document.getElementById("season-pass-badge"),
+    seasonPassModal: document.getElementById("season-pass-modal"),
+    seasonPassClose: document.getElementById("season-pass-close"),
+    seasonPassHeaderPoints: document.getElementById("season-pass-points"),
+    seasonPassHeaderDays: document.getElementById("season-pass-days"),
+    seasonPassTrack: document.getElementById("season-pass-track"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -3629,6 +3636,115 @@ document.addEventListener("DOMContentLoaded", () => {
   els.giftBoxBtn.addEventListener("click", openGiftBoxModal);
   els.giftBoxClose.addEventListener("click", () => els.giftBoxModal.classList.add("hidden"));
 
+  /* ---------------- Passe saisonnier ----------------
+     Une saison = un mois calendaire. La piste (paliers/récompenses) vient du
+     serveur (list_season_pass_tiers, contenu public, aucune donnée joueur)
+     pour ne jamais se désynchroniser d'une échelle dupliquée côté client —
+     voir la désync banana_catalog rencontrée plus tôt. Points et paliers
+     déjà réclamés viennent de get_my_season_status(). */
+
+  function seasonRewardChipsHTML(def) {
+    const chips = [];
+    if (def.coins > 0) {
+      chips.push(`<span class="reward-banana-chip" style="--rarity-color:#c9a227">🪙 ${Number(def.coins).toLocaleString("fr-FR")}</span>`);
+    }
+    if (def.banana_rarity && def.banana_qty > 0) {
+      chips.push(bananaRewardChipsHTML({ [def.banana_rarity]: def.banana_qty }));
+    }
+    if (def.medal_id) {
+      const medal = MEDALS_BY_ID[def.medal_id];
+      if (medal) chips.push(`<span class="reward-banana-chip" style="--rarity-color:#c9a227">${medal.icon} ${medal.name}</span>`);
+    }
+    if (def.chance_boost_percent > 0) {
+      chips.push(`<span class="reward-banana-chip" style="--rarity-color:#4c8bf5">⚡ +${def.chance_boost_percent}% chance (${def.chance_boost_hours} h)</span>`);
+    }
+    return chips.join("");
+  }
+
+  function seasonPassTierHTML(def, status) {
+    const claimed = status.claimed_tiers.includes(def.tier);
+    const ready = !claimed && status.points >= def.threshold;
+    const stateClass = claimed ? "season-tier-claimed" : ready ? "season-tier-ready" : "season-tier-locked";
+    const actionHTML = claimed
+      ? `<div class="season-tier-status">✓ Réclamé</div>`
+      : ready
+        ? `<button class="btn harvest-btn season-tier-claim-btn" data-claim-tier="${def.tier}">Réclamer</button>`
+        : `<div class="season-tier-status">${Number(def.threshold).toLocaleString("fr-FR")} pts</div>`;
+    return `
+      <div class="season-tier ${stateClass}">
+        <div class="season-tier-num">${def.tier}</div>
+        <div class="season-tier-rewards">${seasonRewardChipsHTML(def)}</div>
+        ${actionHTML}
+      </div>
+    `;
+  }
+
+  async function refreshSeasonPassBadge() {
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.seasonPassBadge.classList.add("hidden");
+      return;
+    }
+    const [tiers, status] = await Promise.all([CLOUD.fetchSeasonPassTiers(), CLOUD.getMySeasonStatus()]);
+    if (!status) {
+      els.seasonPassBadge.classList.add("hidden");
+      return;
+    }
+    const claimable = tiers.filter((t) => status.points >= t.threshold && !status.claimed_tiers.includes(t.tier)).length;
+    els.seasonPassBadge.textContent = claimable > 9 ? "9+" : String(claimable);
+    els.seasonPassBadge.classList.toggle("hidden", claimable === 0);
+  }
+
+  async function claimSeasonTierUI(tier, btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+    const res = await CLOUD.claimSeasonTier(tier);
+    if (!res.ok) {
+      btn.disabled = false;
+      btn.textContent = "Réclamer";
+      showBanner("❌ Erreur", { emoji: "🚫", name: res.reason || "Impossible de réclamer ce palier" }, 1800);
+      return;
+    }
+    // Cosmétique/médaille et boost de chance n'ont pas de table serveur :
+    // c'est ici, comme pour la boîte à cadeaux, qu'on les applique à l'état
+    // local puis qu'on pousse la médaille pour qu'elle apparaisse sur le
+    // profil public.
+    if (res.medalId && !state.medals.unlocked.includes(res.medalId)) {
+      state.medals.unlocked.push(res.medalId);
+      saveState();
+      CLOUD.syncMedals(state.medals.unlocked);
+    }
+    if (res.chanceBoostPercent > 0) {
+      state.chanceBoost = { percent: res.chanceBoostPercent, expiresAt: Date.now() + res.chanceBoostHours * 3600000 };
+      saveState();
+    }
+    SFX.buy();
+    spawnConfetti(24);
+    renderHeader();
+    await openSeasonPassModal();
+  }
+
+  async function openSeasonPassModal() {
+    els.seasonPassModal.classList.remove("hidden");
+    els.seasonPassTrack.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    const [tiers, status] = await Promise.all([CLOUD.fetchSeasonPassTiers(), CLOUD.getMySeasonStatus()]);
+    if (!status) {
+      els.seasonPassTrack.innerHTML = `<p class="secret-hint">Connecte-toi (bouton Compte) pour suivre ta progression et réclamer tes paliers.</p>`;
+      els.seasonPassHeaderPoints.textContent = "— points";
+      els.seasonPassHeaderDays.textContent = "";
+      return;
+    }
+    els.seasonPassHeaderPoints.textContent = `${Number(status.points).toLocaleString("fr-FR")} points`;
+    els.seasonPassHeaderDays.textContent = `Se termine dans ${status.days_remaining} jour${status.days_remaining > 1 ? "s" : ""}`;
+    els.seasonPassTrack.innerHTML = tiers.map((def) => seasonPassTierHTML(def, status)).join("");
+    els.seasonPassTrack.querySelectorAll("[data-claim-tier]").forEach((btn) => {
+      btn.addEventListener("click", () => claimSeasonTierUI(Number(btn.dataset.claimTier), btn));
+    });
+    refreshSeasonPassBadge();
+  }
+
+  els.seasonPassBtn.addEventListener("click", openSeasonPassModal);
+  els.seasonPassClose.addEventListener("click", () => els.seasonPassModal.classList.add("hidden"));
+
   // Comme la "championne" en Arène solo : pas de liste à parcourir, la plus
   // forte banane possédée (rareté puis valeur, sans le niveau — voir
   // pickBestPveBanana()) est affichée seule et automatiquement utilisée.
@@ -3685,6 +3801,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.bossAttackResult.classList.add("hidden");
     showBossSubview(bossView);
     refreshGiftBoxBadge();
+    refreshSeasonPassBadge();
 
     // Pousse tout de suite : évite un faux "banane non possédée" si un
     // dernier tirage local n'a pas encore eu le temps d'être synchronisé.
@@ -3725,6 +3842,7 @@ document.addEventListener("DOMContentLoaded", () => {
     els.bossAttackResult.classList.remove("hidden");
     if (result.bossDefeated) spawnConfetti(30);
     grantXp(6);
+    addSeasonPoints(10);
     saveState();
     renderHeader();
     CLOUD.scheduleSync();
@@ -6140,6 +6258,7 @@ document.addEventListener("DOMContentLoaded", () => {
     checkMarketSaleNotifications();
     checkRequestFulfilledNotifications();
     refreshGiftBoxBadge();
+    refreshSeasonPassBadge();
     refreshSocialBadges();
     checkNewDmNotifications();
 
