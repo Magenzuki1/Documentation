@@ -81,6 +81,8 @@ document.addEventListener("DOMContentLoaded", () => {
     memoryStartOverlay: document.getElementById("memory-start-overlay"),
     memoryStartBtn: document.getElementById("memory-start-btn"),
     memoryResult: document.getElementById("memory-result"),
+    memoryLevelPicker: document.getElementById("memory-level-picker"),
+    memoryLevelRecord: document.getElementById("memory-level-record"),
     openBlackjackGame: document.getElementById("open-blackjack-game"),
     blackjackBestLabel: document.getElementById("blackjack-best-label"),
     minigameBlackjack: document.getElementById("minigame-blackjack"),
@@ -2127,13 +2129,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Mini-jeu : Mémoire des bananes ---------------- */
 
-  let memoryState = null; // { deck, flipped, moves, locked, startTime, tickTimer }
+  let memoryState = null; // { deck, flipped, moves, locked, startTime, tickTimer, levelId }
+  let memorySelectedLevel = "normal";
 
   function stopMemoryGame() {
     if (!memoryState) return;
     clearInterval(memoryState.tickTimer);
     memoryState = null;
   }
+
+  function renderMemoryLevelRecord() {
+    const record = state.memoryGame.records && state.memoryGame.records[memorySelectedLevel];
+    els.memoryLevelRecord.textContent = record && record.bestMoves != null
+      ? `🏆 Record sur ce niveau : ${record.bestMoves} coups`
+      : "Pas encore joué sur ce niveau";
+  }
+
+  els.memoryLevelPicker.querySelectorAll(".memory-level-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      memorySelectedLevel = btn.dataset.level;
+      els.memoryLevelPicker.querySelectorAll(".memory-level-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+      });
+      renderMemoryLevelRecord();
+    });
+  });
 
   function resetMemoryGameView() {
     stopMemoryGame();
@@ -2142,10 +2162,11 @@ document.addEventListener("DOMContentLoaded", () => {
     els.memoryGrid.innerHTML = "";
     els.memoryMoves.textContent = "🔄 0 coups";
     els.memoryTimer.textContent = "⏱️ 0s";
+    renderMemoryLevelRecord();
   }
 
-  function buildMemoryDeck() {
-    const bananaIds = pickMemoryBananaIds();
+  function buildMemoryDeck(levelId) {
+    const bananaIds = pickMemoryBananaIds(levelId);
     const cards = [];
     bananaIds.forEach((id) => {
       cards.push({ bananaId: id, matched: false });
@@ -2219,7 +2240,15 @@ document.addEventListener("DOMContentLoaded", () => {
     stopMemoryGame();
     els.memoryStartOverlay.classList.add("hidden");
     els.memoryResult.classList.add("hidden");
-    memoryState = { deck: buildMemoryDeck(), flipped: [], moves: 0, locked: false, startTime: Date.now(), tickTimer: null };
+    memoryState = {
+      deck: buildMemoryDeck(memorySelectedLevel),
+      flipped: [],
+      moves: 0,
+      locked: false,
+      startTime: Date.now(),
+      tickTimer: null,
+      levelId: memorySelectedLevel,
+    };
     renderMemoryGrid();
     updateMemoryHud();
     memoryState.tickTimer = setInterval(() => {
@@ -2233,7 +2262,7 @@ document.addEventListener("DOMContentLoaded", () => {
     clearInterval(memoryState.tickTimer);
     const moves = memoryState.moves;
     const timeMs = Date.now() - memoryState.startTime;
-    const coinsEarned = awardMemoryGameResult(moves, timeMs);
+    const coinsEarned = awardMemoryGameResult(memoryState.levelId, moves, timeMs);
     renderHeader();
 
     els.memoryResult.innerHTML = `

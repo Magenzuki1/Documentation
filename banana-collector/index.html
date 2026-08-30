@@ -244,7 +244,13 @@
             <div id="memory-area" class="memory-area">
               <div id="memory-grid" class="memory-grid"></div>
               <div id="memory-start-overlay" class="catch-start-overlay">
-                <p class="catch-instructions">Retourne les cartes deux par deux et retrouve les 8 paires de bananes en un minimum de coups.</p>
+                <p class="catch-instructions">Retourne les cartes deux par deux et retrouve toutes les paires de bananes en un minimum de coups.</p>
+                <div class="memory-level-picker" id="memory-level-picker">
+                  <button class="memory-level-btn" data-level="facile">🟢 Facile<br><span>6 paires</span></button>
+                  <button class="memory-level-btn active" data-level="normal">🟡 Normal<br><span>8 paires</span></button>
+                  <button class="memory-level-btn" data-level="difficile">🔴 Difficile<br><span>12 paires</span></button>
+                </div>
+                <p class="catch-instructions" id="memory-level-record"></p>
                 <button id="memory-start-btn" class="btn harvest-btn">▶️ Démarrer</button>
               </div>
               <div id="memory-result" class="catch-result hidden"></div>

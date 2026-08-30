@@ -1378,6 +1378,30 @@ h1, h2, h3,
 .memory-card-back { background: #fff6d5; font-size: 1.8rem; }
 .memory-card-front { background: #fffdf5; transform: rotateY(180deg); }
 
+.memory-level-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.memory-level-btn {
+  border: 2px solid var(--accent);
+  background: var(--card-bg);
+  color: inherit;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.memory-level-btn span { font-weight: 500; font-size: 0.75rem; opacity: 0.8; }
+
+.memory-level-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* --- Bulle "ratio de gains" à côté du titre d'un jeu de casino --- */
 
 .game-title-row {
