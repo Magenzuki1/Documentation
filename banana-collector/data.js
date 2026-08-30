@@ -1031,7 +1031,7 @@ const BANANA_DEFS = [
     image: "images/banana_198.png",
   },
 
-  // ================= Secrète (9) — variantes bonus, ultra rares =================
+  // ================= Secrète (12) — variantes bonus, ultra rares =================
   {
     id: 101, name: "Banane agent secret", rarity: "secrete", image: "images/banana_101.png", emoji: "🍌",
     deco: {
@@ -1085,6 +1085,18 @@ const BANANA_DEFS = [
   {
     id: 170, name: "Banane bananception", rarity: "secrete", emoji: "🍌",
     image: "images/banana_170.png",
+  },
+  {
+    id: 199, name: "Banane tricotée", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_199.png",
+  },
+  {
+    id: 200, name: "Banane disco", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_200.png",
+  },
+  {
+    id: 201, name: "Banane lego", rarity: "secrete", emoji: "🍌",
+    image: "images/banana_201.png",
   },
 ];
 
@@ -1298,6 +1310,9 @@ const BANANA_LORE = {
   168: { quote: "Quiconque la touche subit une malédiction de maturation accélérée.", story: "Banane maudite a été bannie de trois corbeilles à fruits différentes pour \"raisons mystérieuses\". Elle porte cette réputation avec une fierté presque sinistre." },
   169: { quote: "Elle assume totalement son état, merci de ne pas insister.", story: "Banane pourrie a arrêté de compter les jours depuis longtemps. Elle prétend avoir atteint un \"niveau de sagesse\" que les bananes fraîches ne comprennent pas encore." },
   170: { quote: "Elle contient une plus petite banane. Qui en contient une autre. Et ainsi de suite.", story: "Personne n'a jamais réussi à atteindre le fond de Banane bananception. Certains y ont renoncé après la septième couche, d'autres ont carrément disparu en essayant." },
+  199: { quote: "Elle a tricoté sa propre peau. Un point mousse impeccable.", story: "Banane tricotée passe ses journées à faire des pelotes de laine avec ses cousines trop mûres. Son écharpe préférée lui a pris trois hivers, mais elle refuse de la porter tant qu'elle n'est pas parfaite." },
+  200: { quote: "Elle porte des lunettes en forme d'étoile et ne s'excuse jamais pour ça.", story: "Banane disco n'a raté aucune boule à facettes depuis 1977. Elle prétend avoir inventé la combinaison pailletée, ce qui reste à prouver, mais personne n'ose la contredire sur la piste." },
+  201: { quote: "Huit points sur la tête, un sourire imprimé, zéro articulation au cou.", story: "Banane lego a été assemblée pièce par pièce un dimanche pluvieux. Elle tient debout uniquement grâce à sa plaque verte, et le perdre est officiellement classé catastrophe familiale." },
 };
 
 // Construction de la table finale avec id, valeur, index dans la rareté, etc.
