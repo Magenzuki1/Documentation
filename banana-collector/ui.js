@@ -213,6 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
     adminNewsSuccess: document.getElementById("admin-news-success"),
     adminNewsList: document.getElementById("admin-news-list"),
     adminNewsResetBtn: document.getElementById("admin-news-reset-btn"),
+    adminBossForceDistributeBtn: document.getElementById("admin-boss-force-distribute-btn"),
+    adminBossForceDistributeResult: document.getElementById("admin-boss-force-distribute-result"),
     adminEventsDate: document.getElementById("admin-events-date"),
     adminEventsSelect: document.getElementById("admin-events-select"),
     adminEventsScheduleBtn: document.getElementById("admin-events-schedule-btn"),
@@ -249,11 +251,21 @@ document.addEventListener("DOMContentLoaded", () => {
     combatBossView: document.getElementById("combat-boss-view"),
     bossLocked: document.getElementById("boss-locked"),
     bossContent: document.getElementById("boss-content"),
-    bossRewardBanner: document.getElementById("boss-reward-banner"),
+    bossSubtabCombat: document.getElementById("boss-subtab-combat"),
+    bossSubtabDegats: document.getElementById("boss-subtab-degats"),
+    bossCombatView: document.getElementById("boss-combat-view"),
+    bossDegatsView: document.getElementById("boss-degats-view"),
+    bossLeaderboard: document.getElementById("boss-leaderboard"),
+    bossRewardTiers: document.getElementById("boss-reward-tiers"),
     bossCard: document.getElementById("boss-card"),
     bossPlayerFighter: document.getElementById("boss-player-fighter"),
     bossAttackBtn: document.getElementById("boss-attack-btn"),
     bossAttackResult: document.getElementById("boss-attack-result"),
+    giftBoxBtn: document.getElementById("gift-box-btn"),
+    giftBoxBadge: document.getElementById("gift-box-badge"),
+    giftBoxModal: document.getElementById("gift-box-modal"),
+    giftBoxClose: document.getElementById("gift-box-close"),
+    giftBoxList: document.getElementById("gift-box-list"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -3376,13 +3388,131 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------------- Boss d'Arène hebdomadaire ----------------
      Un seul boss communautaire par semaine, PV partagés par tous les
      joueurs — voir attack_weekly_boss côté Supabase pour le calcul de
-     dégâts (server-side, jamais confié au client). Le bonus hebdomadaire
-     (cosmétique exclusif ou boost de chance temporaire) revient à TOUT
-     joueur ayant porté au moins un coup dans la semaine, que le boss ait
-     été vaincu ou non. */
+     dégâts (server-side, jamais confié au client). Récompenses (pièces +
+     bananes) distribuées automatiquement chaque lundi par un cron serveur
+     (voir distribute_weekly_boss_rewards() côté Supabase), uniquement si le
+     boss a été vaincu — jamais de réclamation manuelle côté client. */
 
   let bossSelectedBananaId = null;
   let currentBossStatus = null;
+  let bossView = "combat"; // "combat" | "degats"
+
+  // Miroir d'affichage de la logique de distribute_weekly_boss_rewards()
+  // côté Supabase (participation + bonus de palier déjà additionnés) — à
+  // garder synchronisé si les montants changent côté serveur. Aucune donnée
+  // dynamique ici, uniquement pour informer les joueurs de ce qu'ils peuvent
+  // gagner.
+  const BOSS_REWARD_TIERS = [
+    { label: "🥇 1ère place", coins: 125000, bananas: { commune: 130, peu_commune: 95, rare: 65, legendaire: 40, mythique: 20, secrete: 2 } },
+    { label: "🥈 2e à 5e place", coins: 100000, bananas: { commune: 105, peu_commune: 70, rare: 45, legendaire: 30, mythique: 15, secrete: 1 } },
+    { label: "🥉 6e à 10e place", coins: 80000, bananas: { commune: 80, peu_commune: 50, rare: 35, legendaire: 20, mythique: 10, secrete: 0 } },
+    { label: "🎖️ 11e place et plus", coins: 60000, bananas: { commune: 60, peu_commune: 40, rare: 30, legendaire: 20, mythique: 10, secrete: 0 } },
+  ];
+  const BOSS_REWARD_BANANA_ORDER = ["commune", "peu_commune", "rare", "legendaire", "mythique", "secrete"];
+
+  function bossRewardBananaLineHTML(bananas) {
+    return BOSS_REWARD_BANANA_ORDER
+      .filter((r) => (bananas[r] || 0) > 0)
+      .map((r) => `${bananas[r]} ${RARITIES[r].label.toLowerCase()}`)
+      .join(", ");
+  }
+
+  function bossRewardTierCardHTML(tier) {
+    return `
+      <div class="banana-card">
+        <div class="banana-card-name">${tier.label}</div>
+        <div class="pve-fighter-stats">🪙 ${tier.coins.toLocaleString("fr-FR")} pièces</div>
+        <div class="secret-hint">${bossRewardBananaLineHTML(tier.bananas)}</div>
+      </div>
+    `;
+  }
+
+  function renderBossRewardTiers() {
+    els.bossRewardTiers.innerHTML = BOSS_REWARD_TIERS.map(bossRewardTierCardHTML).join("");
+  }
+
+  function showBossSubview(view) {
+    bossView = view;
+    els.bossSubtabCombat.classList.toggle("active", view === "combat");
+    els.bossSubtabDegats.classList.toggle("active", view === "degats");
+    els.bossCombatView.classList.toggle("hidden", view !== "combat");
+    els.bossDegatsView.classList.toggle("hidden", view !== "degats");
+    if (view === "degats") {
+      renderBossRewardTiers();
+      renderBossLeaderboard();
+    }
+  }
+
+  els.bossSubtabCombat.addEventListener("click", () => showBossSubview("combat"));
+  els.bossSubtabDegats.addEventListener("click", () => showBossSubview("degats"));
+
+  async function renderBossLeaderboard() {
+    els.bossLeaderboard.innerHTML = `<p class="secret-hint">Chargement du classement...</p>`;
+    const rows = await CLOUD.fetchWeeklyBossLeaderboard(50);
+    if (rows.length === 0) {
+      els.bossLeaderboard.innerHTML = `<p class="secret-hint">Personne n'a encore infligé de dégâts cette semaine.</p>`;
+      return;
+    }
+    const myUsername = CLOUD.currentUsername();
+    els.bossLeaderboard.innerHTML = `
+      <table class="leaderboard-table">
+        <thead>
+          <tr><th>#</th><th>Joueur</th><th>Dégâts</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr class="${r.username === myUsername ? "leaderboard-me" : ""}">
+              <td>${r.rank}</td>
+              <td class="leaderboard-player-cell">${avatarIconHTML(r.avatar_id, 1.3)} ${clickableUsernameHTML(r.username)}</td>
+              <td>${Number(r.total_damage).toLocaleString("fr-FR")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  /* ---------------- Boîte à cadeaux du Boss ----------------
+     Les récompenses sont déjà créditées (wallet_ledger/player_bananas) au
+     moment de la distribution automatique côté serveur : cette boîte n'est
+     qu'un reçu/notification, jamais une réclamation. La pastille rouge
+     compte les reçus non encore vus (seen_at). */
+
+  async function refreshGiftBoxBadge() {
+    if (!CLOUD.available || !CLOUD.isLinked()) {
+      els.giftBoxBadge.classList.add("hidden");
+      return;
+    }
+    const count = await CLOUD.fetchUnseenBossGiftCount();
+    els.giftBoxBadge.textContent = count > 9 ? "9+" : String(count);
+    els.giftBoxBadge.classList.toggle("hidden", count === 0);
+  }
+
+  function bossGiftRowHTML(gift) {
+    const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
+    const bananaLine = bossRewardBananaLineHTML(gift.banana_rewards || {});
+    const rankLabel = gift.rank === 1 ? "🥇 1er" : gift.rank <= 5 ? `🥈 ${gift.rank}e` : gift.rank <= 10 ? `🥉 ${gift.rank}e` : `#${gift.rank}`;
+    return `
+      <div class="admin-log-row">
+        <div><strong>Semaine du Boss (${date})</strong> — classé ${rankLabel}</div>
+        <div class="secret-hint">🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces${bananaLine ? " · " + bananaLine : ""}</div>
+      </div>
+    `;
+  }
+
+  async function openGiftBoxModal() {
+    els.giftBoxModal.classList.remove("hidden");
+    els.giftBoxList.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    const gifts = await CLOUD.fetchBossGifts(20);
+    els.giftBoxList.innerHTML = gifts.length === 0
+      ? `<p class="secret-hint">Aucun cadeau reçu pour l'instant. Reviens après un lundi où le Boss a été vaincu !</p>`
+      : gifts.map(bossGiftRowHTML).join("");
+    await CLOUD.markBossGiftsSeen();
+    refreshGiftBoxBadge();
+  }
+
+  els.giftBoxBtn.addEventListener("click", openGiftBoxModal);
+  els.giftBoxClose.addEventListener("click", () => els.giftBoxModal.classList.add("hidden"));
 
   // Comme la "championne" en Arène solo : pas de liste à parcourir, la plus
   // forte banane possédée (rareté puis valeur, sans le niveau — voir
@@ -3407,6 +3537,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function bossCardHTML(boss, status) {
     const defeated = !!boss.defeated_at;
     const pct = Math.max(0, Math.min(100, (Number(boss.current_hp) / Number(boss.max_hp)) * 100));
+    const rankLine = status && status.my_rank != null
+      ? ` · Ton rang : #${status.my_rank}`
+      : "";
     return `
       <div class="boss-card-header">
         <span class="boss-card-emoji">${boss.emoji}</span>
@@ -3416,40 +3549,8 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
       <div class="boss-hp-bar"><div class="boss-hp-bar-fill ${defeated ? "defeated" : ""}" style="width:${pct}%;"></div></div>
-      ${status ? `<div class="boss-attempts-label">Essais aujourd'hui : ${status.attempts_used_today} / ${status.attempts_allowed_today}${status.total_damage_this_week > 0 ? ` · Tes dégâts cette semaine : ${Number(status.total_damage_this_week).toLocaleString("fr-FR")}` : ""}</div>` : ""}
+      ${status ? `<div class="boss-attempts-label">Essais aujourd'hui : ${status.attempts_used_today} / ${status.attempts_allowed_today}${status.total_damage_this_week > 0 ? ` · Tes dégâts cette semaine : ${Number(status.total_damage_this_week).toLocaleString("fr-FR")}` : ""}${rankLine}</div>` : ""}
     `;
-  }
-
-  function weeklyBossRewardDesc(reward) {
-    return reward.reward_type === "cosmetic"
-      ? "🖼️ Cadre exclusif « Boss vaincu » débloqué !"
-      : `🍀 +${reward.reward_payload.percent}% de chance (rare et mieux) pendant ${reward.reward_payload.hours}h !`;
-  }
-
-  async function renderBossRewardBanner() {
-    if (!currentBossStatus || !currentBossStatus.has_unclaimed_reward) {
-      els.bossRewardBanner.classList.add("hidden");
-      els.bossRewardBanner.innerHTML = "";
-      return;
-    }
-    els.bossRewardBanner.classList.remove("hidden");
-    els.bossRewardBanner.innerHTML = `
-      <p>🎁 Tu as une récompense de la semaine dernière à réclamer !</p>
-      <button class="btn harvest-btn" id="boss-claim-btn">Réclamer</button>
-    `;
-    document.getElementById("boss-claim-btn").addEventListener("click", async () => {
-      const rewards = await CLOUD.claimWeeklyBossRewards();
-      if (rewards.length === 0) {
-        els.bossRewardBanner.classList.add("hidden");
-        return;
-      }
-      rewards.forEach((r) => applyWeeklyBossReward(r.reward_type, r.reward_payload));
-      renderHeader();
-      SFX.buy();
-      spawnConfetti(20);
-      showBanner("🎁 RÉCOMPENSE RÉCLAMÉE !", { emoji: "🐲", name: weeklyBossRewardDesc(rewards[rewards.length - 1]) }, 2400);
-      await renderBossTab();
-    });
   }
 
   async function renderBossTab() {
@@ -3461,6 +3562,8 @@ document.addEventListener("DOMContentLoaded", () => {
     els.bossLocked.classList.add("hidden");
     els.bossContent.classList.remove("hidden");
     els.bossAttackResult.classList.add("hidden");
+    showBossSubview(bossView);
+    refreshGiftBoxBadge();
 
     // Pousse tout de suite : évite un faux "banane non possédée" si un
     // dernier tirage local n'a pas encore eu le temps d'être synchronisé.
@@ -3480,7 +3583,6 @@ document.addEventListener("DOMContentLoaded", () => {
     els.bossAttackBtn.disabled = defeated || noAttemptsLeft || !bossSelectedBananaId;
     els.bossAttackBtn.textContent = defeated ? "🏆 Boss vaincu cette semaine" : noAttemptsLeft ? "⏳ Plus d'essais aujourd'hui" : "⚔️ Attaquer le Boss";
 
-    await renderBossRewardBanner();
     renderBossEventBubble(boss);
   }
 
@@ -3516,20 +3618,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     await renderBossTab();
   });
-
-  // Rappel discret à la connexion : une récompense de la semaine dernière
-  // attend d'être réclamée. Contrairement aux autres alertes, elle reste
-  // volontairement "vivante" tant qu'elle n'est pas réclamée — ce n'est pas
-  // un événement ponctuel à acquitter, mais un rappel de tâche en attente.
-  async function checkWeeklyBossRewards() {
-    if (!CLOUD.available || !CLOUD.isLinked()) return;
-    const status = await CLOUD.getMyWeeklyBossStatus();
-    if (!status || !status.has_unclaimed_reward) return;
-    showMarketNotifyToast(
-      "🐲 Récompense du Boss",
-      "Une récompense de la semaine dernière t'attend dans l'onglet Boss !"
-    );
-  }
 
   // Bulle flottante sur la page Tirage : rend le Boss hebdomadaire visible
   // en permanence, pas juste caché dans un sous-onglet du Combat. `preloadedBoss`
@@ -4951,6 +5039,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  els.adminBossForceDistributeBtn.addEventListener("click", async () => {
+    els.adminBossForceDistributeBtn.disabled = true;
+    els.adminBossForceDistributeResult.classList.add("hidden");
+    const res = await CLOUD.adminForceDistributeBossRewards();
+    els.adminBossForceDistributeBtn.disabled = false;
+    els.adminBossForceDistributeResult.textContent = res.ok
+      ? "Distribution lancée (les semaines closes et vaincues, pas encore distribuées, ont été traitées)."
+      : res.reason || "Erreur inconnue.";
+    els.adminBossForceDistributeResult.classList.remove("hidden");
+  });
+
   // Rempli une seule fois : les 7 événements sont un contenu fixe côté client.
   els.adminEventsSelect.innerHTML = DAILY_EVENTS.map((ev, i) => `<option value="${i}">${ev.icon} ${ev.name}</option>`).join("");
 
@@ -5845,7 +5944,7 @@ document.addEventListener("DOMContentLoaded", () => {
     checkPvpAttackNotifications();
     checkMarketSaleNotifications();
     checkRequestFulfilledNotifications();
-    checkWeeklyBossRewards();
+    refreshGiftBoxBadge();
     renderBossEventBubble();
     refreshSocialBadges();
     checkNewDmNotifications();

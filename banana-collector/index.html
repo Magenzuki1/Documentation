@@ -22,6 +22,7 @@
           <span id="stat-coins">🪙 Pièces : 0</span>
         </div>
         <div class="topbar-account-row">
+          <button id="gift-box-btn" class="gift-box-btn" title="Cadeaux du Boss">🎁<span id="gift-box-badge" class="gift-box-badge hidden">0</span></button>
           <button id="mute-btn" class="mute-btn" title="Couper/activer le son">🔊</button>
           <button id="account-btn" class="account-btn">👤 Compte</button>
           <button id="settings-btn" class="settings-gear-btn" title="Paramètres">⚙️</button>
@@ -486,17 +487,31 @@
 
         <div id="combat-boss-view" class="hidden">
           <h2>🐲 Boss d'Arène hebdomadaire</h2>
-          <p class="shop-hint">Un boss communautaire chaque semaine : une seule barre de vie partagée par tous les joueurs. 5 essais par jour (achetables en boutique jusqu'à 10), chaque essai inflige des dégâts selon la banane choisie. Si le boss est vaincu avant la fin de la semaine, tout joueur ayant porté au moins un coup reçoit un bonus la semaine suivante — cosmétique exclusif ou boost de chance temporaire. Pas de boss vaincu, pas de récompense.</p>
+          <p class="shop-hint">Un boss communautaire chaque semaine : une seule barre de vie partagée par tous les joueurs. 5 essais par jour (achetables en boutique jusqu'à 10), chaque essai inflige des dégâts selon la banane choisie. Le boss se réinitialise chaque lundi. S'il est vaincu, tout joueur ayant infligé des dégâts reçoit automatiquement pièces + bananes le lundi suivant à 01h (bonus supplémentaire pour les 10 meilleurs au classement des dégâts) — voir l'onglet "🏆 Dégâts" pour le détail. Pas de boss vaincu, pas de récompense.</p>
           <div id="boss-locked" class="secret-hint hidden">🔒 Connecte-toi (bouton "👤 Compte" en haut de la page) pour affronter le Boss hebdomadaire.</div>
 
           <div id="boss-content" class="hidden">
-            <div id="boss-reward-banner" class="hidden"></div>
-            <div id="boss-card" class="boss-card"></div>
+            <div class="market-subtabs">
+              <button class="market-subtab-btn active" id="boss-subtab-combat" data-bossview="combat">⚔️ Combattre</button>
+              <button class="market-subtab-btn" id="boss-subtab-degats" data-bossview="degats">🏆 Dégâts</button>
+            </div>
 
-            <h3>Ta championne</h3>
-            <div class="pve-fighter" id="boss-player-fighter"></div>
-            <button id="boss-attack-btn" class="btn danger">⚔️ Attaquer le Boss</button>
-            <div id="boss-attack-result" class="pve-result hidden"></div>
+            <div id="boss-combat-view">
+              <div id="boss-card" class="boss-card"></div>
+
+              <h3>Ta championne</h3>
+              <div class="pve-fighter" id="boss-player-fighter"></div>
+              <button id="boss-attack-btn" class="btn danger">⚔️ Attaquer le Boss</button>
+              <div id="boss-attack-result" class="pve-result hidden"></div>
+            </div>
+
+            <div id="boss-degats-view" class="hidden">
+              <h3>🏆 Classement des dégâts (cette semaine)</h3>
+              <div id="boss-leaderboard"></div>
+              <h3>🎁 Récompenses possibles (si le boss est vaincu)</h3>
+              <p class="shop-hint">Chaque joueur ayant infligé des dégâts reçoit la récompense de participation ; les 10 meilleurs du classement reçoivent en plus un bonus selon leur rang. Totaux ci-dessous (participation + bonus déjà additionnés).</p>
+              <div id="boss-reward-tiers" class="banana-grid"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -654,6 +669,15 @@
     </div>
   </div>
 
+  <div id="gift-box-modal" class="modal hidden">
+    <div class="modal-box">
+      <button id="gift-box-close" class="modal-close-btn" aria-label="Fermer">✕</button>
+      <h2>🎁 Cadeaux du Boss</h2>
+      <p class="shop-hint">Les récompenses de la semaine du Boss (si vaincu) sont envoyées automatiquement chaque lundi. Voici tes derniers gains.</p>
+      <div id="gift-box-list" class="admin-log-list"></div>
+    </div>
+  </div>
+
   <div id="admin-modal" class="modal hidden">
     <div class="modal-box admin-modal-box">
       <button id="admin-modal-close" class="modal-close-btn" aria-label="Fermer">✕</button>
@@ -784,6 +808,9 @@
         <h3 class="admin-news-history-title">Zone de danger</h3>
         <p class="shop-hint">Vide le bandeau d'actualité de tous les joueurs (événements notables + annonces admin). Irréversible.</p>
         <button class="btn danger" id="admin-news-reset-btn">🗑️ Réinitialiser le fil d'actualité</button>
+        <p class="shop-hint">Distribue immédiatement les récompenses du Boss des semaines closes (vaincu, pas encore distribué), sans attendre le cron du lundi 01:00.</p>
+        <button class="btn" id="admin-boss-force-distribute-btn">🎁 Forcer la distribution des récompenses du Boss</button>
+        <p id="admin-boss-force-distribute-result" class="account-hint hidden"></p>
       </div>
 
       <div id="admin-events-view" class="hidden">
