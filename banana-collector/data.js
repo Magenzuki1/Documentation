@@ -937,7 +937,7 @@ const BANANA_DEFS = [
     image: "images/banana_194.png",
   },
 
-  // ================= Mythique (13) =================
+  // ================= Mythique (17) =================
   {
     id: 93, name: "Banane arc-en-ciel", rarity: "mythique", image: "images/banana_93.png", emoji: "🍌",
     deco: {
@@ -1013,6 +1013,22 @@ const BANANA_DEFS = [
   {
     id: 166, name: "Banane fleur", rarity: "mythique", emoji: "🍌",
     image: "images/banana_166.png",
+  },
+  {
+    id: 195, name: "Banane aquatique", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_195.png",
+  },
+  {
+    id: 196, name: "Banane influenceuse", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_196.png",
+  },
+  {
+    id: 197, name: "Banane Moai", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_197.png",
+  },
+  {
+    id: 198, name: "Banane gros cerveau", rarity: "mythique", emoji: "🍌",
+    image: "images/banana_198.png",
   },
 
   // ================= Secrète (9) — variantes bonus, ultra rares =================
@@ -1269,6 +1285,10 @@ const BANANA_LORE = {
   164: { quote: "Elle meugle au lieu de parler, sans jamais s'expliquer.", story: "Banane vache porte des taches noires et blanches qu'elle entretient avec une fierté particulière. Elle refuse catégoriquement qu'on lui propose du lait." },
   165: { quote: "Sa tête est énorme. Ses idées, un peu moins.", story: "Banane grosse tête a du mal à passer les portes du placard depuis toujours. Elle compense par une confiance en elle proportionnelle à sa taille." },
   166: { quote: "Elle sent le printemps même en plein hiver.", story: "Banane fleur a poussé un jour un vrai pétale sur le sommet de sa tête, sans explication scientifique valable. Elle en est extrêmement fière et le rappelle souvent." },
+  195: { quote: "Elle jure avoir déjà rencontré un poisson qui parlait, mais personne ne la croit.", story: "Banane aquatique a échangé sa moitié inférieure contre une nageoire lors d'une négociation douteuse avec un crabe. Elle passe désormais ses journées allongée sur son petit récif, à coiffer sa barrette en étoile de mer." },
+  196: { quote: "Elle a pris 200 photos du même angle avant de trouver LA bonne.", story: "Banane influenceuse ne récolte plus rien elle-même, elle se contente de montrer celle des autres en story. Elle se tient debout sur un tas de likes qu'elle recompte chaque matin, au cas où il en manquerait un." },
+  197: { quote: "Elle n'a pas bougé depuis des siècles, mais elle garde toujours le même air désapprobateur.", story: "Personne ne sait comment une banane a fini pétrifiée en immense statue de pierre, mais le verger a fini par s'y habituer et organise même des pique-niques à son ombre." },
+  198: { quote: "Elle a lu toute la bibliothèque du verger. Deux fois.", story: "Banane gros cerveau a fait pousser un cerveau si volumineux qu'il a fallu lui installer une cloche en verre rien que pour le protéger. Elle continue malgré tout à trébucher sur ses propres lacets, au moins une fois par jour." },
   101: { quote: "Mission : rester incognito. Échec total, comme toujours.", story: "Banane agent secret porte des lunettes noires et un chapeau, même à l'intérieur. Sa couverture est grillée depuis longtemps, mais elle refuse de l'admettre." },
   102: { quote: "Rare, pâle, et absolument certaine d'être spéciale.", story: "Personne ne sait vraiment pourquoi Banane blanche n'a jamais pris de couleur. Elle préfère laisser planer le mystère plutôt que d'avouer que c'est juste un manque de soleil." },
   103: { quote: "Elle traverse les murs du frigo sans effort apparent.", story: "Banane spectrale apparaît et disparaît sans prévenir, généralement au pire moment pour faire peur à quelqu'un. Personne n'a réussi à la toucher, ni à s'en débarrasser." },
