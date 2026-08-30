@@ -272,7 +272,7 @@ function defaultState() {
     // boss) puis synchronisés côté serveur comme le reste de la progression
     // personnelle (voir pushSeasonPoints côté cloud.js). Remis à zéro dès que
     // seasonKey ne correspond plus au mois courant (voir addSeasonPoints).
-    seasonPass: { points: 0, seasonKey: null },
+    seasonPass: { points: 0, seasonKey: null, questProgress: {}, questsCompleted: [] },
     settings: { muted: false, animatedRoll: true, darkMode: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -368,6 +368,7 @@ function grantCoins(amount) {
   const final = Math.round(amount * coinMultiplier());
   state.coins += final;
   state.totalCoinsEarned += Math.max(final, 0);
+  if (final > 0) bumpSeasonQuestProgress("coinsEarned", final);
   return final;
 }
 
@@ -537,15 +538,66 @@ function currentSeasonKey() {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function addSeasonPoints(amount) {
-  if (!amount) return;
+// Remet à zéro points ET progression des quêtes de saison dès que le mois a
+// changé — un seul et même point de reset pour tout ce qui est "de saison",
+// jamais deux logiques de reset qui pourraient un jour diverger.
+function ensureCurrentSeasonPass() {
   const key = currentSeasonKey();
-  const sp = (state.seasonPass = state.seasonPass || { points: 0, seasonKey: null });
+  const sp = (state.seasonPass = state.seasonPass || { points: 0, seasonKey: null, questProgress: {}, questsCompleted: [], notifiedTiers: [] });
   if (sp.seasonKey !== key) {
     sp.seasonKey = key;
     sp.points = 0;
+    sp.questProgress = {};
+    sp.questsCompleted = [];
+    sp.notifiedTiers = [];
   }
-  sp.points += amount;
+  if (!sp.questProgress) sp.questProgress = {};
+  if (!sp.questsCompleted) sp.questsCompleted = [];
+  if (!sp.notifiedTiers) sp.notifiedTiers = [];
+  return sp;
+}
+
+// Aperçu des paliers du Passe saisonnier (list_season_pass_tiers, contenu
+// public identique pour tout le monde) mis en cache localement — comme les
+// quêtes admin/événements — pour pouvoir détecter un franchissement de
+// palier immédiatement après CHAQUE action qui rapporte des points, sans
+// dépendre d'un aller-retour réseau à chaque fois (voir checkQuests()).
+const SEASON_PASS_TIERS_CACHE_KEY = "banana-collector-season-pass-tiers-v1";
+let seasonPassTiersCache = [];
+
+function loadSeasonPassTiersCache() {
+  try {
+    const raw = localStorage.getItem(SEASON_PASS_TIERS_CACHE_KEY);
+    if (raw) seasonPassTiersCache = JSON.parse(raw);
+  } catch (e) {
+    // Cache corrompu/absent : pas de détection de palier avant la prochaine
+    // synchronisation réussie, rien de plus grave (le badge/la modale du
+    // Passe saisonnier restent, eux, toujours exacts car serveur-autoritaires).
+  }
+}
+loadSeasonPassTiersCache();
+
+function setSeasonPassTiersCache(rows) {
+  seasonPassTiersCache = Array.isArray(rows) ? rows : [];
+  try {
+    localStorage.setItem(SEASON_PASS_TIERS_CACHE_KEY, JSON.stringify(seasonPassTiersCache));
+  } catch (e) {
+    // Stockage plein/indisponible : pas critique.
+  }
+}
+
+function addSeasonPoints(amount) {
+  if (!amount) return;
+  ensureCurrentSeasonPass().points += amount;
+}
+
+// Progression des Quêtes de saison (voir SEASON_QUEST_POOL) : des compteurs
+// distincts des stats globales (state.pve.wins, etc.), remis à zéro chaque
+// saison — une stat globale ne dirait jamais "combien depuis le début DE CE
+// MOIS", seulement "depuis toujours".
+function bumpSeasonQuestProgress(key, amount = 1) {
+  const sp = ensureCurrentSeasonPass();
+  sp.questProgress[key] = (sp.questProgress[key] || 0) + amount;
 }
 
 function computeWeights() {
@@ -645,6 +697,8 @@ function rollBanana() {
   if (isNew) {
     state.discovered.push(banana.id);
     state.firstObtainedAt[banana.id] = dateKey(new Date());
+    if (isRareOrAbove(rarity)) bumpSeasonQuestProgress("rareDiscoveries");
+    if (isLegendaryOrAbove(rarity)) bumpSeasonQuestProgress("legendaryDiscoveries");
   }
   state.counts[banana.id] = (state.counts[banana.id] || 0) + 1;
 
@@ -813,6 +867,7 @@ function awardCatchGameResult(goodCaught, rottenCaught) {
   if (coinsEarned > state.catchGame.bestCoins) state.catchGame.bestCoins = coinsEarned;
   grantXp(5);
   addSeasonPoints(3);
+  bumpSeasonQuestProgress("catchPlayed");
   bumpQuestProgress("catchRounds");
   saveState();
   return coinsEarned;
@@ -848,6 +903,7 @@ function awardMemoryGameResult(levelId, moves, timeMs) {
   const level = MEMORY_LEVELS[levelId] || MEMORY_LEVELS.normal;
   state.memoryGame.gamesPlayed = (state.memoryGame.gamesPlayed || 0) + 1;
   addSeasonPoints(3);
+  bumpSeasonQuestProgress("memoryPlayed");
   const records = (state.memoryGame.records = state.memoryGame.records || {});
   const record = (records[levelId] = records[levelId] || { bestMoves: null, bestTimeMs: null });
   if (record.bestMoves == null || moves < record.bestMoves) record.bestMoves = moves;
@@ -956,6 +1012,7 @@ function resolveBlackjackBet(totalBet, outcome) {
   if (coinsEarned > (state.blackjackGame.biggestWin || 0)) state.blackjackGame.biggestWin = coinsEarned;
   grantXp(outcome === "defaite" ? 3 : 8);
   addSeasonPoints(3);
+  bumpSeasonQuestProgress("blackjackPlayed");
   saveState();
   return { coinsEarned };
 }
@@ -1084,6 +1141,7 @@ function placeSlotBet(bet) {
 function resolveSlotSpin(evaluation, bet) {
   state.slotGame.gamesPlayed = (state.slotGame.gamesPlayed || 0) + 1;
   addSeasonPoints(3);
+  bumpSeasonQuestProgress("slotPlayed");
   if (evaluation.hasJackpotLine) state.slotGame.jackpotsHit = (state.slotGame.jackpotsHit || 0) + 1;
 
   const lineWinAmount = Math.round(bet * evaluation.totalMultiplier);
@@ -1131,6 +1189,7 @@ function processDailyStreak() {
   const bonus = Math.min(20 + (state.streak.count - 1) * 15, 150);
   const coinsEarned = grantCoins(bonus);
   addSeasonPoints(15);
+  bumpSeasonQuestProgress("loginDays");
   saveState();
   return { streak: state.streak.count, coinsEarned };
 }
@@ -1386,6 +1445,39 @@ function permanentQuestsView() {
   }));
 }
 
+// Quêtes de saison : liste fixe et variée (Boss, Arène PVP/solo, chaque
+// minijeu, découverte de raretés, Marché, connexion, médailles), toutes
+// visibles dès le début du mois et réclamables une seule fois chacune —
+// pas de tirage aléatoire ni de rotation hebdomadaire, contrairement à
+// QUEST_POOL/WEEKLY_QUEST_POOL. Récompense en XP (+ quelques points de
+// saison en prime) plutôt qu'en pièces, pour bien les distinguer des
+// quêtes classiques. La progression (s.seasonPass.questProgress) est remise
+// à zéro à chaque nouveau mois par ensureCurrentSeasonPass().
+const SEASON_QUEST_POOL = [
+  { id: "sq_boss_3", desc: "Attaque le Boss hebdomadaire 3 fois", need: 3, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.bossAttacks || 0 },
+  { id: "sq_pvp_5", desc: "Remporte 5 combats en Arène PVP", need: 5, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.pvpWins || 0 },
+  { id: "sq_pve_10", desc: "Remporte 10 combats en Arène solo", need: 10, xpReward: 250, seasonPointsReward: 40, progress: (s) => s.seasonPass.questProgress.pveWins || 0 },
+  { id: "sq_blackjack_5", desc: "Termine 5 manches de Black Jack", need: 5, xpReward: 150, seasonPointsReward: 25, progress: (s) => s.seasonPass.questProgress.blackjackPlayed || 0 },
+  { id: "sq_slot_5", desc: "Termine 5 tours de machine à sous", need: 5, xpReward: 150, seasonPointsReward: 25, progress: (s) => s.seasonPass.questProgress.slotPlayed || 0 },
+  { id: "sq_memory_5", desc: "Termine 5 parties de Mémoire des bananes", need: 5, xpReward: 150, seasonPointsReward: 25, progress: (s) => s.seasonPass.questProgress.memoryPlayed || 0 },
+  { id: "sq_catch_5", desc: "Termine 5 parties d'Attrape les bananes", need: 5, xpReward: 150, seasonPointsReward: 25, progress: (s) => s.seasonPass.questProgress.catchPlayed || 0 },
+  { id: "sq_rare_discover", desc: "Découvre une nouvelle banane rare ou mieux", need: 1, xpReward: 200, seasonPointsReward: 30, progress: (s) => s.seasonPass.questProgress.rareDiscoveries || 0 },
+  { id: "sq_legendary_discover", desc: "Découvre une nouvelle banane légendaire ou mieux", need: 1, xpReward: 500, seasonPointsReward: 80, progress: (s) => s.seasonPass.questProgress.legendaryDiscoveries || 0 },
+  { id: "sq_market_trade", desc: "Achète ou mets en vente une banane sur le Marché", need: 1, xpReward: 200, seasonPointsReward: 30, progress: (s) => s.seasonPass.questProgress.marketTrades || 0 },
+  { id: "sq_coins_5000", desc: "Gagne 5000 pièces ce mois-ci (toutes sources)", need: 5000, xpReward: 250, seasonPointsReward: 40, progress: (s) => s.seasonPass.questProgress.coinsEarned || 0 },
+  { id: "sq_login_5", desc: "Connecte-toi 5 jours différents ce mois-ci", need: 5, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_medal_1", desc: "Débloque une médaille ce mois-ci", need: 1, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.medalsUnlocked || 0 },
+];
+
+function seasonQuestsView() {
+  ensureCurrentSeasonPass();
+  return SEASON_QUEST_POOL.map((quest) => ({
+    ...quest,
+    progress: Math.min(quest.progress(state), quest.need),
+    done: state.seasonPass.questsCompleted.includes(quest.id),
+  }));
+}
+
 // Évalue les trois bassins de quêtes, crédite les récompenses de celles tout
 // juste terminées et retourne la liste fusionnée (pour affichage de toasts).
 function checkQuests() {
@@ -1426,6 +1518,33 @@ function checkQuests() {
       grantCoins(quest.reward);
       grantXp(60);
       completedNow.push(quest);
+    }
+  }
+
+  ensureCurrentSeasonPass();
+  for (const quest of SEASON_QUEST_POOL) {
+    if (state.seasonPass.questsCompleted.includes(quest.id)) continue;
+    if (quest.progress(state) >= quest.need) {
+      state.seasonPass.questsCompleted.push(quest.id);
+      grantXp(quest.xpReward);
+      addSeasonPoints(quest.seasonPointsReward);
+      // isSeasonQuest : distingue ce type de quête dans showQuestToasts()
+      // (récompense en XP + points de saison, jamais en pièces).
+      completedNow.push({ ...quest, isSeasonQuest: true });
+    }
+  }
+
+  // Notifie dès qu'un palier du Passe saisonnier vient d'être atteint —
+  // jamais réclamé automatiquement (toujours à la main, comme la boîte à
+  // cadeaux), juste signalé tout de suite plutôt que de dépendre du joueur
+  // qui pense à rouvrir la modale. notifiedTiers (jamais désynchronisé des
+  // paliers réellement réclamés : un palier notifié-mais-pas-réclamé reste
+  // simplement visible avec son bouton "Réclamer" dans la modale) empêche
+  // de re-notifier le même palier plusieurs fois dans la même saison.
+  for (const tier of seasonPassTiersCache) {
+    if (state.seasonPass.points >= tier.threshold && !state.seasonPass.notifiedTiers.includes(tier.tier)) {
+      state.seasonPass.notifiedTiers.push(tier.tier);
+      completedNow.push({ isSeasonTierUnlock: true, tier: tier.tier });
     }
   }
 
@@ -1869,6 +1988,7 @@ function checkMedals(context) {
       state.medals.unlocked.push(medal.id);
       grantXp(40);
       if (medal.reward) grantCoins(medal.reward);
+      bumpSeasonQuestProgress("medalsUnlocked");
       unlockedNow.push(medal);
     }
   }
@@ -2356,6 +2476,8 @@ function fightFruitEnemy(bananaId, stageIndex) {
     state.pve.wins += 1;
     state.pve.lossStreak = 0;
     grantXp(stageAdvanced ? 20 : 8);
+    addSeasonPoints(5);
+    bumpSeasonQuestProgress("pveWins");
     bumpQuestProgress("wins");
     if (stageAdvanced) state.pve.stage = stageIndex;
   } else {

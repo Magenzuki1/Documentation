@@ -280,6 +280,15 @@ document.addEventListener("DOMContentLoaded", () => {
     seasonPassHeaderPoints: document.getElementById("season-pass-points"),
     seasonPassHeaderDays: document.getElementById("season-pass-days"),
     seasonPassTrack: document.getElementById("season-pass-track"),
+    seasonPassQuests: document.getElementById("season-pass-quests"),
+    revealModal: document.getElementById("reveal-modal"),
+    revealModalClose: document.getElementById("reveal-modal-close"),
+    revealModalTitle: document.getElementById("reveal-modal-title"),
+    revealModalGrid: document.getElementById("reveal-modal-grid"),
+    chancePanelToggle: document.getElementById("chance-panel-toggle"),
+    chancePanel: document.getElementById("chance-panel"),
+    chancePanelList: document.getElementById("chance-panel-list"),
+    chancePanelBonuses: document.getElementById("chance-panel-bonuses"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -742,6 +751,56 @@ document.addEventListener("DOMContentLoaded", () => {
     }, cooldown);
   }
 
+  // Chances réelles de tirage, tous bonus confondus (améliorations
+  // boutique, pitié, événement du jour, boost du Passe saisonnier) — les
+  // mêmes poids que ceux utilisés par rollBanana() lui-même (computeWeights),
+  // jamais une copie recalculée à part qui pourrait diverger.
+  function renderChancePanel() {
+    const weights = computeWeights();
+    const total = RARITY_ORDER.reduce((s, r) => s + Math.max(0, weights[r]), 0) || 1;
+    els.chancePanelList.innerHTML = RARITY_ORDER.map((r) => {
+      const pct = (Math.max(0, weights[r]) / total) * 100;
+      const label = pct > 0 && pct < 1 ? pct.toFixed(2) : pct.toFixed(1);
+      return `
+        <div class="chance-row">
+          <span class="chance-row-label" style="--rarity-color:${RARITIES[r].color}"><span class="chance-row-dot"></span>${RARITIES[r].label}</span>
+          <div class="chance-row-bar"><div class="chance-row-bar-fill" style="width:${Math.min(100, pct)}%; background:${RARITIES[r].color};"></div></div>
+          <span class="chance-row-pct">${label}%</span>
+        </div>
+      `;
+    }).join("");
+
+    const bonuses = [];
+    const event = todayEvent();
+    if (event.kind === "rarity") {
+      bonuses.push(`📅 Événement du jour : bonus sur ${RARITIES[event.rarity].label}`);
+    }
+    if (state.pityRare >= 10) {
+      bonuses.push(`🍀 Pitié en cours (${state.pityRare} tirages sans rare et mieux) : bonus progressif actif`);
+    }
+    if (state.pityLegendary >= 40) {
+      bonuses.push(`🍀 Pitié légendaire en cours (${state.pityLegendary} tirages sans légendaire et mieux) : bonus progressif actif`);
+    }
+    const boostPercent = activeChanceBoostPercent();
+    if (boostPercent > 0 && state.chanceBoost && state.chanceBoost.expiresAt) {
+      const hoursLeft = Math.max(1, Math.ceil((state.chanceBoost.expiresAt - Date.now()) / 3600000));
+      bonuses.push(`⚡ Boost du Passe saisonnier : +${boostPercent}% sur rare et mieux (encore ${hoursLeft} h)`);
+    }
+    if (RARITY_ORDER.some((r) => upgradeLevelBonus(r) > 0)) {
+      bonuses.push(`🛒 Améliorations de la boutique actives`);
+    }
+    els.chancePanelBonuses.innerHTML = bonuses.length > 0
+      ? bonuses.map((b) => `<div class="chance-panel-bonus-line">${b}</div>`).join("")
+      : `<div class="chance-panel-bonus-line secret-hint">Aucun bonus temporaire actif pour l'instant.</div>`;
+  }
+
+  els.chancePanelToggle.addEventListener("click", () => {
+    const willShow = els.chancePanel.classList.contains("hidden");
+    if (willShow) renderChancePanel();
+    els.chancePanel.classList.toggle("hidden", !willShow);
+    els.chancePanelToggle.textContent = willShow ? "🎲 Masquer mes chances" : "🎲 Voir mes chances";
+  });
+
   function harvest() {
     if (busy) return;
     busy = true;
@@ -753,6 +812,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const medalsUnlocked = checkMedals({ hourNow: new Date().getHours(), eventType: "banana_roll", rollRarity: rarity, coinsAtRoll: coinsBeforeRoll });
 
     renderHeader();
+    if (!els.chancePanel.classList.contains("hidden")) renderChancePanel();
     CLOUD.scheduleSync();
 
     const animated = !!(state.settings && state.settings.animatedRoll);
@@ -867,8 +927,28 @@ document.addEventListener("DOMContentLoaded", () => {
   function showQuestToasts(quests, playSound = true) {
     quests.forEach((quest, i) => {
       setTimeout(() => {
+        if (quest.isSeasonTierUnlock) {
+          // Jamais réclamé automatiquement (comme la boîte à cadeaux) —
+          // juste signalé tout de suite, sans attendre que le joueur pense
+          // à rouvrir la modale du Passe saisonnier de lui-même. On pousse
+          // le total à jour AVANT de rafraîchir la pastille : sinon le
+          // serveur verrait encore l'ancien total (la synchronisation
+          // normale est débounced) et la pastille resterait à 0 malgré le
+          // toast qui vient d'annoncer le palier.
+          if (playSound) SFX.quest();
+          showBanner("🎫 PALIER DÉBLOQUÉ !", { emoji: "🎫", name: `Palier ${quest.tier} du Passe saisonnier prêt à réclamer !` }, 2200);
+          spawnConfetti(12);
+          if (CLOUD.available && CLOUD.isLinked()) {
+            CLOUD.pushSeasonPoints().then(refreshSeasonPassBadge);
+          }
+          return;
+        }
         if (playSound) SFX.quest();
-        showBanner("📜 QUÊTE TERMINÉE !", { emoji: "📜", name: `${quest.desc} (+${quest.reward} 🪙)` }, 2200);
+        const rewardLabel = quest.isSeasonQuest
+          ? `+${quest.xpReward} XP · +${quest.seasonPointsReward} pts saison`
+          : `+${quest.reward} 🪙`;
+        const title = quest.isSeasonQuest ? "🎫 QUÊTE DE SAISON TERMINÉE !" : "📜 QUÊTE TERMINÉE !";
+        showBanner(title, { emoji: quest.isSeasonQuest ? "🎫" : "📜", name: `${quest.desc} (${rewardLabel})` }, 2200);
         spawnConfetti(12);
       }, i * 900);
     });
@@ -1446,6 +1526,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
+  // Même gabarit que renderQuestList, mais la récompense est en XP + points
+  // de saison plutôt qu'en pièces (voir SEASON_QUEST_POOL côté app.js).
+  function renderSeasonQuestList(container, quests) {
+    container.innerHTML = quests.map((quest) => {
+      const pct = Math.round((quest.progress / quest.need) * 100);
+      return `
+        <div class="quest-item ${quest.done ? "done" : ""}">
+          <div class="quest-item-top">
+            <span class="quest-item-desc">${quest.done ? "✅ " : ""}${quest.desc}</span>
+            <span class="quest-item-reward">${quest.xpReward} XP · +${quest.seasonPointsReward} pts</span>
+          </div>
+          <div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${pct}%;"></div></div>
+          <div class="quest-item-count">${quest.progress} / ${quest.need}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   function renderQuests() {
     renderQuestList(els.questsList, questsForToday());
     renderQuestList(els.weeklyQuestsList, weeklyQuestsForToday());
@@ -1562,6 +1660,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!state.discovered.includes(bananaId)) state.discovered.push(bananaId);
         if (result.newCoins != null) state.coins = result.newCoins;
         grantXp(6);
+        bumpSeasonQuestProgress("marketTrades");
         saveState();
         SFX.buy();
         renderHeader();
@@ -1688,6 +1787,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.counts[marketSelectedBananaId] -= quantity;
     grantXp(6);
+    bumpSeasonQuestProgress("marketTrades");
     saveState();
     SFX.buy();
     els.marketSellQuantity.value = "";
@@ -3342,6 +3442,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     SFX[result.won ? "win" : "lose"]();
     state.coins += result.attackerDelta;
+    if (result.won) {
+      addSeasonPoints(8);
+      bumpSeasonQuestProgress("pvpWins");
+    }
     saveState();
     renderHeader();
 
@@ -3520,6 +3624,50 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  /* ---------------- Révélation groupée de bananes ----------------
+     Utilisée partout où un lot de bananes aléatoires est crédité d'un
+     coup (palier du Passe saisonnier, récompense du Boss) : sans ça, le
+     joueur ne sait que la RARETÉ obtenue (via bananaRewardChipsHTML), pas
+     QUELLES bananes précises parmi celles de cette rareté — random_banana_ids()
+     peut piocher plusieurs bananes différentes, pas seulement des doublons
+     d'une seule. Regroupée par banane distincte (pas une carte par unité :
+     un gros lot de rang #1 du Boss peut dépasser 300 bananes). */
+  function revealBananaCardHTML(banana, count, isNew) {
+    const rarity = RARITIES[banana.rarity];
+    return `
+      <div class="harvest-reveal-card reveal-grid-card rarity-${banana.rarity} ${isNew ? "is-new" : ""}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        ${isNew ? '<div class="new-badge">NOUVEAU</div>' : ""}
+        ${bananaIconHTML(banana, 3)}
+        <div class="harvest-reveal-name">${banana.name}</div>
+        <div class="harvest-reveal-rarity-pill">${rarity.label}</div>
+        ${count > 1 ? `<div class="harvest-reveal-meta"><span>x${count}</span></div>` : ""}
+      </div>
+    `;
+  }
+
+  // discoveredBefore : liste de state.discovered AVANT le crédit, pour
+  // marquer "NOUVEAU" — à capturer par l'appelant avant tout appel réseau
+  // qui rapatrierait déjà le nouvel état (pullBananas), sinon la comparaison
+  // ne détecterait plus rien de nouveau. Passer null pour un reçu déjà
+  // ancien (l'historique des cadeaux du Boss) où "nouveau" n'a plus de sens.
+  function showBatchBananaReveal(title, bananaIds, discoveredBefore) {
+    if (!bananaIds || bananaIds.length === 0) return;
+    const counts = {};
+    bananaIds.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+    const ids = Object.keys(counts).map(Number).filter((id) => BANANAS_BY_ID[id]);
+    ids.sort((a, b) => rarityIndex(BANANAS_BY_ID[b].rarity) - rarityIndex(BANANAS_BY_ID[a].rarity) || a - b);
+    els.revealModalTitle.textContent = title;
+    els.revealModalGrid.innerHTML = ids.map((id) => {
+      const isNew = discoveredBefore ? !discoveredBefore.includes(id) : false;
+      return revealBananaCardHTML(BANANAS_BY_ID[id], counts[id], isNew);
+    }).join("");
+    els.revealModal.classList.remove("hidden");
+    spawnConfetti(Math.min(10 + bananaIds.length, 40));
+    SFX.buy();
+  }
+
+  els.revealModalClose.addEventListener("click", () => els.revealModal.classList.add("hidden"));
+
   /* ---------------- Boîte à cadeaux du Boss ----------------
      Deux sortes de contenu : les récompenses du Boss, déjà créditées
      (wallet_ledger/player_bananas) au moment de la distribution automatique
@@ -3543,14 +3691,21 @@ document.addEventListener("DOMContentLoaded", () => {
     els.giftBoxBadge.classList.toggle("hidden", count === 0);
   }
 
-  function bossGiftRowHTML(gift) {
+  function bossGiftRowHTML(gift, index) {
     const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
     const rankLabel = gift.rank === 1 ? "🥇 1er" : gift.rank <= 5 ? `🥈 ${gift.rank}e` : gift.rank <= 10 ? `🥉 ${gift.rank}e` : `#${gift.rank}`;
+    // banana_ids : absent sur les reçus distribués avant l'ajout de cette
+    // colonne — pas de bouton détail dans ce cas, seules les puces de
+    // rareté (déjà présentes) restent disponibles pour ces anciens reçus.
+    const detailBtn = gift.banana_ids && gift.banana_ids.length > 0
+      ? `<button class="btn harvest-btn boss-gift-detail-btn" data-boss-gift-index="${index}">Voir le détail</button>`
+      : "";
     return `
       <div class="admin-log-row">
         <div><strong>Semaine du Boss (${date})</strong> — classé ${rankLabel}</div>
         <div class="secret-hint">🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces</div>
         <div class="reward-banana-chips">${bananaRewardChipsHTML(gift.banana_rewards || {})}</div>
+        ${detailBtn}
       </div>
     `;
   }
@@ -3622,11 +3777,18 @@ document.addEventListener("DOMContentLoaded", () => {
     sections.push(`<h3 class="admin-news-history-title">Historique (récompenses du Boss)</h3>`);
     sections.push(bossGifts.length === 0
       ? `<p class="secret-hint">Aucun cadeau reçu pour l'instant. Reviens après un lundi où le Boss a été vaincu !</p>`
-      : bossGifts.map(bossGiftRowHTML).join(""));
+      : bossGifts.map((g, i) => bossGiftRowHTML(g, i)).join(""));
     els.giftBoxList.innerHTML = sections.join("");
 
     els.giftBoxList.querySelectorAll("[data-claim-gift]").forEach((btn) => {
       btn.addEventListener("click", () => claimPendingGift(Number(btn.dataset.claimGift), btn));
+    });
+    els.giftBoxList.querySelectorAll("[data-boss-gift-index]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const gift = bossGifts[Number(btn.dataset.bossGiftIndex)];
+        const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
+        showBatchBananaReveal(`🏆 Récompenses du Boss — ${date}`, gift.banana_ids, null);
+      });
     });
 
     await CLOUD.markBossGiftsSeen();
@@ -3697,6 +3859,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function claimSeasonTierUI(tier, btn) {
     btn.disabled = true;
     btn.textContent = "…";
+    // Capturé AVANT l'appel réseau : claimSeasonTier() rapatrie déjà le
+    // nouvel état (pullBananas) avant de revenir ici, donc comparer contre
+    // state.discovered après coup ne détecterait plus aucune "nouveauté".
+    const discoveredBefore = state.discovered.slice();
     const res = await CLOUD.claimSeasonTier(tier);
     if (!res.ok) {
       btn.disabled = false;
@@ -3716,16 +3882,25 @@ document.addEventListener("DOMContentLoaded", () => {
     if (res.chanceBoostPercent > 0) {
       state.chanceBoost = { percent: res.chanceBoostPercent, expiresAt: Date.now() + res.chanceBoostHours * 3600000 };
       saveState();
+      if (!els.chancePanel.classList.contains("hidden")) renderChancePanel();
     }
     SFX.buy();
-    spawnConfetti(24);
     renderHeader();
+    if (res.bananaIds && res.bananaIds.length > 0) {
+      showBatchBananaReveal("🎫 Palier réclamé !", res.bananaIds, discoveredBefore);
+    } else {
+      spawnConfetti(24);
+    }
     await openSeasonPassModal();
   }
 
   async function openSeasonPassModal() {
     els.seasonPassModal.classList.remove("hidden");
     els.seasonPassTrack.innerHTML = `<p class="secret-hint">Chargement...</p>`;
+    // Les quêtes de saison sont 100% locales (comme les quêtes du jour/de la
+    // semaine) : affichées même hors ligne ou sans compte lié, contrairement
+    // aux paliers ci-dessous qui exigent un compte pour être réclamés.
+    renderSeasonQuestList(els.seasonPassQuests, seasonQuestsView());
     const [tiers, status] = await Promise.all([CLOUD.fetchSeasonPassTiers(), CLOUD.getMySeasonStatus()]);
     if (!status) {
       els.seasonPassTrack.innerHTML = `<p class="secret-hint">Connecte-toi (bouton Compte) pour suivre ta progression et réclamer tes paliers.</p>`;
@@ -3843,6 +4018,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (result.bossDefeated) spawnConfetti(30);
     grantXp(6);
     addSeasonPoints(10);
+    bumpSeasonQuestProgress("bossAttacks");
     saveState();
     renderHeader();
     CLOUD.scheduleSync();
@@ -4698,6 +4874,52 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Pastille cliquable pour un cosmétique déjà possédé — équipe en un clic,
+  // sans passer par l'écran d'achat (Économie → Cosmétiques, qui reste le
+  // seul endroit pour ACHETER un nouveau cosmétique ; ici on ne montre que
+  // ce que le joueur a déjà, pour le voir et le changer d'un coup d'œil
+  // directement depuis son profil).
+  function cosmeticOwnedPillHTML(item, kind, equippedId) {
+    const equipped = equippedId === item.id;
+    return `<button class="cosmetic-pill ${equipped ? "equipped" : ""}" data-kind="${kind}" data-id="${item.id}">${item.icon ? item.icon + " " : ""}${item.name}${equipped ? " ✓" : ""}</button>`;
+  }
+
+  function cosmeticsProfileSectionHTML() {
+    const ownedFrames = COSMETIC_FRAMES.filter((f) => isCosmeticOwned(f, state));
+    const ownedEffects = COSMETIC_EFFECTS.filter((e) => isCosmeticOwned(e, state));
+    const ownedTitles = COSMETIC_TITLES.filter((t) => isCosmeticOwned(t, state));
+
+    const titlePills = [
+      `<button class="cosmetic-pill ${state.cosmetics.equippedTitle == null ? "equipped" : ""}" data-kind="title" data-id="">🎯 Automatique${state.cosmetics.equippedTitle == null ? " ✓" : ""}</button>`,
+      ...ownedTitles.map((t) => cosmeticOwnedPillHTML(t, "title", state.cosmetics.equippedTitle)),
+    ].join("");
+    const framePills = ownedFrames.length > 0
+      ? ownedFrames.map((f) => cosmeticOwnedPillHTML(f, "frame", state.cosmetics.equippedFrame)).join("")
+      : `<p class="secret-hint">Aucun cadre débloqué pour l'instant.</p>`;
+    const effectPills = ownedEffects.length > 0
+      ? ownedEffects.map((e) => cosmeticOwnedPillHTML(e, "effect", state.cosmetics.equippedEffect)).join("")
+      : `<p class="secret-hint">Aucun effet débloqué pour l'instant.</p>`;
+
+    return `
+      <div class="profile-cosmetics-section">
+        <h4>🎭 Mes cosmétiques</h4>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Titre (${ownedTitles.length}/${COSMETIC_TITLES.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${titlePills}</div>
+        </div>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Cadre (${ownedFrames.length}/${COSMETIC_FRAMES.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${framePills}</div>
+        </div>
+        <div class="profile-cosmetics-group">
+          <div class="profile-cosmetics-group-title">Effet (${ownedEffects.length}/${COSMETIC_EFFECTS.length} débloqués)</div>
+          <div class="profile-cosmetics-pills">${effectPills}</div>
+        </div>
+        <p class="account-hint">D'autres cosmétiques à débloquer ou acheter dans Économie → Cosmétiques.</p>
+      </div>
+    `;
+  }
+
   function profileSectionHTML() {
     const displayName = CLOUD.available && CLOUD.isLinked() ? CLOUD.currentUsername() : "Joueur";
     const medal = currentPrestigeMedal(state);
@@ -4716,6 +4938,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="profile-current-title">🏷️ ${currentDisplayTitle()}</div>
           ${medalHTML}
         </div>
+        ${cosmeticsProfileSectionHTML()}
         ${showcaseSectionHTML()}
         ${levelPanelHTML()}
         ${prestigePanelHTML()}
@@ -4776,6 +4999,19 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAccountModal();
         if (CLOUD.available && CLOUD.isLinked()) {
           CLOUD.setShowcaseMedals(state.profile.showcaseMedals);
+        }
+      });
+    });
+    container.querySelectorAll(".cosmetic-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = equipCosmetic(btn.dataset.kind, btn.dataset.id || null);
+        if (res.ok) {
+          SFX.click();
+          renderAccountModal();
+          // Pousse vers la vitrine publique, comme l'équivalent dans
+          // Économie → Cosmétiques : sans ça, le changement resterait
+          // invisible pour les autres joueurs qui consultent ce profil.
+          if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushCosmetics();
         }
       });
     });
