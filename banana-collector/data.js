@@ -406,7 +406,7 @@ const BANANA_DEFS = [
     image: "images/banana_182.png",
   },
 
-  // ================= Rare (29) =================
+  // ================= Rare (33) =================
   {
     id: 45, name: "Banane géante", rarity: "rare", image: "images/banana_45.png", emoji: "🍌",
     deco: { filter: "drop-shadow(0 4px 2px rgba(0,0,0,.35))", scale: 1.22 },
@@ -595,6 +595,22 @@ const BANANA_DEFS = [
   {
     id: 141, name: "Banane juge", rarity: "rare", emoji: "🍌",
     image: "images/banana_141.png",
+  },
+  {
+    id: 183, name: "Banane champignon", rarity: "rare", emoji: "🍌",
+    image: "images/banana_183.png",
+  },
+  {
+    id: 184, name: "Banane poulpe", rarity: "rare", emoji: "🍌",
+    image: "images/banana_184.png",
+  },
+  {
+    id: 185, name: "Banane bonhomme de neige", rarity: "rare", emoji: "🍌",
+    image: "images/banana_185.png",
+  },
+  {
+    id: 186, name: "Banane pingouin", rarity: "rare", emoji: "🍌",
+    image: "images/banana_186.png",
   },
 
   // ================= Épique (30) =================
@@ -1149,6 +1165,10 @@ const BANANA_LORE = {
   139: { quote: "Elle compose des symphonies que personne d'autre n'entend.", story: "Banane musicien joue d'un instrument imaginaire avec un talent bien réel, du moins selon elle. Son plus grand fan reste elle-même." },
   140: { quote: "Elle plaide même quand personne ne l'accuse de rien.", story: "Banane avocate a défendu avec brio une pomme accusée d'avoir roulé sous le canapé. Elle a gagné le procès, évidemment, il n'y avait pas de juge." },
   141: { quote: "Elle rend son verdict avant même d'avoir entendu l'affaire.", story: "Banane juge préside le tribunal du fruitier avec une autorité qu'elle s'est elle-même accordée. Ses décisions sont sans appel, et souvent sans logique." },
+  183: { quote: "Elle n'est ni vraiment une banane, ni vraiment un champignon, et ça la travaille beaucoup.", story: "Banane champignon a poussé un jour dans un coin humide du verger et n'a plus jamais su qui elle était vraiment. Elle porte son inquiétude existentielle avec un bâton de marche et un sac à dos, au cas où elle devrait fuir la réponse." },
+  184: { quote: "Elle a huit tentacules, et pas une seule ne lui donne de bons conseils.", story: "Banane poulpe règne sur son petit rocher avec un trident qu'elle a trouvé, pas fabriqué. Elle se prend pour la souveraine des mers, même si son royaume se résume à trois coquillages et une flaque." },
+  185: { quote: "Elle a un chapeau, un nez en carotte, et une peur bleue du printemps.", story: "Banane bonhomme de neige a été sculptée un matin d'hiver et refuse catégoriquement de fondre, par principe. Elle garde un œil anxieux sur le thermomètre du verger dès que le soleil pointe un peu trop fort." },
+  186: { quote: "Elle se dandine fièrement, persuadée que c'est une démarche élégante.", story: "Banane pingouin a émigré vers la banquise du congélateur sans jamais vraiment s'acclimater au froid. Elle continue de saluer tout le monde d'un signe d'aile, même sous zéro degré." },
   65: { quote: "Elle brille d'un éclat qu'aucun vernis à ongles n'explique.", story: "Banane dorée refuse qu'on la touche sans gants. Elle affirme descendre d'une lignée royale de fruits précieux, sans jamais fournir de preuve." },
   66: { quote: "Dure comme la pierre, précieuse comme jamais.", story: "Banane diamant est la seule banane du verger qu'on n'a jamais réussi à éplucher facilement. Certains y voient une malédiction, elle y voit un compliment." },
   67: { quote: "Bleue, brillante, et absolument pas comestible selon elle.", story: "Banane saphir se considère comme un bijou plutôt qu'un fruit. Elle refuse systématiquement d'être ajoutée à un smoothie." },
