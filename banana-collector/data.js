@@ -820,7 +820,7 @@ const BANANA_DEFS = [
     image: "images/banana_190.png",
   },
 
-  // ================= Légendaire (17) =================
+  // ================= Légendaire (21) =================
   {
     id: 81, name: "Banane radioactive", rarity: "legendaire", image: "images/banana_81.png", emoji: "🍌",
     deco: {
@@ -919,6 +919,22 @@ const BANANA_DEFS = [
   {
     id: 158, name: "Banane poulet", rarity: "legendaire", emoji: "🍌",
     image: "images/banana_158.png",
+  },
+  {
+    id: 191, name: "Banane grosse dent", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_191.png",
+  },
+  {
+    id: 192, name: "Banane moustachu", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_192.png",
+  },
+  {
+    id: 193, name: "Banane diamant", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_193.png",
+  },
+  {
+    id: 194, name: "Banane dragon", rarity: "legendaire", emoji: "🍌",
+    image: "images/banana_194.png",
   },
 
   // ================= Mythique (13) =================
@@ -1236,6 +1252,10 @@ const BANANA_LORE = {
   156: { quote: "Elle communique surtout par grognements et gestes vagues.", story: "Banane homme de Cro-Magnon a inventé le feu, selon ses propres dires, un mardi après-midi ordinaire. Personne n'a de preuve, mais tout le monde la laisse y croire." },
   157: { quote: "Elle change de couleur selon son humeur, souvent sans prévenir.", story: "Banane cromathique passe du rouge vif au bleu profond en quelques secondes à peine. Personne n'a encore trouvé de logique à ses changements de teinte." },
   158: { quote: "Elle caquette au lieu de parler. Personne ne sait pourquoi.", story: "Banane poulet pond occasionnellement de petits œufs en chocolat, un mystère biologique jamais résolu. Le reste du poulailler l'a acceptée sans poser de questions." },
+  191: { quote: "Elle brosse cette dent trois fois par jour, rien que pour la faire briller plus fort.", story: "Banane grosse dent a perdu toutes ses autres dents en croquant un noyau d'avocat, mais considère la survivante comme sa plus grande fierté. Elle sourit à la moindre occasion, juste pour la montrer." },
+  192: { quote: "Elle porte un monocle alors qu'elle voit parfaitement des deux yeux.", story: "Banane moustachu se considère comme la banane la plus distinguée du verger. Sa moustache met quarante minutes à coiffer chaque matin, et elle refuse catégoriquement de sortir sans sa canne, même pour aller au compost." },
+  193: { quote: "Elle brille tellement qu'on la voit depuis l'autre bout du verger, la nuit.", story: "Banane diamant s'est un jour roulée dans un coffre à bijoux abandonné et n'en est jamais ressortie normale. Elle porte sa couronne même pour dormir, au cas où quelqu'un la regarderait." },
+  194: { quote: "Elle garde un trésor dont elle a elle-même oublié la cachette.", story: "Banane dragon dort sur un tas de pièces d'or depuis si longtemps qu'elle en a fini par en prendre la forme. Elle crache parfois un peu de fumée quand on la contrarie, mais reste étonnamment câline pour un dragon." },
   93: { quote: "Elle porte toutes les couleurs à la fois, par pure fierté.", story: "Banane arc-en-ciel apparaît généralement juste après la pluie, sans qu'on sache si c'est un hasard ou une mise en scène. Elle refuse qu'on cherche le trésor à ses pieds." },
   94: { quote: "Elle contient, selon elle, l'univers tout entier.", story: "Banane cosmique a des motifs d'étoiles qui semblent bouger si on la fixe trop longtemps. Les scientifiques du verger préfèrent ne pas trop y regarder." },
   95: { quote: "Elle est à la fois mûre et pas mûre, tant qu'on ne l'observe pas.", story: "Banane quantique existe, selon Banane scientifique, dans plusieurs états à la fois jusqu'à ce qu'on ouvre le frigo. Personne n'a réussi à comprendre l'explication complète." },
