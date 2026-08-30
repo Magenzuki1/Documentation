@@ -597,6 +597,55 @@ const CLOUD = (() => {
     if (!error) lastPushedPveSnapshot = snapshotKey;
   }
 
+  // Pousse le total de points de saison — même modèle de confiance que le
+  // reste de la progression personnelle (voir sync_season_points côté
+  // serveur : greatest() y protège contre un envoi en retard qui écraserait
+  // un total plus élevé déjà enregistré). Rien à pousser si le mois a changé
+  // sans qu'aucune action n'ait encore remis seasonPass à jour localement.
+  let lastPushedSeasonPoints = null;
+  async function pushSeasonPoints() {
+    if (!isLinked()) return;
+    const sp = state.seasonPass;
+    if (!sp || sp.seasonKey !== currentSeasonKey()) return;
+    if (sp.points === lastPushedSeasonPoints) return;
+
+    const { error } = await supabase.rpc("sync_season_points", { p_points: sp.points });
+    if (!error) lastPushedSeasonPoints = sp.points;
+  }
+
+  // Aperçu public de l'échelle du Passe saisonnier (paliers/récompenses) —
+  // pas besoin de compte lié, contenu global identique pour tout le monde.
+  async function fetchSeasonPassTiers() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("list_season_pass_tiers");
+    if (error) return [];
+    return data || [];
+  }
+
+  async function getMySeasonStatus() {
+    if (!isLinked()) return null;
+    const { data, error } = await supabase.rpc("get_my_season_status");
+    if (error || !data || data.length === 0) return null;
+    return data[0];
+  }
+
+  async function claimSeasonTier(tier) {
+    if (!isLinked()) return { ok: false, reason: "non_connecte" };
+    const { data, error } = await supabase.rpc("claim_season_tier", { p_tier: tier });
+    if (error) return { ok: false, reason: error.message };
+    const row = (data && data[0]) || {};
+    await Promise.all([pullLedger(), pullBananas()]);
+    return {
+      ok: true,
+      coins: row.out_coins || 0,
+      bananaId: row.out_banana_id || null,
+      bananaQuantity: row.out_banana_quantity || 0,
+      medalId: row.out_medal_id || null,
+      chanceBoostPercent: row.out_chance_boost_percent || 0,
+      chanceBoostHours: row.out_chance_boost_hours || 0,
+    };
+  }
+
   // Pousse la banane favorite et les médailles en une fois — utile en plus
   // des mises à jour ponctuelles (voir ui.js) pour couvrir le cas d'un
   // joueur qui avait déjà des médailles/une favorite en local avant même de
@@ -617,7 +666,7 @@ const CLOUD = (() => {
   }
 
   async function pushAll() {
-    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase()]);
+    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase(), pushSeasonPoints()]);
   }
 
   // Le bouton "Réinitialiser la sauvegarde" ne touchait que le local — un
@@ -1314,6 +1363,9 @@ const CLOUD = (() => {
     pushBananas,
     pushPve,
     pushAll,
+    fetchSeasonPassTiers,
+    getMySeasonStatus,
+    claimSeasonTier,
     resetCloudProgress,
     scheduleSync,
     fetchLeaderboard,

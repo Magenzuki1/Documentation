@@ -264,10 +264,15 @@ function defaultState() {
       requestsFulfilledAsSeller: 0,
       requestsFulfilledAsRequester: 0,
     },
-    // Boost de chance temporaire — l'une des deux récompenses possibles du
-    // Boss d'Arène hebdomadaire (voir claimWeeklyBossReward côté ui.js).
-    // percent/expiresAt à 0/null quand aucun boost n'est actif.
+    // Boost de chance temporaire — accordé par certains paliers du Passe
+    // saisonnier (voir claimSeasonTier côté ui.js). percent/expiresAt à
+    // 0/null quand aucun boost n'est actif.
     chanceBoost: { percent: 0, expiresAt: null },
+    // Points de saison : accumulés localement (tirages, minijeux, connexion,
+    // boss) puis synchronisés côté serveur comme le reste de la progression
+    // personnelle (voir pushSeasonPoints côté cloud.js). Remis à zéro dès que
+    // seasonKey ne correspond plus au mois courant (voir addSeasonPoints).
+    seasonPass: { points: 0, seasonKey: null },
     settings: { muted: false, animatedRoll: true, darkMode: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -520,6 +525,29 @@ function activeChanceBoostPercent() {
   return boost.percent || 0;
 }
 
+/* ---------------- Passe saisonnier ----------------
+   Une saison = un mois calendaire UTC ("2026-08"), voir current_season_key()
+   côté serveur. Les points sont accumulés ici en jouant normalement (mêmes
+   actions que les autres progressions personnelles) puis synchronisés
+   périodiquement (voir pushSeasonPoints côté cloud.js) ; la réclamation
+   d'un palier, elle, est toujours validée côté serveur contre le total déjà
+   synchronisé (voir claim_season_tier). */
+function currentSeasonKey() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function addSeasonPoints(amount) {
+  if (!amount) return;
+  const key = currentSeasonKey();
+  const sp = (state.seasonPass = state.seasonPass || { points: 0, seasonKey: null });
+  if (sp.seasonKey !== key) {
+    sp.seasonKey = key;
+    sp.points = 0;
+  }
+  sp.points += amount;
+}
+
 function computeWeights() {
   const weights = {};
   for (const key of RARITY_ORDER) {
@@ -626,6 +654,7 @@ function rollBanana() {
   state.clicks += 1;
   state.totalRolls += 1;
   state.lastBananaId = banana.id;
+  addSeasonPoints(2);
   if (rarity === "mythique") state.mythicCount += 1;
 
   if (state.rarestId == null || rarityIndex(rarity) > rarityIndex(BANANAS_BY_ID[state.rarestId].rarity)) {
@@ -783,6 +812,7 @@ function awardCatchGameResult(goodCaught, rottenCaught) {
   if (goodCaught > state.catchGame.bestScore) state.catchGame.bestScore = goodCaught;
   if (coinsEarned > state.catchGame.bestCoins) state.catchGame.bestCoins = coinsEarned;
   grantXp(5);
+  addSeasonPoints(3);
   bumpQuestProgress("catchRounds");
   saveState();
   return coinsEarned;
@@ -817,6 +847,7 @@ function pickMemoryBananaIds(levelId) {
 function awardMemoryGameResult(levelId, moves, timeMs) {
   const level = MEMORY_LEVELS[levelId] || MEMORY_LEVELS.normal;
   state.memoryGame.gamesPlayed = (state.memoryGame.gamesPlayed || 0) + 1;
+  addSeasonPoints(3);
   const records = (state.memoryGame.records = state.memoryGame.records || {});
   const record = (records[levelId] = records[levelId] || { bestMoves: null, bestTimeMs: null });
   if (record.bestMoves == null || moves < record.bestMoves) record.bestMoves = moves;
@@ -924,6 +955,7 @@ function resolveBlackjackBet(totalBet, outcome) {
   }
   if (coinsEarned > (state.blackjackGame.biggestWin || 0)) state.blackjackGame.biggestWin = coinsEarned;
   grantXp(outcome === "defaite" ? 3 : 8);
+  addSeasonPoints(3);
   saveState();
   return { coinsEarned };
 }
@@ -1051,6 +1083,7 @@ function placeSlotBet(bet) {
 // grantCoins, comme tous les autres gains du jeu.
 function resolveSlotSpin(evaluation, bet) {
   state.slotGame.gamesPlayed = (state.slotGame.gamesPlayed || 0) + 1;
+  addSeasonPoints(3);
   if (evaluation.hasJackpotLine) state.slotGame.jackpotsHit = (state.slotGame.jackpotsHit || 0) + 1;
 
   const lineWinAmount = Math.round(bet * evaluation.totalMultiplier);
@@ -1097,6 +1130,7 @@ function processDailyStreak() {
 
   const bonus = Math.min(20 + (state.streak.count - 1) * 15, 150);
   const coinsEarned = grantCoins(bonus);
+  addSeasonPoints(15);
   saveState();
   return { streak: state.streak.count, coinsEarned };
 }
@@ -1505,6 +1539,42 @@ function checkAchievements() {
    donner des indices aux joueurs), vit à part dans
    medals-secret-reference.md — un fichier jamais chargé par index.html. */
 const MEDALS = [
+  // Badges des paliers 5/10/15/20 du Passe saisonnier — jamais débloqués par
+  // check() (toujours false ici), seulement accordés par claim_season_tier
+  // côté serveur puis appliqués localement, comme les médailles offertes par
+  // un admin via la boîte à cadeaux.
+  {
+    id: "medal_season_1",
+    icon: "🎫",
+    image: null,
+    name: "Débutant de saison",
+    publicDesc: "A franchi les premiers paliers du Passe saisonnier.",
+    check: () => false,
+  },
+  {
+    id: "medal_season_2",
+    icon: "⭐",
+    image: null,
+    name: "Habitué de saison",
+    publicDesc: "Bien avancé dans le Passe saisonnier.",
+    check: () => false,
+  },
+  {
+    id: "medal_season_3",
+    icon: "🌟",
+    image: null,
+    name: "Vétéran de saison",
+    publicDesc: "Proche du sommet du Passe saisonnier.",
+    check: () => false,
+  },
+  {
+    id: "medal_season_4",
+    icon: "👑",
+    image: null,
+    name: "Légende de la saison",
+    publicDesc: "A atteint le dernier palier du Passe saisonnier.",
+    check: () => false,
+  },
   {
     id: "medal_ghost",
     icon: "👻",
