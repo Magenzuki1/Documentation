@@ -216,7 +216,11 @@ async function runSignUpShowsTutorialScenario() {
     assert.ok(welcomeVisible, "a newly created account MUST show the welcome tutorial, even when the guest had already dismissed it");
 
     const fresh = await page.evaluate(() => ({ coins: state.coins, totalRolls: state.totalRolls }));
-    assert.strictEqual(fresh.coins, 0, `a newly created account must start from a fresh save, got ${fresh.coins} coins`);
+    // Pas d'égalité stricte à 0 : après le rechargement, un compte tout neuf
+    // touche légitimement sa prime de connexion du jour 1 (processDailyStreak()),
+    // dont le montant dépend de l'événement du jour. Ce qui compte ici est
+    // qu'il n'ait pas hérité des 9999 pièces de l'invité.
+    assert.ok(fresh.coins < 500, `a newly created account must start from a fresh save, got ${fresh.coins} coins`);
     assert.strictEqual(fresh.totalRolls, 0, "a newly created account must start with no rolls");
 
     assert.strictEqual(pageErrors.length, 0, `unexpected page errors: ${pageErrors.join(", ")}`);
