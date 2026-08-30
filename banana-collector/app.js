@@ -149,10 +149,15 @@ const UPGRADES = [
   {
     id: "bossessais",
     name: "🐲 Essais de Boss",
-    desc: "+1 essai par jour contre le Boss d'Arène hebdomadaire, par niveau",
+    desc: "+1 essai par jour contre le Boss d'Arène hebdomadaire, par niveau. Se réinitialise à chaque nouvelle semaine (nouveau Boss) : à racheter chaque semaine.",
     targets: [],
-    basePrice: 15000,
-    priceMult: 2.5,
+    // Prix volontairement bas (l'ancien prix max, 585 938, dépassait le
+    // meilleur gain hebdomadaire possible du Boss, ~125 000) : maintenant
+    // que le niveau retombe à 0 chaque semaine (voir boss_attempts_bonus_week
+    // côté Supabase), le prix doit rester un petit achat récurrent, pas un
+    // investissement ponctuel disproportionné.
+    basePrice: 400,
+    priceMult: 1.8,
     maxLevel: 5,
   },
 ];
@@ -216,6 +221,12 @@ function defaultState() {
     pityRare: 0,
     pityLegendary: 0,
     upgrades: { panier: 0, detecteur: 0, dore: 0, cosmique: 0, auto: 0, multiplicateur: 0, pubplus: 0, strategie: 0, questbonus: 0, questbonushebdo: 0, chercheur: 0, recycleur: 0, trefle: 0, filet: 0, butin: 0, bossessais: 0 },
+    // Semaine (week_key du Boss) pour laquelle le niveau "bossessais"
+    // ci-dessus a été acheté — voir syncBossEssaisWeeklyReset() dans ui.js :
+    // dès que la semaine en cours ne correspond plus, ce niveau retombe à 0
+    // localement (le serveur l'ignore déjà de son côté, voir
+    // boss_attempts_bonus_week côté Supabase).
+    bossEssaisWeekKey: null,
     lastBananaId: null,
     mythicCount: 0,
     rarestId: null,

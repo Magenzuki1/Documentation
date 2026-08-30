@@ -3402,6 +3402,20 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentBossStatus = null;
   let bossView = "combat"; // "combat" | "degats"
 
+  // L'amélioration boutique "Essais de Boss" se réinitialise à chaque
+  // nouvelle semaine (nouveau Boss) — voir boss_attempts_bonus_week côté
+  // Supabase, qui fait déjà autorité pour le calcul réel des essais
+  // autorisés. Ici on remet juste l'affichage local en phase : sans ça, le
+  // joueur croirait garder un niveau que le serveur a déjà remis à zéro.
+  // Appelée dès qu'un week_key de Boss est disponible (connexion, ouverture
+  // de l'onglet Boss...), jamais besoin d'une action explicite du joueur.
+  function syncBossEssaisWeeklyReset(weekKey) {
+    if (!weekKey || state.bossEssaisWeekKey === weekKey) return;
+    if ((state.upgrades.bossessais || 0) > 0) state.upgrades.bossessais = 0;
+    state.bossEssaisWeekKey = weekKey;
+    saveState();
+  }
+
   // Miroir d'affichage de la logique de distribute_weekly_boss_rewards()
   // côté Supabase — à garder synchronisé si les montants changent côté
   // serveur. Aucune donnée dynamique ici, uniquement pour informer les
@@ -3674,6 +3688,7 @@ document.addEventListener("DOMContentLoaded", () => {
       els.bossCard.innerHTML = `<p class="secret-hint">Impossible de charger le Boss pour l'instant.</p>`;
       return;
     }
+    syncBossEssaisWeeklyReset(boss.week_key);
     els.bossCard.innerHTML = bossCardHTML(boss, status);
     renderBossPlayerFighter();
 
@@ -5215,14 +5230,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Panneau admin : Bananes (loot / cadeaux) ---------------- */
 
-  // Rempli une seule fois : le catalogue de bananes est fixe. Triées par
-  // rareté puis par nom pour rester navigable malgré les ~160 entrées.
+  // Rempli une seule fois : le catalogue de bananes est fixe (~190 entrées).
+  // Regroupées par rareté (<optgroup>, navigable au clavier/à la recherche
+  // native du <select>) et triées par numéro de collection (ex: C-036)
+  // plutôt qu'alphabétiquement, avec la référence affichée en toutes
+  // lettres devant le nom — sans ça, une liste plate de ~190 noms sans
+  // repère est ingérable à chercher dedans.
   // L'option "Aucune banane" (déjà dans le HTML) reste en tête pour un
   // cadeau uniquement en pièces.
-  els.adminBananaSelect.insertAdjacentHTML("beforeend", BANANAS
-    .slice()
-    .sort((a, b) => rarityIndex(a.rarity) - rarityIndex(b.rarity) || a.name.localeCompare(b.name))
-    .map((b) => `<option value="${b.id}">${b.name} — ${RARITIES[b.rarity].label}</option>`)
+  els.adminBananaSelect.insertAdjacentHTML("beforeend", RARITY_ORDER
+    .map((rarity) => {
+      const options = BANANAS
+        .filter((b) => b.rarity === rarity)
+        .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
+        .map((b) => `<option value="${b.id}">#${b.number} — ${b.name}</option>`)
+        .join("");
+      return `<optgroup label="${RARITIES[rarity].label}">${options}</optgroup>`;
+    })
     .join(""));
 
   // Cadres/titres/effets/médailles n'ont pas de catalogue serveur (voir
@@ -5309,12 +5333,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------------- Panneau admin : Bananes (contenu éditorial) ---------------- */
 
-  // Même tri/liste que le sélecteur de loot, mais affiche aussi le numéro
-  // de collection pour que l'admin retrouve facilement une banane précise.
-  els.adminBananaContentSelect.innerHTML = BANANAS
-    .slice()
-    .sort((a, b) => rarityIndex(a.rarity) - rarityIndex(b.rarity) || a.name.localeCompare(b.name))
-    .map((b) => `<option value="${b.id}">#${b.number} — ${b.name}</option>`)
+  // Même regroupement par rareté + tri par numéro que le sélecteur de
+  // cadeau ci-dessus.
+  els.adminBananaContentSelect.innerHTML = RARITY_ORDER
+    .map((rarity) => {
+      const options = BANANAS
+        .filter((b) => b.rarity === rarity)
+        .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
+        .map((b) => `<option value="${b.id}">#${b.number} — ${b.name}</option>`)
+        .join("");
+      return `<optgroup label="${RARITIES[rarity].label}">${options}</optgroup>`;
+    })
     .join("");
 
   function fillAdminBananaContentForm() {
@@ -6084,7 +6113,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAccountBtn();
   // Vérifie une session cloud existante (déjà connecté précédemment) en
   // arrière-plan, sans jamais bloquer le rendu initial du jeu solo.
-  CLOUD.init().then(() => {
+  CLOUD.init().then(async () => {
     updateAccountBtn();
     renderHeader();
     refreshAllSupportBadges();
@@ -6092,9 +6121,16 @@ document.addEventListener("DOMContentLoaded", () => {
     checkMarketSaleNotifications();
     checkRequestFulfilledNotifications();
     refreshGiftBoxBadge();
-    renderBossEventBubble();
     refreshSocialBadges();
     checkNewDmNotifications();
+
+    const boss = CLOUD.isLinked() ? await CLOUD.getWeeklyBoss() : null;
+    // Remet l'affichage local des essais de Boss achetés à 0 si la semaine a
+    // changé DEPUIS AVANT le rattrapage ci-dessous, sinon ce dernier
+    // repousserait un niveau d'une semaine précédente comme s'il valait
+    // encore pour la nouvelle (le rachat hebdomadaire n'existerait plus).
+    if (boss) syncBossEssaisWeeklyReset(boss.week_key);
+    renderBossEventBubble(boss);
     // Auto-réparation : si l'amélioration a été achetée avant que ce push
     // n'existe (ou hors ligne), le niveau serveur resterait bloqué à 0 sans
     // ce rattrapage à chaque connexion.
