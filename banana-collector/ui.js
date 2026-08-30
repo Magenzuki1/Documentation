@@ -5228,17 +5228,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       SFX.buy();
+      CLOUD.setAvatar(state.profile.avatarId);
+      // La connexion a changé de partie entière (chaque compte a sa propre
+      // sauvegarde — voir switchToIdentity() dans app.js) : un rechargement
+      // redonne un affichage cohérent partout d'un coup, plutôt que de
+      // ré-appeler à la main chaque fonction de rendu du jeu en espérant
+      // n'en oublier aucune. La progression est déjà sauvegardée à ce stade.
+      if (result.reload) {
+        location.reload();
+        return;
+      }
       updateAccountBtn();
       renderAccountModal();
       renderHeader();
       renderMarketTab();
       renderPvpTab();
-      // La connexion vient de rapatrier la collection du compte (pullBananas()
-      // met aussi à jour state.discovered) : les onglets Économie/Combat/Social
-      // doivent immédiatement refléter cette collection, pas rester bloqués sur
-      // l'état (souvent "nouveau joueur") d'avant la connexion.
       refreshTabLocks();
-      CLOUD.setAvatar(state.profile.avatarId);
       refreshAllSupportBadges();
     });
   }
