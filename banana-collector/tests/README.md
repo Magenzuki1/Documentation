@@ -28,6 +28,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   chance appliqués localement).
 - `boss-essais-weekly-reset.test.js` — le niveau de l'amélioration "Essais
   de Boss" retombe bien à 0 à chaque nouvelle semaine.
+- `boss-gift-reveal.test.js` — le reçu de récompense du Boss permet de voir
+  les bananes précises obtenues, et les anciens reçus sans cette donnée
+  restent affichables sans bouton détail ni erreur.
 
 ## Ajouter un test
 

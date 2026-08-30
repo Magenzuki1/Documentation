@@ -638,8 +638,7 @@ const CLOUD = (() => {
     return {
       ok: true,
       coins: row.out_coins || 0,
-      bananaId: row.out_banana_id || null,
-      bananaQuantity: row.out_banana_quantity || 0,
+      bananaIds: row.out_banana_ids || [],
       medalId: row.out_medal_id || null,
       chanceBoostPercent: row.out_chance_boost_percent || 0,
       chanceBoostHours: row.out_chance_boost_hours || 0,

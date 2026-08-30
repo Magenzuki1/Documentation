@@ -111,8 +111,8 @@ async function run() {
       ];
       CLOUD.getMySeasonStatus = async () => ({ season_key: "2026-08", points: 1400, days_remaining: 2, claimed_tiers: [1] });
       CLOUD.claimSeasonTier = async (tier) => {
-        if (tier === 5) return { ok: true, coins: 2000, bananaId: 28, bananaQuantity: 4, medalId: "medal_season_1", chanceBoostPercent: 0, chanceBoostHours: 0 };
-        if (tier === 7) return { ok: true, coins: 1000, bananaId: null, bananaQuantity: 0, medalId: null, chanceBoostPercent: 10, chanceBoostHours: 3 };
+        if (tier === 5) return { ok: true, coins: 2000, bananaIds: [28, 28, 28, 30], medalId: "medal_season_1", chanceBoostPercent: 0, chanceBoostHours: 0 };
+        if (tier === 7) return { ok: true, coins: 1000, bananaIds: [], medalId: null, chanceBoostPercent: 10, chanceBoostHours: 3 };
         return { ok: false, reason: "unexpected" };
       };
     });
@@ -132,6 +132,22 @@ async function run() {
     assert.ok(
       await page.evaluate(() => state.medals.unlocked.includes("medal_season_1")),
       "medal_season_1 was not applied to local state after claiming tier 5"
+    );
+
+    // La récompense contenait 4 bananes mais seulement 2 distinctes
+    // (28 x3, 30 x1) : la révélation groupée doit montrer 2 cartes, pas 4,
+    // avec la bonne rareté marquée "NOUVEAU" (aucune des deux n'était
+    // découverte avant).
+    assert.ok(
+      await page.evaluate(() => !document.getElementById("reveal-modal").classList.contains("hidden")),
+      "reveal modal did not open after claiming a tier with bananas"
+    );
+    assert.strictEqual(await page.$$eval(".reveal-grid-card", (els) => els.length), 2, "expected 2 distinct banana cards in the reveal");
+    assert.strictEqual(await page.$$eval(".reveal-grid-card .new-badge", (els) => els.length), 2, "expected both distinct bananas marked as new");
+    await page.click("#reveal-modal-close");
+    assert.ok(
+      await page.evaluate(() => document.getElementById("reveal-modal").classList.contains("hidden")),
+      "reveal modal close button did not hide it"
     );
 
     await page.click('[data-claim-tier="7"]');

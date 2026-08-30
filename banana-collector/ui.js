@@ -280,6 +280,10 @@ document.addEventListener("DOMContentLoaded", () => {
     seasonPassHeaderPoints: document.getElementById("season-pass-points"),
     seasonPassHeaderDays: document.getElementById("season-pass-days"),
     seasonPassTrack: document.getElementById("season-pass-track"),
+    revealModal: document.getElementById("reveal-modal"),
+    revealModalClose: document.getElementById("reveal-modal-close"),
+    revealModalTitle: document.getElementById("reveal-modal-title"),
+    revealModalGrid: document.getElementById("reveal-modal-grid"),
     combatSoloView: document.getElementById("combat-solo-view"),
     combatPvpView: document.getElementById("combat-pvp-view"),
     pvpLocked: document.getElementById("pvp-locked"),
@@ -3521,6 +3525,50 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  /* ---------------- Révélation groupée de bananes ----------------
+     Utilisée partout où un lot de bananes aléatoires est crédité d'un
+     coup (palier du Passe saisonnier, récompense du Boss) : sans ça, le
+     joueur ne sait que la RARETÉ obtenue (via bananaRewardChipsHTML), pas
+     QUELLES bananes précises parmi celles de cette rareté — random_banana_ids()
+     peut piocher plusieurs bananes différentes, pas seulement des doublons
+     d'une seule. Regroupée par banane distincte (pas une carte par unité :
+     un gros lot de rang #1 du Boss peut dépasser 300 bananes). */
+  function revealBananaCardHTML(banana, count, isNew) {
+    const rarity = RARITIES[banana.rarity];
+    return `
+      <div class="harvest-reveal-card reveal-grid-card rarity-${banana.rarity} ${isNew ? "is-new" : ""}" style="--rarity-color:${rarity.color}; --rarity-glow:${rarity.glow};">
+        ${isNew ? '<div class="new-badge">NOUVEAU</div>' : ""}
+        ${bananaIconHTML(banana, 3)}
+        <div class="harvest-reveal-name">${banana.name}</div>
+        <div class="harvest-reveal-rarity-pill">${rarity.label}</div>
+        ${count > 1 ? `<div class="harvest-reveal-meta"><span>x${count}</span></div>` : ""}
+      </div>
+    `;
+  }
+
+  // discoveredBefore : liste de state.discovered AVANT le crédit, pour
+  // marquer "NOUVEAU" — à capturer par l'appelant avant tout appel réseau
+  // qui rapatrierait déjà le nouvel état (pullBananas), sinon la comparaison
+  // ne détecterait plus rien de nouveau. Passer null pour un reçu déjà
+  // ancien (l'historique des cadeaux du Boss) où "nouveau" n'a plus de sens.
+  function showBatchBananaReveal(title, bananaIds, discoveredBefore) {
+    if (!bananaIds || bananaIds.length === 0) return;
+    const counts = {};
+    bananaIds.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+    const ids = Object.keys(counts).map(Number).filter((id) => BANANAS_BY_ID[id]);
+    ids.sort((a, b) => rarityIndex(BANANAS_BY_ID[b].rarity) - rarityIndex(BANANAS_BY_ID[a].rarity) || a - b);
+    els.revealModalTitle.textContent = title;
+    els.revealModalGrid.innerHTML = ids.map((id) => {
+      const isNew = discoveredBefore ? !discoveredBefore.includes(id) : false;
+      return revealBananaCardHTML(BANANAS_BY_ID[id], counts[id], isNew);
+    }).join("");
+    els.revealModal.classList.remove("hidden");
+    spawnConfetti(Math.min(10 + bananaIds.length, 40));
+    SFX.buy();
+  }
+
+  els.revealModalClose.addEventListener("click", () => els.revealModal.classList.add("hidden"));
+
   /* ---------------- Boîte à cadeaux du Boss ----------------
      Deux sortes de contenu : les récompenses du Boss, déjà créditées
      (wallet_ledger/player_bananas) au moment de la distribution automatique
@@ -3544,14 +3592,21 @@ document.addEventListener("DOMContentLoaded", () => {
     els.giftBoxBadge.classList.toggle("hidden", count === 0);
   }
 
-  function bossGiftRowHTML(gift) {
+  function bossGiftRowHTML(gift, index) {
     const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
     const rankLabel = gift.rank === 1 ? "🥇 1er" : gift.rank <= 5 ? `🥈 ${gift.rank}e` : gift.rank <= 10 ? `🥉 ${gift.rank}e` : `#${gift.rank}`;
+    // banana_ids : absent sur les reçus distribués avant l'ajout de cette
+    // colonne — pas de bouton détail dans ce cas, seules les puces de
+    // rareté (déjà présentes) restent disponibles pour ces anciens reçus.
+    const detailBtn = gift.banana_ids && gift.banana_ids.length > 0
+      ? `<button class="btn harvest-btn boss-gift-detail-btn" data-boss-gift-index="${index}">Voir le détail</button>`
+      : "";
     return `
       <div class="admin-log-row">
         <div><strong>Semaine du Boss (${date})</strong> — classé ${rankLabel}</div>
         <div class="secret-hint">🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces</div>
         <div class="reward-banana-chips">${bananaRewardChipsHTML(gift.banana_rewards || {})}</div>
+        ${detailBtn}
       </div>
     `;
   }
@@ -3623,11 +3678,18 @@ document.addEventListener("DOMContentLoaded", () => {
     sections.push(`<h3 class="admin-news-history-title">Historique (récompenses du Boss)</h3>`);
     sections.push(bossGifts.length === 0
       ? `<p class="secret-hint">Aucun cadeau reçu pour l'instant. Reviens après un lundi où le Boss a été vaincu !</p>`
-      : bossGifts.map(bossGiftRowHTML).join(""));
+      : bossGifts.map((g, i) => bossGiftRowHTML(g, i)).join(""));
     els.giftBoxList.innerHTML = sections.join("");
 
     els.giftBoxList.querySelectorAll("[data-claim-gift]").forEach((btn) => {
       btn.addEventListener("click", () => claimPendingGift(Number(btn.dataset.claimGift), btn));
+    });
+    els.giftBoxList.querySelectorAll("[data-boss-gift-index]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const gift = bossGifts[Number(btn.dataset.bossGiftIndex)];
+        const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
+        showBatchBananaReveal(`🏆 Récompenses du Boss — ${date}`, gift.banana_ids, null);
+      });
     });
 
     await CLOUD.markBossGiftsSeen();
@@ -3698,6 +3760,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function claimSeasonTierUI(tier, btn) {
     btn.disabled = true;
     btn.textContent = "…";
+    // Capturé AVANT l'appel réseau : claimSeasonTier() rapatrie déjà le
+    // nouvel état (pullBananas) avant de revenir ici, donc comparer contre
+    // state.discovered après coup ne détecterait plus aucune "nouveauté".
+    const discoveredBefore = state.discovered.slice();
     const res = await CLOUD.claimSeasonTier(tier);
     if (!res.ok) {
       btn.disabled = false;
@@ -3719,8 +3785,12 @@ document.addEventListener("DOMContentLoaded", () => {
       saveState();
     }
     SFX.buy();
-    spawnConfetti(24);
     renderHeader();
+    if (res.bananaIds && res.bananaIds.length > 0) {
+      showBatchBananaReveal("🎫 Palier réclamé !", res.bananaIds, discoveredBefore);
+    } else {
+      spawnConfetti(24);
+    }
     await openSeasonPassModal();
   }
 
