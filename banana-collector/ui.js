@@ -3403,37 +3403,57 @@ document.addEventListener("DOMContentLoaded", () => {
   let bossView = "combat"; // "combat" | "degats"
 
   // Miroir d'affichage de la logique de distribute_weekly_boss_rewards()
-  // côté Supabase (participation + bonus de palier déjà additionnés) — à
-  // garder synchronisé si les montants changent côté serveur. Aucune donnée
-  // dynamique ici, uniquement pour informer les joueurs de ce qu'ils peuvent
-  // gagner.
-  const BOSS_REWARD_TIERS = [
-    { label: "🥇 1ère place", coins: 125000, bananas: { commune: 130, peu_commune: 95, rare: 65, legendaire: 40, mythique: 20, secrete: 2 } },
-    { label: "🥈 2e à 5e place", coins: 100000, bananas: { commune: 105, peu_commune: 70, rare: 45, legendaire: 30, mythique: 15, secrete: 1 } },
-    { label: "🥉 6e à 10e place", coins: 80000, bananas: { commune: 80, peu_commune: 50, rare: 35, legendaire: 20, mythique: 10, secrete: 0 } },
-    { label: "🎖️ 11e place et plus", coins: 60000, bananas: { commune: 60, peu_commune: 40, rare: 30, legendaire: 20, mythique: 10, secrete: 0 } },
+  // côté Supabase — à garder synchronisé si les montants changent côté
+  // serveur. Aucune donnée dynamique ici, uniquement pour informer les
+  // joueurs de ce qu'ils peuvent gagner. Volontairement dissocié en deux
+  // blocs distincts, dans l'ordre où le serveur les calcule (participation
+  // PUIS bonus de classement ajouté par-dessus), plutôt qu'en totaux déjà
+  // additionnés qui rendaient peu clair ce qui venait d'où :
+  // - participation : gagnée individuellement, par tout joueur ayant
+  //   infligé au moins 1 dégât, indépendamment des autres.
+  // - bonus de classement : gagné collectivement, en plus, seulement si le
+  //   joueur se classe dans le top 10 des dégâts de la semaine.
+  const BOSS_REWARD_PARTICIPATION = {
+    coins: 50000,
+    bananas: { commune: 30, peu_commune: 20, rare: 15, legendaire: 10, mythique: 5, secrete: 0 },
+  };
+  const BOSS_REWARD_RANK_BONUSES = [
+    { label: "🥇 1ère place", coins: 75000, bananas: { commune: 100, peu_commune: 75, rare: 50, legendaire: 30, mythique: 15, secrete: 2 } },
+    { label: "🥈 2e à 5e place", coins: 50000, bananas: { commune: 75, peu_commune: 50, rare: 30, legendaire: 20, mythique: 10, secrete: 1 } },
+    { label: "🥉 6e à 10e place", coins: 30000, bananas: { commune: 50, peu_commune: 30, rare: 20, legendaire: 10, mythique: 5, secrete: 0 } },
+    { label: "🎖️ 11e place et plus", coins: 10000, bananas: { commune: 30, peu_commune: 20, rare: 15, legendaire: 10, mythique: 5, secrete: 0 } },
   ];
-  const BOSS_REWARD_BANANA_ORDER = ["commune", "peu_commune", "rare", "legendaire", "mythique", "secrete"];
+  const BOSS_REWARD_BANANA_ORDER = ["secrete", "mythique", "legendaire", "rare", "peu_commune", "commune"];
 
-  function bossRewardBananaLineHTML(bananas) {
+  // Une puce 🍌 colorée à la teinte de la rareté (même variable --rarity-color
+  // que le reste du jeu) plutôt qu'un nom de rareté écrit en toutes lettres —
+  // la couleur porte l'info de rareté, le nombre porte la quantité.
+  function bananaRewardChipsHTML(bananas) {
     return BOSS_REWARD_BANANA_ORDER
       .filter((r) => (bananas[r] || 0) > 0)
-      .map((r) => `${bananas[r]} ${RARITIES[r].label.toLowerCase()}`)
-      .join(", ");
+      .map((r) => `<span class="reward-banana-chip" style="--rarity-color:${RARITIES[r].color}" title="${RARITIES[r].label}">🍌 ×${bananas[r]}</span>`)
+      .join("");
   }
 
-  function bossRewardTierCardHTML(tier) {
+  function bossRewardCardHTML(label, coins, bananas) {
     return `
       <div class="banana-card">
-        <div class="banana-card-name">${tier.label}</div>
-        <div class="pve-fighter-stats">🪙 ${tier.coins.toLocaleString("fr-FR")} pièces</div>
-        <div class="secret-hint">${bossRewardBananaLineHTML(tier.bananas)}</div>
+        <div class="banana-card-name">${label}</div>
+        <div class="pve-fighter-stats">🪙 ${coins.toLocaleString("fr-FR")} pièces</div>
+        <div class="reward-banana-chips">${bananaRewardChipsHTML(bananas)}</div>
       </div>
     `;
   }
 
   function renderBossRewardTiers() {
-    els.bossRewardTiers.innerHTML = BOSS_REWARD_TIERS.map(bossRewardTierCardHTML).join("");
+    els.bossRewardTiers.innerHTML = `
+      <h4 class="admin-news-history-title">🎯 Récompense de participation (individuelle)</h4>
+      <p class="shop-hint">Pour tout joueur ayant infligé au moins 1 dégât cette semaine, quel que soit son classement.</p>
+      <div class="banana-grid">${bossRewardCardHTML("Tous les participants", BOSS_REWARD_PARTICIPATION.coins, BOSS_REWARD_PARTICIPATION.bananas)}</div>
+      <h4 class="admin-news-history-title">🏆 Bonus de classement (collectif, en plus)</h4>
+      <p class="shop-hint">S'ajoute à la récompense de participation ci-dessus, seulement pour les 10 meilleurs au classement des dégâts.</p>
+      <div class="banana-grid">${BOSS_REWARD_RANK_BONUSES.map((t) => bossRewardCardHTML(t.label, t.coins, t.bananas)).join("")}</div>
+    `;
   }
 
   function showBossSubview(view) {
@@ -3502,12 +3522,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function bossGiftRowHTML(gift) {
     const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
-    const bananaLine = bossRewardBananaLineHTML(gift.banana_rewards || {});
     const rankLabel = gift.rank === 1 ? "🥇 1er" : gift.rank <= 5 ? `🥈 ${gift.rank}e` : gift.rank <= 10 ? `🥉 ${gift.rank}e` : `#${gift.rank}`;
     return `
       <div class="admin-log-row">
         <div><strong>Semaine du Boss (${date})</strong> — classé ${rankLabel}</div>
-        <div class="secret-hint">🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces${bananaLine ? " · " + bananaLine : ""}</div>
+        <div class="secret-hint">🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces</div>
+        <div class="reward-banana-chips">${bananaRewardChipsHTML(gift.banana_rewards || {})}</div>
       </div>
     `;
   }
