@@ -226,7 +226,7 @@ function defaultState() {
     dailyQuestsCompletedTotal: 0,
     weeklyQuestsCompletedTotal: 0,
     catchGame: { bestScore: 0, bestCoins: 0 },
-    memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0 },
+    memoryGame: { bestMoves: null, bestTimeMs: null, gamesPlayed: 0, records: {} },
     blackjackGame: { gamesPlayed: 0, biggestWin: 0 },
     slotGame: { gamesPlayed: 0, biggestWin: 0, bonusesTriggered: 0, jackpotsHit: 0 },
     playerXp: 0, // XP totale cumulée ; le niveau/titre s'en déduit à la volée (voir playerLevelProgress()).
@@ -786,7 +786,7 @@ const CATCH_LEVELS = [
   { spawnDelay: 560, fallMin: 2.0, fallMax: 2.7, rottenChance: 0.22, label: "Ça accélère !" },
   { spawnDelay: 380, fallMin: 1.5, fallMax: 2.1, rottenChance: 0.3, label: "Vitesse maximale !" },
 ];
-const CATCH_GOOD_COINS = 4;
+const CATCH_GOOD_COINS = 6;
 const CATCH_ROTTEN_PENALTY = 6;
 
 function awardCatchGameResult(goodCaught, rottenCaught) {
@@ -804,24 +804,44 @@ function awardCatchGameResult(goodCaught, rottenCaught) {
 /* ---------------- Mini-jeu : Mémoire des bananes ---------------- */
 
 // Jeu de paires classique : on retourne les cartes deux par deux, il faut
-// retrouver les 8 paires de bananes en un minimum de coups. Les images
+// retrouver toutes les paires de bananes en un minimum de coups. Les images
 // utilisées sont piochées parmi les bananes déjà découvertes par le joueur
-// (ou, à défaut de 8 découvertes, parmi les bananes normales du jeu).
-const MEMORY_PAIRS_COUNT = 8;
-const MEMORY_BASE_REWARD = 220;
+// (ou, à défaut d'assez de découvertes, parmi les bananes normales du jeu).
+// Trois niveaux de difficulté (nombre de paires croissant), chacun avec son
+// propre record et sa propre récompense de base — plus de paires = manche
+// plus longue = récompense de base plus élevée. "normal" reste le niveau
+// historique (8 paires) : c'est lui qui compte pour le succès "Mémoire
+// parfaite" (voir MEDALS/ACHIEVEMENTS), pour ne pas invalider un succès déjà
+// débloqué par d'anciens joueurs sur cette difficulté précise.
+const MEMORY_LEVELS = {
+  facile: { pairs: 6, baseReward: 170, decayPerExtraMove: 7, floor: 50 },
+  normal: { pairs: 8, baseReward: 280, decayPerExtraMove: 6, floor: 60 },
+  difficile: { pairs: 12, baseReward: 460, decayPerExtraMove: 5, floor: 90 },
+};
+const MEMORY_PAIRS_COUNT = MEMORY_LEVELS.normal.pairs;
 
-function pickMemoryBananaIds() {
-  const pool = state.discovered.length >= MEMORY_PAIRS_COUNT ? state.discovered.slice() : NORMAL_BANANAS.map((b) => b.id);
+function pickMemoryBananaIds(levelId) {
+  const pairs = (MEMORY_LEVELS[levelId] || MEMORY_LEVELS.normal).pairs;
+  const pool = state.discovered.length >= pairs ? state.discovered.slice() : NORMAL_BANANAS.map((b) => b.id);
   const shuffled = pool.slice().sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, MEMORY_PAIRS_COUNT);
+  return shuffled.slice(0, pairs);
 }
 
-function awardMemoryGameResult(moves, timeMs) {
+function awardMemoryGameResult(levelId, moves, timeMs) {
+  const level = MEMORY_LEVELS[levelId] || MEMORY_LEVELS.normal;
   state.memoryGame.gamesPlayed = (state.memoryGame.gamesPlayed || 0) + 1;
-  if (state.memoryGame.bestMoves == null || moves < state.memoryGame.bestMoves) state.memoryGame.bestMoves = moves;
-  if (state.memoryGame.bestTimeMs == null || timeMs < state.memoryGame.bestTimeMs) state.memoryGame.bestTimeMs = timeMs;
-  const extraMoves = Math.max(0, moves - MEMORY_PAIRS_COUNT);
-  const rawCoins = Math.max(40, MEMORY_BASE_REWARD - extraMoves * 6);
+  const records = (state.memoryGame.records = state.memoryGame.records || {});
+  const record = (records[levelId] = records[levelId] || { bestMoves: null, bestTimeMs: null });
+  if (record.bestMoves == null || moves < record.bestMoves) record.bestMoves = moves;
+  if (record.bestTimeMs == null || timeMs < record.bestTimeMs) record.bestTimeMs = timeMs;
+  // Rétrocompatibilité : bestMoves/bestTimeMs à la racine restent alignés sur
+  // le niveau "normal", seul niveau que les succès existants vérifient.
+  if (levelId === "normal") {
+    if (state.memoryGame.bestMoves == null || moves < state.memoryGame.bestMoves) state.memoryGame.bestMoves = moves;
+    if (state.memoryGame.bestTimeMs == null || timeMs < state.memoryGame.bestTimeMs) state.memoryGame.bestTimeMs = timeMs;
+  }
+  const extraMoves = Math.max(0, moves - level.pairs);
+  const rawCoins = Math.max(level.floor, level.baseReward - extraMoves * level.decayPerExtraMove);
   const coinsEarned = grantCoins(rawCoins);
   grantXp(5);
   bumpQuestProgress("memoryRounds");
@@ -893,9 +913,11 @@ function placeBlackjackBet(bet) {
   return placeCasinoBet(bet, BLACKJACK_MAX_BET);
 }
 
-// outcome : "blackjack" (gagné avec un Black Jack naturel, payé 3:2),
-// "victoire" (payé 1:1), "egalite" (mise remboursée) ou "defaite" (mise
-// déjà perdue, rien à faire de plus).
+// outcome : "blackjack" (gagné avec un Black Jack naturel, payé 5:2),
+// "victoire" (payé 3:2), "egalite" (mise remboursée) ou "defaite" (mise
+// déjà perdue, rien à faire de plus). Payés au-dessus des ratios de casino
+// réels (habituellement 1:1 / 3:2) pour que gagner une manche soit
+// clairement rentable dans un jeu occasionnel.
 // La mise remboursée passe directement par state.coins (jamais par
 // grantCoins) pour qu'une égalité ou le remboursement du capital ne soit
 // pas gonflé par le multiplicateur de pièces de la boutique : seul le GAIN
@@ -906,10 +928,10 @@ function resolveBlackjackBet(totalBet, outcome) {
   let coinsEarned = 0;
   if (outcome === "blackjack") {
     state.coins += totalBet;
-    coinsEarned = grantCoins(Math.round(totalBet * 1.5));
+    coinsEarned = grantCoins(Math.round(totalBet * 2.5));
   } else if (outcome === "victoire") {
     state.coins += totalBet;
-    coinsEarned = grantCoins(totalBet);
+    coinsEarned = grantCoins(Math.round(totalBet * 1.5));
   } else if (outcome === "egalite") {
     state.coins += totalBet;
   }
@@ -929,9 +951,9 @@ function resolveBlackjackBet(totalBet, outcome) {
    taux de déclenchement d'environ 5% des tours (~1 sur 19), plus fréquent
    qu'un scatter de casino réel, pour rester fun à jouer. Table de paiement
    calibrée (payout/twoPay/prix de bonus) pour un taux de retour global
-   d'environ 108% et un tour gagnant sur trois (contre ~20% et ~67% avant
-   ajustement) : généreux et amusant, sans être un distributeur de pièces
-   sans limite. Mise plafonnée à 100 000 pièces, comme le Black Jack. */
+   d'environ 107% et un tour gagnant sur quatre : généreux et amusant, quitte
+   à rendre la main à l'économie via les autres coûts du jeu (upgrades de
+   bananes, boutique). Mise plafonnée à 100 000 pièces, comme le Black Jack. */
 
 const SLOT_MAX_BET = 100000;
 // payout : 3 symboles identiques sur la ligne. twoPay : seulement les 2
@@ -940,26 +962,26 @@ const SLOT_MAX_BET = 100000;
 // pur, jamais de gain de ligne) et le sept (jackpot réservé au grand
 // alignement complet, pas de lot de consolation).
 // Valeurs calibrées (voir verify_slots.js) pour un taux de redistribution
-// (RTP) global d'environ 92% lignes + bonus "Choisis un fruit" cumulés —
-// proche des machines à sous réelles (typiquement 85-97%). Les anciennes
-// valeurs redistribuaient ~108% en moyenne (le bonus a lui seul ajoutait
-// ~19 points de RTP par-dessus des gains de ligne déjà généreux), ce qui
-// n'a aucun équivalent réaliste et gonflait l'économie sans limite.
+// (RTP) global d'environ 107% lignes + bonus "Choisis un fruit" cumulés, et
+// environ un tour sur quatre réellement gagnant (net positif). Relevé à la
+// demande explicite du proprio du jeu après un retour joueur ("on gagne
+// quasi jamais") : la précédente table (~92% RTP) rendait les tours
+// gagnants trop rares pour donner envie de jouer.
 const SLOT_SYMBOLS = [
-  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 2, twoPay: 0.5 },
-  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 3, twoPay: 0 },
-  { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 6, twoPay: 0 },
-  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 9, twoPay: 0 },
-  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 15, twoPay: 0 },
-  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 25, twoPay: 0 },
+  { id: "cerise", emoji: "🍒", name: "Cerise", weight: 30, payout: 2, twoPay: 0.6 },
+  { id: "citron", emoji: "🍋", name: "Citron", weight: 25, payout: 3, twoPay: 0.3 },
+  { id: "raisin", emoji: "🍇", name: "Raisin", weight: 18, payout: 7, twoPay: 0 },
+  { id: "pasteque", emoji: "🍉", name: "Pastèque", weight: 12, payout: 10, twoPay: 0 },
+  { id: "banane", emoji: "🍌", name: "Banane", weight: 8, payout: 17, twoPay: 0 },
+  { id: "ananas", emoji: "🍍", name: "Ananas", weight: 5, payout: 28, twoPay: 0 },
   { id: "cloche", emoji: "🔔", name: "Cloche", weight: 11, payout: 0, twoPay: 0 },
-  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 80, twoPay: 0 },
+  { id: "sept", emoji: "7️⃣", name: "Sept", weight: 2, payout: 85, twoPay: 0 },
 ];
 const SLOT_SYMBOLS_BY_ID = Object.fromEntries(SLOT_SYMBOLS.map((s) => [s.id, s]));
 const SLOT_TOTAL_WEIGHT = SLOT_SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
 const SLOT_SCATTER_SYMBOL_ID = "cloche";
 const SLOT_SCATTER_MIN_COUNT = 3;
-const SLOT_BONUS_PRIZE_MULTIPLIERS = [2, 3, 6];
+const SLOT_BONUS_PRIZE_MULTIPLIERS = [2, 4, 7];
 
 // 3 lignes horizontales + les 2 diagonales, en coordonnées [ligne, colonne].
 const SLOT_PAYLINES = [
