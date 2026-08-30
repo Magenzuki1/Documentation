@@ -269,16 +269,53 @@ const CLOUD = (() => {
     return map;
   }
 
-  // Offre N exemplaires d'une banane existante du catalogue à un joueur
-  // ("looter" une banane) — l'admin ne crée jamais de nouvelle banane, le
-  // catalogue reste figé, conçu par le développeur.
-  async function adminGrantBanana(username, bananaId, quantity) {
+  // Envoie un cadeau (pièces et/ou N exemplaires d'une banane du catalogue,
+  // l'admin ne crée jamais de nouvelle banane) à un joueur — ne crédite RIEN
+  // instantanément : le cadeau atterrit dans sa boîte à cadeaux, et c'est
+  // lui qui doit le récupérer (voir claimGift) pour que ça compte vraiment.
+  async function adminSendGift(username, coins, bananaId, quantity, message) {
     if (!supabase) return unavailable;
-    const { error } = await supabase.rpc("admin_grant_banana", {
-      target_username: username, p_banana_id: bananaId, p_quantity: quantity,
+    const { error } = await supabase.rpc("admin_send_gift", {
+      p_username: username,
+      p_coins: coins || 0,
+      p_banana_id: bananaId || null,
+      p_banana_quantity: quantity || 0,
+      p_message: message || null,
     });
     if (error) return { ok: false, reason: error.message };
     return { ok: true };
+  }
+
+  // Boîte à cadeaux (dons admin) : liste des cadeaux en attente, leur
+  // nombre (pastille), et la réclamation d'un cadeau précis. claimGift()
+  // s'appuie sur pullLedger()/pullBananas() (déjà idempotents via
+  // lastLedgerId / le principe du max) plutôt que d'appliquer les montants
+  // renvoyés directement en local, pour ne jamais risquer de compter le
+  // crédit deux fois quand la synchronisation normale repassera dessus.
+  async function fetchPendingGifts() {
+    if (!supabase || !isLinked()) return [];
+    const { data, error } = await supabase.rpc("get_my_pending_gifts");
+    return error || !data ? [] : data;
+  }
+
+  async function fetchUnclaimedGiftCount() {
+    if (!supabase || !isLinked()) return 0;
+    const { data, error } = await supabase.rpc("get_my_unclaimed_gift_count");
+    return error || data == null ? 0 : data;
+  }
+
+  async function claimGift(giftId) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { data, error } = await supabase.rpc("claim_gift", { p_gift_id: giftId });
+    if (error) return { ok: false, reason: error.message };
+    const row = data && data[0];
+    await Promise.all([pullLedger(), pullBananas()]);
+    return {
+      ok: true,
+      coins: row ? row.out_coins : 0,
+      bananaId: row ? row.out_banana_id : null,
+      bananaQuantity: row ? row.out_banana_quantity : 0,
+    };
   }
 
   async function fetchAdminQuests() {
@@ -1327,7 +1364,10 @@ const CLOUD = (() => {
     adminUnscheduleEvent,
     adminListScheduledEvents,
     fetchEventOverrides,
-    adminGrantBanana,
+    adminSendGift,
+    fetchPendingGifts,
+    fetchUnclaimedGiftCount,
+    claimGift,
     fetchAdminQuests,
     adminCreateQuest,
     adminDeleteQuest,
