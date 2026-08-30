@@ -1,0 +1,39 @@
+name: Test Banana Collector
+
+# Vérifications automatisées permanentes pour banana-collector/ : intégrité
+# des données, équilibrage économique (machine à sous), Passe saisonnier,
+# reset hebdomadaire des essais de Boss. Tourne sur toute PR/push touchant
+# le dossier, indépendamment du déploiement (deploy-banana-collector.yml).
+
+on:
+  push:
+    paths:
+      - "banana-collector/**"
+  pull_request:
+    paths:
+      - "banana-collector/**"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: banana-collector
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run test suite
+        run: npm test

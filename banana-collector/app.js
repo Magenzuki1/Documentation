@@ -2356,6 +2356,7 @@ function fightFruitEnemy(bananaId, stageIndex) {
     state.pve.wins += 1;
     state.pve.lossStreak = 0;
     grantXp(stageAdvanced ? 20 : 8);
+    addSeasonPoints(5);
     bumpQuestProgress("wins");
     if (stageAdvanced) state.pve.stage = stageIndex;
   } else {

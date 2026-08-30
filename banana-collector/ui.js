@@ -3342,6 +3342,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     SFX[result.won ? "win" : "lose"]();
     state.coins += result.attackerDelta;
+    if (result.won) addSeasonPoints(8);
     saveState();
     renderHeader();
 
