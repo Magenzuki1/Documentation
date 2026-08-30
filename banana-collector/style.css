@@ -2204,19 +2204,16 @@ h1, h2, h3,
 }
 .boss-hp-bar-fill.defeated { background: linear-gradient(90deg, #4caf50, #7be08a); }
 .boss-attempts-label { margin-top: 8px; font-size: 0.8rem; color: #5c4a1a; }
-.boss-reward-banner {
-  background: var(--accent-soft, rgba(255, 193, 7, 0.18));
-  border: 1px solid var(--accent);
+.boss-sunday-boost-banner {
+  margin-top: 10px;
+  background: linear-gradient(90deg, #ff9f1c, #e63946);
+  color: #fff;
   border-radius: var(--radius);
-  padding: 12px 16px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  padding: 8px 14px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-align: center;
 }
-.boss-reward-banner p { margin: 0; font-weight: 700; }
 
 /* --- Bulle événement du Boss hebdomadaire, page Tirage : visible en
    permanence sur le côté pour que le Boss se sente comme un événement en

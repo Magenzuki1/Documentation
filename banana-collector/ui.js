@@ -220,6 +220,8 @@ document.addEventListener("DOMContentLoaded", () => {
     adminNewsResetBtn: document.getElementById("admin-news-reset-btn"),
     adminBossForceDistributeBtn: document.getElementById("admin-boss-force-distribute-btn"),
     adminBossForceDistributeResult: document.getElementById("admin-boss-force-distribute-result"),
+    adminBossForceSundayBoostBtn: document.getElementById("admin-boss-force-sunday-boost-btn"),
+    adminBossForceSundayBoostResult: document.getElementById("admin-boss-force-sunday-boost-result"),
     adminEventsDate: document.getElementById("admin-events-date"),
     adminEventsSelect: document.getElementById("admin-events-select"),
     adminEventsScheduleBtn: document.getElementById("admin-events-schedule-btn"),
@@ -3653,6 +3655,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const rankLine = status && status.my_rank != null
       ? ` · Ton rang : #${status.my_rank}`
       : "";
+    // Boost du dimanche (voir apply_sunday_boss_boost côté Supabase) : si le
+    // boss n'est pas encore vaincu, ses PV grimpent de 20% et les
+    // récompenses de fin de semaine aussi — visible tant que non vaincu,
+    // même après dimanche, jusqu'à la fin de la semaine du boss.
+    const sundayBoosted = !!boss.sunday_boost_applied_at && !defeated;
     return `
       <div class="boss-card-header">
         <span class="boss-card-emoji">${boss.emoji}</span>
@@ -3661,6 +3668,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="boss-card-hp-label">${defeated ? "🏆 Vaincu cette semaine !" : `${Number(boss.current_hp).toLocaleString("fr-FR")} / ${Number(boss.max_hp).toLocaleString("fr-FR")} PV`}</div>
         </div>
       </div>
+      ${sundayBoosted ? `<div class="boss-sunday-boost-banner">🔥 Boost du dimanche : +20% PV et +20% de récompenses cette semaine !</div>` : ""}
       <div class="boss-hp-bar"><div class="boss-hp-bar-fill ${defeated ? "defeated" : ""}" style="width:${pct}%;"></div></div>
       ${status ? `<div class="boss-attempts-label">Essais aujourd'hui : ${status.attempts_used_today} / ${status.attempts_allowed_today}${status.total_damage_this_week > 0 ? ` · Tes dégâts cette semaine : ${Number(status.total_damage_this_week).toLocaleString("fr-FR")}` : ""}${rankLine}</div>` : ""}
     `;
@@ -5162,6 +5170,17 @@ document.addEventListener("DOMContentLoaded", () => {
       ? "Distribution lancée (les semaines closes et vaincues, pas encore distribuées, ont été traitées)."
       : res.reason || "Erreur inconnue.";
     els.adminBossForceDistributeResult.classList.remove("hidden");
+  });
+
+  els.adminBossForceSundayBoostBtn.addEventListener("click", async () => {
+    els.adminBossForceSundayBoostBtn.disabled = true;
+    els.adminBossForceSundayBoostResult.classList.add("hidden");
+    const res = await CLOUD.adminForceSundayBoost();
+    els.adminBossForceSundayBoostBtn.disabled = false;
+    els.adminBossForceSundayBoostResult.textContent = res.ok
+      ? "Boost appliqué (si le boss de la semaine en cours n'était pas déjà vaincu ou déjà boosté)."
+      : res.reason || "Erreur inconnue.";
+    els.adminBossForceSundayBoostResult.classList.remove("hidden");
   });
 
   // Rempli une seule fois : les 7 événements sont un contenu fixe côté client.
