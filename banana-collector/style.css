@@ -2864,6 +2864,11 @@ h1, h2, h3,
 #action-confirm-modal { z-index: 120; }
 
 .modal-box {
+  /* Nécessaire pour que .modal-close-btn (position:absolute) s'ancre au
+     coin de CETTE boîte plutôt qu'à .modal (position:fixed, plein écran) —
+     sans ça, le "×" atterrit dans le coin de la page entière au lieu du
+     coin de la fenêtre, invisible/inaccessible pour le joueur. */
+  position: relative;
   background: var(--card-bg);
   border-radius: var(--radius);
   padding: 22px;

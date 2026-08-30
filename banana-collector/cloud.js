@@ -269,17 +269,22 @@ const CLOUD = (() => {
     return map;
   }
 
-  // Envoie un cadeau (pièces et/ou N exemplaires d'une banane du catalogue,
-  // l'admin ne crée jamais de nouvelle banane) à un joueur — ne crédite RIEN
-  // instantanément : le cadeau atterrit dans sa boîte à cadeaux, et c'est
-  // lui qui doit le récupérer (voir claimGift) pour que ça compte vraiment.
-  async function adminSendGift(username, coins, bananaId, quantity, message) {
+  // Envoie un cadeau à un joueur — pièces, N exemplaires d'une banane du
+  // catalogue (l'admin ne crée jamais de nouvelle banane), un cosmétique
+  // (cadre/titre/effet) et/ou une médaille, dans n'importe quelle
+  // combinaison. Ne crédite RIEN instantanément : le cadeau atterrit dans sa
+  // boîte à cadeaux, et c'est lui qui doit le récupérer (voir claimGift)
+  // pour que ça compte vraiment.
+  async function adminSendGift(username, coins, bananaId, quantity, cosmeticKind, cosmeticId, medalId, message) {
     if (!supabase) return unavailable;
     const { error } = await supabase.rpc("admin_send_gift", {
       p_username: username,
       p_coins: coins || 0,
       p_banana_id: bananaId || null,
       p_banana_quantity: quantity || 0,
+      p_cosmetic_kind: cosmeticKind || null,
+      p_cosmetic_id: cosmeticId || null,
+      p_medal_id: medalId || null,
       p_message: message || null,
     });
     if (error) return { ok: false, reason: error.message };
@@ -304,6 +309,12 @@ const CLOUD = (() => {
     return error || data == null ? 0 : data;
   }
 
+  // Pièces/bananes : voir pullLedger()/pullBananas() ci-dessus, déjà
+  // idempotents (lastLedgerId / principe du max), jamais appliqués
+  // directement en local pour ne jamais risquer un double crédit. Un
+  // cosmétique/une médaille éventuels n'ont, eux, aucune table serveur : ils
+  // sont juste renvoyés tels quels, à appliquer et pousser côté appelant
+  // (voir claimPendingGift() dans ui.js).
   async function claimGift(giftId) {
     if (!supabase || !isLinked()) return unavailable;
     const { data, error } = await supabase.rpc("claim_gift", { p_gift_id: giftId });
@@ -315,6 +326,9 @@ const CLOUD = (() => {
       coins: row ? row.out_coins : 0,
       bananaId: row ? row.out_banana_id : null,
       bananaQuantity: row ? row.out_banana_quantity : 0,
+      cosmeticKind: row ? row.out_cosmetic_kind : null,
+      cosmeticId: row ? row.out_cosmetic_id : null,
+      medalId: row ? row.out_medal_id : null,
     };
   }
 
