@@ -969,6 +969,60 @@ const CLOUD = (() => {
     await supabase.rpc("mark_combat_log_seen", { p_ids: ids });
   }
 
+  /* ---------------- Boss d'Arène hebdomadaire ----------------
+     Un seul boss communautaire par semaine (PV partagés par tous les
+     joueurs), les dégâts sont calculés côté serveur (attack_weekly_boss) à
+     partir d'une banane que le joueur possède réellement — jamais de
+     confiance dans un montant de dégâts envoyé par le client. */
+
+  async function getWeeklyBoss() {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("get_weekly_boss");
+    return error || !data ? null : data;
+  }
+
+  async function getMyWeeklyBossStatus() {
+    if (!supabase || !isLinked()) return null;
+    const { data, error } = await supabase.rpc("get_my_weekly_boss_status");
+    return error || !data || data.length === 0 ? null : data[0];
+  }
+
+  async function attackWeeklyBoss(bananaId) {
+    if (!supabase) return unavailable;
+    const { data, error } = await supabase.rpc("attack_weekly_boss", { p_banana_id: bananaId });
+    if (error) return { ok: false, reason: error.message };
+    const row = data && data[0];
+    if (!row) return { ok: false, reason: "erreur_inconnue" };
+    return {
+      ok: true,
+      damageDealt: row.damage_dealt,
+      bossHpAfter: Number(row.boss_hp_after),
+      bossDefeated: row.boss_defeated,
+      attemptsUsedToday: row.attempts_used_today,
+      attemptsAllowedToday: row.attempts_allowed_today,
+    };
+  }
+
+  // Réclame tous les bonus hebdomadaires en attente (semaines passées) en un
+  // seul appel — peut renvoyer plusieurs lignes si le joueur était absent
+  // plus d'une semaine.
+  async function claimWeeklyBossRewards() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc("claim_weekly_boss_rewards");
+    return error || !data ? [] : data;
+  }
+
+  // Pousse le niveau de l'amélioration "Essais de Boss" (voir buyUpgrade
+  // côté app.js) — même modèle de confiance que l'avatar/les cosmétiques
+  // équipés : le serveur applique ce niveau tel quel pour calculer le
+  // plafond d'essais/jour, sans revalider l'achat lui-même.
+  async function setBossAttemptsBonus(level) {
+    if (!supabase || !isLinked()) return unavailable;
+    const { error } = await supabase.rpc("set_boss_attempts_bonus", { p_level: level });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  }
+
   // Synchronisation débounced : appelée librement par le reste du jeu à
   // chaque action pertinente (achat, vente, fin de combat...) sans jamais
   // ralentir l'action elle-même — la requête réseau part quelques secondes
@@ -1099,6 +1153,11 @@ const CLOUD = (() => {
     attackPlayer,
     fetchUnseenCombatReports,
     markCombatLogSeen,
+    getWeeklyBoss,
+    getMyWeeklyBossStatus,
+    attackWeeklyBoss,
+    claimWeeklyBossRewards,
+    setBossAttemptsBonus,
     isAdmin,
     isBanned,
     banReason,

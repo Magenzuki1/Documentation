@@ -410,6 +410,7 @@
         <div class="market-subtabs">
           <button class="market-subtab-btn active" id="combat-tab-solo" data-combatview="solo">🍍 Arène solo</button>
           <button class="market-subtab-btn" id="combat-tab-pvp" data-combatview="pvp">🆚 PVP</button>
+          <button class="market-subtab-btn" id="combat-tab-boss" data-combatview="boss">🐲 Boss</button>
         </div>
 
         <div id="combat-solo-view">
@@ -455,6 +456,22 @@
               <button id="pvp-attack-btn" class="btn danger hidden">⚔️ Attaquer</button>
             </div>
             <div id="pvp-attack-result" class="pve-result hidden"></div>
+          </div>
+        </div>
+
+        <div id="combat-boss-view" class="hidden">
+          <h2>🐲 Boss d'Arène hebdomadaire</h2>
+          <p class="shop-hint">Un boss communautaire chaque semaine : une seule barre de vie partagée par tous les joueurs. 5 essais par jour (achetables en boutique jusqu'à 10), chaque essai inflige des dégâts selon la banane choisie. Tout joueur ayant porté au moins un coup reçoit un bonus la semaine suivante — cosmétique exclusif ou boost de chance temporaire — que le boss soit vaincu ou non.</p>
+          <div id="boss-locked" class="secret-hint hidden">🔒 Connecte-toi (bouton "👤 Compte" en haut de la page) pour affronter le Boss hebdomadaire.</div>
+
+          <div id="boss-content" class="hidden">
+            <div id="boss-reward-banner" class="hidden"></div>
+            <div id="boss-card" class="boss-card"></div>
+
+            <h3>Choisis une banane pour attaquer</h3>
+            <div id="boss-banana-picker" class="market-sell-picker"></div>
+            <button id="boss-attack-btn" class="btn danger">⚔️ Attaquer le Boss</button>
+            <div id="boss-attack-result" class="pve-result hidden"></div>
           </div>
         </div>
       </section>
