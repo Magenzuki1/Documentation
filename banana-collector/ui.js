@@ -4704,7 +4704,12 @@ document.addEventListener("DOMContentLoaded", () => {
       els.accountBtn.innerHTML = `${avatarIconHTML(state.profile.avatarId, 1.3)} ${CLOUD.currentUsername()}`;
       els.accountBtn.classList.add("linked");
     } else {
-      els.accountBtn.innerHTML = `${avatarIconHTML(state.profile.avatarId, 1.3)} Compte`;
+      // "Compte" seul ne disait pas qu'on pouvait s'y connecter/créer un
+      // compte — un joueur nous a signalé ne pas trouver cette fonction,
+      // noyée dans la section profil de la modale. Le bouton l'annonce
+      // maintenant directement (voir aussi renderAccountModal(), qui met le
+      // formulaire de connexion en premier plutôt qu'après tout le profil).
+      els.accountBtn.innerHTML = `🔑 Connexion`;
       els.accountBtn.classList.remove("linked");
     }
   }
@@ -5159,11 +5164,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const isSignup = accountMode === "signup";
+    // Le formulaire passe AVANT la section profil (et non après) : un joueur
+    // nous a signalé ne pas trouver comment créer un compte, noyé tout en
+    // bas d'une modale déjà longue (profil, cosmétiques, avatars, médailles).
+    // C'est pourtant la première chose qu'on veut voir en ouvrant "Compte"
+    // sans être connecté.
     els.accountModalContent.innerHTML =
-      profileSectionHTML() +
       `
-      <div class="account-form">
-        <h3>${isSignup ? "Créer un compte" : "Connexion"}</h3>
+      <div class="account-form account-form-primary">
+        <h3>${isSignup ? "🔑 Créer un compte" : "🔑 Connexion"}</h3>
+        <p class="account-hint">Un compte gratuit (juste un pseudo + mot de passe, pas d'email) sauvegarde ta progression en ligne et débloque le Marché et l'Arène PVP.</p>
         ${isSignup ? `<p class="account-warning">⚠️ Pas d'email associé à ce compte : si tu oublies ton mot de passe, il ne pourra pas être récupéré. Note-le bien quelque part !</p>` : ""}
         <div class="account-field">
           <label for="account-username-input">Pseudo</label>
@@ -5179,7 +5189,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button class="account-switch-mode" id="account-switch-mode-btn">${isSignup ? "J'ai déjà un compte" : "Créer un compte"}</button>
         </div>
       </div>
-    `;
+    ` + profileSectionHTML();
     wireProfileSection(els.accountModalContent);
 
     const errorEl = els.accountModalContent.querySelector("#account-error");

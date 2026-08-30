@@ -53,6 +53,10 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   (pièces, onglets débloqués, cosmétiques, titre équipé, lien cloud) comme un
   tout premier lancement, plutôt que de laisser la progression du compte
   visible dans une session invité qui reprendrait juste après.
+- `account-login-visibility.test.js` — le bouton d'en-tête annonce clairement
+  la connexion quand aucun compte n'est lié, et le formulaire de connexion/
+  création de compte apparaît en premier dans la modale "Compte", avant toute
+  la section profil (plutôt que noyé tout en bas).
 
 ## Ajouter un test
 

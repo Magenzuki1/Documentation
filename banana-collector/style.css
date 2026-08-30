@@ -3351,6 +3351,18 @@ h1, h2, h3,
 
 .account-form h3 { margin: 0 0 12px; text-align: center; }
 
+/* Formulaire de connexion/création de compte en tête de la modale "Compte"
+   quand aucun compte n'est lié — mis en avant visuellement puisque c'est
+   maintenant la toute première chose visible à l'ouverture. */
+.account-form-primary {
+  background: linear-gradient(160deg, #fff6d5, #ffecb0);
+  border: 2px solid #f0dfa8;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.account-form-primary .account-hint { text-align: center; font-size: 0.82rem; color: #5c4a1a; margin: 0 0 12px; }
+
 .account-field { margin-bottom: 12px; }
 .account-field label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
 .account-field input {
