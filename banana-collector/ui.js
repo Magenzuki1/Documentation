@@ -162,8 +162,10 @@ document.addEventListener("DOMContentLoaded", () => {
     adminPlayersSearch: document.getElementById("admin-players-search"),
     adminStatsList: document.getElementById("admin-stats-list"),
     adminBananaUsername: document.getElementById("admin-banana-username"),
+    adminGiftCoins: document.getElementById("admin-gift-coins"),
     adminBananaSelect: document.getElementById("admin-banana-select"),
     adminBananaQuantity: document.getElementById("admin-banana-quantity"),
+    adminGiftMessage: document.getElementById("admin-gift-message"),
     adminBananaGrantBtn: document.getElementById("admin-banana-grant-btn"),
     adminBananasError: document.getElementById("admin-bananas-error"),
     adminBananasSuccess: document.getElementById("admin-bananas-success"),
@@ -3473,17 +3475,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ---------------- Boîte à cadeaux du Boss ----------------
-     Les récompenses sont déjà créditées (wallet_ledger/player_bananas) au
-     moment de la distribution automatique côté serveur : cette boîte n'est
-     qu'un reçu/notification, jamais une réclamation. La pastille rouge
-     compte les reçus non encore vus (seen_at). */
+     Deux sortes de contenu : les récompenses du Boss, déjà créditées
+     (wallet_ledger/player_bananas) au moment de la distribution automatique
+     côté serveur — cette partie n'est qu'un reçu/notification — et les
+     cadeaux envoyés à la main par un admin, qui eux restent en attente tant
+     que le joueur n'a pas cliqué sur "Récupérer" (claim_gift() ne crédite
+     RIEN avant ce clic). La pastille rouge additionne les deux : reçus de
+     Boss non encore vus + cadeaux admin non encore récupérés. */
 
   async function refreshGiftBoxBadge() {
     if (!CLOUD.available || !CLOUD.isLinked()) {
       els.giftBoxBadge.classList.add("hidden");
       return;
     }
-    const count = await CLOUD.fetchUnseenBossGiftCount();
+    const [bossUnseen, giftsUnclaimed] = await Promise.all([
+      CLOUD.fetchUnseenBossGiftCount(),
+      CLOUD.fetchUnclaimedGiftCount(),
+    ]);
+    const count = bossUnseen + giftsUnclaimed;
     els.giftBoxBadge.textContent = count > 9 ? "9+" : String(count);
     els.giftBoxBadge.classList.toggle("hidden", count === 0);
   }
@@ -3500,13 +3509,57 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  function pendingGiftRowHTML(gift) {
+    const date = new Date(gift.created_at).toLocaleDateString("fr-FR");
+    const bananaName = gift.banana_id ? BANANAS_BY_ID[gift.banana_id]?.name || "banane" : null;
+    const parts = [];
+    if (gift.coins > 0) parts.push(`🪙 ${Number(gift.coins).toLocaleString("fr-FR")} pièces`);
+    if (bananaName) parts.push(`${gift.banana_quantity} × ${bananaName}`);
+    return `
+      <div class="admin-log-row">
+        <div><strong>🎁 Cadeau reçu (${date})</strong></div>
+        <div class="secret-hint">${parts.join(" · ")}${gift.message ? ` — « ${escapeHTML(gift.message)} »` : ""}</div>
+        <button class="btn harvest-btn" data-claim-gift="${gift.id}">Récupérer</button>
+      </div>
+    `;
+  }
+
+  async function claimPendingGift(giftId, btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+    const res = await CLOUD.claimGift(giftId);
+    if (!res.ok) {
+      btn.disabled = false;
+      btn.textContent = "Récupérer";
+      showBanner("❌ Erreur", { emoji: "🚫", name: res.reason || "Impossible de récupérer ce cadeau" }, 1800);
+      return;
+    }
+    SFX.buy();
+    spawnConfetti(20);
+    renderHeader();
+    await openGiftBoxModal();
+  }
+
   async function openGiftBoxModal() {
     els.giftBoxModal.classList.remove("hidden");
     els.giftBoxList.innerHTML = `<p class="secret-hint">Chargement...</p>`;
-    const gifts = await CLOUD.fetchBossGifts(20);
-    els.giftBoxList.innerHTML = gifts.length === 0
+    const [pendingGifts, bossGifts] = await Promise.all([CLOUD.fetchPendingGifts(), CLOUD.fetchBossGifts(20)]);
+
+    const sections = [];
+    sections.push(`<h3 class="admin-news-history-title">À récupérer</h3>`);
+    sections.push(pendingGifts.length === 0
+      ? `<p class="secret-hint">Aucun cadeau en attente.</p>`
+      : pendingGifts.map(pendingGiftRowHTML).join(""));
+    sections.push(`<h3 class="admin-news-history-title">Historique (récompenses du Boss)</h3>`);
+    sections.push(bossGifts.length === 0
       ? `<p class="secret-hint">Aucun cadeau reçu pour l'instant. Reviens après un lundi où le Boss a été vaincu !</p>`
-      : gifts.map(bossGiftRowHTML).join("");
+      : bossGifts.map(bossGiftRowHTML).join(""));
+    els.giftBoxList.innerHTML = sections.join("");
+
+    els.giftBoxList.querySelectorAll("[data-claim-gift]").forEach((btn) => {
+      btn.addEventListener("click", () => claimPendingGift(Number(btn.dataset.claimGift), btn));
+    });
+
     await CLOUD.markBossGiftsSeen();
     refreshGiftBoxBadge();
   }
@@ -5114,15 +5167,17 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminEventsHistory();
   });
 
-  /* ---------------- Panneau admin : Bananes (loot) ---------------- */
+  /* ---------------- Panneau admin : Bananes (loot / cadeaux) ---------------- */
 
   // Rempli une seule fois : le catalogue de bananes est fixe. Triées par
   // rareté puis par nom pour rester navigable malgré les ~160 entrées.
-  els.adminBananaSelect.innerHTML = BANANAS
+  // L'option "Aucune banane" (déjà dans le HTML) reste en tête pour un
+  // cadeau uniquement en pièces.
+  els.adminBananaSelect.insertAdjacentHTML("beforeend", BANANAS
     .slice()
     .sort((a, b) => rarityIndex(a.rarity) - rarityIndex(b.rarity) || a.name.localeCompare(b.name))
     .map((b) => `<option value="${b.id}">${b.name} — ${RARITIES[b.rarity].label}</option>`)
-    .join("");
+    .join(""));
 
   function renderAdminBananas() {
     els.adminBananasError.classList.add("hidden");
@@ -5131,8 +5186,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.adminBananaGrantBtn.addEventListener("click", async () => {
     const username = els.adminBananaUsername.value.trim().toLowerCase();
-    const bananaId = Number(els.adminBananaSelect.value);
-    const quantity = Math.floor(Number(els.adminBananaQuantity.value));
+    const coins = Math.max(0, Math.floor(Number(els.adminGiftCoins.value) || 0));
+    const bananaIdRaw = els.adminBananaSelect.value;
+    const bananaId = bananaIdRaw ? Number(bananaIdRaw) : null;
+    const quantity = bananaId ? Math.floor(Number(els.adminBananaQuantity.value)) : 0;
+    const message = els.adminGiftMessage.value.trim();
     els.adminBananasError.classList.add("hidden");
     els.adminBananasSuccess.classList.add("hidden");
     if (!username) {
@@ -5140,24 +5198,35 @@ document.addEventListener("DOMContentLoaded", () => {
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    if (!quantity || quantity < 1) {
-      els.adminBananasError.textContent = "Indique une quantité d'au moins 1.";
+    if (bananaId && (!quantity || quantity < 1)) {
+      els.adminBananasError.textContent = "Indique une quantité d'au moins 1 pour la banane choisie.";
+      els.adminBananasError.classList.remove("hidden");
+      return;
+    }
+    if (coins <= 0 && !bananaId) {
+      els.adminBananasError.textContent = "Indique au moins des pièces ou une banane à offrir.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
     els.adminBananaGrantBtn.disabled = true;
-    const res = await CLOUD.adminGrantBanana(username, bananaId, quantity);
+    const res = await CLOUD.adminSendGift(username, coins, bananaId, quantity, message);
     els.adminBananaGrantBtn.disabled = false;
     if (!res.ok) {
       els.adminBananasError.textContent = res.reason || "Erreur inconnue.";
       els.adminBananasError.classList.remove("hidden");
       return;
     }
-    const bananaName = BANANAS_BY_ID[bananaId]?.name || "banane";
-    els.adminBananasSuccess.textContent = `${quantity} × ${bananaName} offerte${quantity > 1 ? "s" : ""} à ${username} !`;
+    const bananaName = bananaId ? BANANAS_BY_ID[bananaId]?.name || "banane" : null;
+    const parts = [];
+    if (coins > 0) parts.push(`${coins} pièces`);
+    if (bananaName) parts.push(`${quantity} × ${bananaName}`);
+    els.adminBananasSuccess.textContent = `Cadeau envoyé à ${username} (${parts.join(" + ")}) — il devra le récupérer dans sa boîte à cadeaux.`;
     els.adminBananasSuccess.classList.remove("hidden");
     els.adminBananaUsername.value = "";
+    els.adminGiftCoins.value = 0;
+    els.adminBananaSelect.value = "";
     els.adminBananaQuantity.value = 1;
+    els.adminGiftMessage.value = "";
   });
 
   /* ---------------- Panneau admin : Bananes (contenu éditorial) ---------------- */

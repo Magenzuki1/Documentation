@@ -703,12 +703,16 @@
       </div>
 
       <div id="admin-bananas-view" class="hidden">
-        <p class="shop-hint">Offre un lot d'une banane existante du catalogue à un joueur (loot manuel) — n'ajoute jamais de nouvelle banane au jeu.</p>
+        <p class="shop-hint">Envoie un cadeau (pièces et/ou un lot d'une banane existante du catalogue) à un joueur — n'ajoute jamais de nouvelle banane au jeu. Le cadeau part dans sa boîte à cadeaux : il devra le récupérer manuellement pour que ça compte.</p>
         <div class="admin-news-form admin-bananas-form">
           <input type="text" id="admin-banana-username" placeholder="Pseudo du joueur" maxlength="20" />
-          <select id="admin-banana-select"></select>
+          <input type="number" id="admin-gift-coins" placeholder="Pièces (optionnel)" min="0" value="0" />
+          <select id="admin-banana-select">
+            <option value="">Aucune banane</option>
+          </select>
           <input type="number" id="admin-banana-quantity" placeholder="Quantité" min="1" max="9999" value="1" />
-          <button class="btn" id="admin-banana-grant-btn">🎁 Looter</button>
+          <input type="text" id="admin-gift-message" placeholder="Message (optionnel)" maxlength="200" />
+          <button class="btn" id="admin-banana-grant-btn">🎁 Envoyer le cadeau</button>
         </div>
         <p id="admin-bananas-error" class="account-error hidden"></p>
         <p id="admin-bananas-success" class="account-hint hidden"></p>
