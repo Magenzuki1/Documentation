@@ -3325,11 +3325,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (!bossSelectedBananaId || !owned.some((b) => b.id === bossSelectedBananaId)) {
-      // Présélectionne la banane qui inflige le plus de dégâts, pour éviter au
-      // joueur de devoir parcourir toute la liste juste pour attaquer.
-      bossSelectedBananaId = owned.reduce((best, b) => (
-        bananaCombatStats(b).atk > bananaCombatStats(best).atk ? b : best
-      ), owned[0]).id;
+      // Présélectionne la plus forte banane possédée (rareté puis valeur —
+      // owned est déjà trié ainsi par sellableBananas()), exactement comme la
+      // "championne" auto-choisie en Arène solo : le niveau/prestige ne
+      // rentrent pas dans les dégâts réels du Boss, donc les inclure ici
+      // pouvait faire préférer, à tort, une banane commune bien montée en
+      // niveau à une banane plus rare non montée mais objectivement plus forte.
+      bossSelectedBananaId = owned[0].id;
     }
     els.bossBananaPicker.innerHTML = owned.map((b) => {
       const selected = b.id === bossSelectedBananaId;
