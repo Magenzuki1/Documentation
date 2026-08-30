@@ -245,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bossContent: document.getElementById("boss-content"),
     bossRewardBanner: document.getElementById("boss-reward-banner"),
     bossCard: document.getElementById("boss-card"),
-    bossBananaPicker: document.getElementById("boss-banana-picker"),
+    bossPlayerFighter: document.getElementById("boss-player-fighter"),
     bossAttackBtn: document.getElementById("boss-attack-btn"),
     bossAttackResult: document.getElementById("boss-attack-result"),
     combatSoloView: document.getElementById("combat-solo-view"),
@@ -3317,37 +3317,24 @@ document.addEventListener("DOMContentLoaded", () => {
   let bossSelectedBananaId = null;
   let currentBossStatus = null;
 
-  function renderBossBananaPicker() {
+  // Comme la "championne" en Arène solo : pas de liste à parcourir, la plus
+  // forte banane possédée (rareté puis valeur, sans le niveau — voir
+  // pickBestPveBanana()) est affichée seule et automatiquement utilisée.
+  function renderBossPlayerFighter() {
     const owned = sellableBananas();
     if (owned.length === 0) {
-      els.bossBananaPicker.innerHTML = `<p class="secret-hint">Récolte des bananes avant de pouvoir attaquer le Boss !</p>`;
+      els.bossPlayerFighter.innerHTML = `<div class="pve-fighter-empty">Récolte une banane pour affronter le Boss</div>`;
       bossSelectedBananaId = null;
       return;
     }
-    if (!bossSelectedBananaId || !owned.some((b) => b.id === bossSelectedBananaId)) {
-      // Présélectionne la plus forte banane possédée (rareté puis valeur —
-      // owned est déjà trié ainsi par sellableBananas()), exactement comme la
-      // "championne" auto-choisie en Arène solo : le niveau/prestige ne
-      // rentrent pas dans les dégâts réels du Boss, donc les inclure ici
-      // pouvait faire préférer, à tort, une banane commune bien montée en
-      // niveau à une banane plus rare non montée mais objectivement plus forte.
-      bossSelectedBananaId = owned[0].id;
-    }
-    els.bossBananaPicker.innerHTML = owned.map((b) => {
-      const selected = b.id === bossSelectedBananaId;
-      return `
-        <button class="market-sell-option ${selected ? "selected" : ""}" data-id="${b.id}" title="${b.name}">
-          ${bananaIconHTML(b, 2)}
-          <span class="market-sell-option-count">x${state.counts[b.id] || 0}</span>
-        </button>
-      `;
-    }).join("");
-    els.bossBananaPicker.querySelectorAll(".market-sell-option").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        bossSelectedBananaId = Number(btn.dataset.id);
-        renderBossBananaPicker();
-      });
-    });
+    bossSelectedBananaId = owned[0].id;
+    const banana = BANANAS_BY_ID[bossSelectedBananaId];
+    const stats = bananaCombatStats(banana);
+    els.bossPlayerFighter.innerHTML = `
+      ${bananaIconHTML(banana, 3.4)}
+      <div class="pve-fighter-name">${banana.name}</div>
+      <div class="pve-fighter-stats">⚔️ ${stats.atk} · 🛡️ ${stats.def}</div>
+    `;
   }
 
   function bossCardHTML(boss, status) {
@@ -3419,7 +3406,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     els.bossCard.innerHTML = bossCardHTML(boss, status);
-    renderBossBananaPicker();
+    renderBossPlayerFighter();
 
     const defeated = !!boss.defeated_at;
     const noAttemptsLeft = !!status && status.attempts_used_today >= status.attempts_allowed_today;
