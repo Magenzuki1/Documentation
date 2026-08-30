@@ -81,7 +81,7 @@ function valueFor(rarity, indexInRarity) {
 // id existant — sinon les annonces du marché, les équipes de défense et
 // l'historique de combat des joueurs se retrouveraient désynchronisés.
 const BANANA_DEFS = [
-  // ================= Commune (33) =================
+  // ================= Commune (36) =================
   { id: 1, name: "Banane verte", rarity: "commune", image: "images/banana_1.png", emoji: "🍌" },
   {
     id: 2, name: "Banane rouge", rarity: "commune", image: "images/banana_2.png", emoji: "🍌",
@@ -216,6 +216,18 @@ const BANANA_DEFS = [
   {
     id: 123, name: "Banane exploratrice", rarity: "commune", emoji: "🍌",
     image: "images/banana_123.png",
+  },
+  {
+    id: 171, name: "Banane aux grands yeux", rarity: "commune", emoji: "🍌",
+    image: "images/banana_171.png",
+  },
+  {
+    id: 172, name: "Banane grande bouche", rarity: "commune", emoji: "🍌",
+    image: "images/banana_172.png",
+  },
+  {
+    id: 173, name: "Banane à grandes oreilles", rarity: "commune", emoji: "🍌",
+    image: "images/banana_173.png",
   },
 
   // ================= Peu commune (28) =================
@@ -1032,6 +1044,9 @@ const BANANA_LORE = {
   121: { quote: "Elle tousse depuis 20 minutes pour un simple courant d'air.", story: "Banane malade est convaincue d'avoir toutes les maladies possibles en même temps. Le docteur du verger a fini par lui prescrire simplement du repos... et un peu moins d'imagination." },
   122: { quote: "Elle réagit très mal à un simple compliment.", story: "Personne ne sait pourquoi, mais Banane explosive part en éruption au moindre stress. Le verger a dû installer un périmètre de sécurité autour d'elle, juste au cas où." },
   123: { quote: "Elle a déjà cartographié tout le jardin. Deux fois.", story: "Banane exploratrice ne reste jamais en place. Elle rêve de découvrir le \"bout du panier\", un mythe que personne n'a encore confirmé." },
+  171: { quote: "Elle voit tout, elle commente tout, elle ne cligne jamais des yeux.", story: "Banane aux grands yeux a des pupilles si larges qu'on la soupçonne d'avoir bu douze cafés d'affilée. Elle prétend juste être \"très attentive\", mais personne n'a jamais réussi à la surprendre en train de dormir." },
+  172: { quote: "Elle jure de garder un secret, puis le raconte à tout le verger dans la minute.", story: "Banane grande bouche a un sourire qui fait presque le tour de sa tête. Elle rit à ses propres blagues avant même de les finir, et n'a jamais tenu un secret plus de dix secondes." },
+  173: { quote: "Elle entend une conversation à l'autre bout du verger, même chuchotée.", story: "Banane à grandes oreilles capte absolument tout ce qui se dit, et le répète toujours un peu de travers à qui veut l'entendre. Elle nie fermement être une commère, tout en connaissant le dernier potin de chaque fruit du panier." },
   25: { quote: "Elle collectionne les taches comme d'autres collectionnent les timbres.", story: "Banane tachetée est très fière de son motif unique. Elle refuse qu'on appelle ça \"le début de la pourriture\"." },
   26: { quote: "Elle est toujours prête à intervenir, même sans camion ni lance à incendie.", story: "Banane pompier a sauvé une fois un glaçon d'un four allumé par erreur. Depuis, elle se considère comme une héroïne officielle du verger." },
   27: { quote: "Elle refuse d'être mangée crue, par principe.", story: "Banane plantain est convaincue d'être trop noble pour être croquée telle quelle. Elle insiste pour être cuisinée, de préférence avec les honneurs." },
