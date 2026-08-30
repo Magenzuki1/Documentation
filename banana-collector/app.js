@@ -709,6 +709,7 @@ function rollBanana() {
     state.firstObtainedAt[banana.id] = dateKey(new Date());
     if (isRareOrAbove(rarity)) bumpSeasonQuestProgress("rareDiscoveries");
     if (isLegendaryOrAbove(rarity)) bumpSeasonQuestProgress("legendaryDiscoveries");
+    bumpSeasonQuestProgress("discoveriesThisSeason");
   }
   state.counts[banana.id] = (state.counts[banana.id] || 0) + 1;
 
@@ -719,6 +720,7 @@ function rollBanana() {
   state.totalRolls += 1;
   state.lastBananaId = banana.id;
   addSeasonPoints(2);
+  bumpSeasonQuestProgress("rollsThisSeason");
   if (rarity === "mythique") state.mythicCount += 1;
 
   if (state.rarestId == null || rarityIndex(rarity) > rarityIndex(BANANAS_BY_ID[state.rarestId].rarity)) {
@@ -799,6 +801,7 @@ function grantAdReward() {
   state.ads.totalWatched = (state.ads.totalWatched || 0) + 1;
   const coinsEarned = grantCoins(AD_REWARD);
   bumpQuestProgress("ads");
+  bumpSeasonQuestProgress("adsWatchedThisSeason");
   saveState();
   return coinsEarned;
 }
@@ -1475,8 +1478,26 @@ const SEASON_QUEST_POOL = [
   { id: "sq_legendary_discover", desc: "Découvre une nouvelle banane légendaire ou mieux", need: 1, xpReward: 500, seasonPointsReward: 80, progress: (s) => s.seasonPass.questProgress.legendaryDiscoveries || 0 },
   { id: "sq_market_trade", desc: "Achète ou mets en vente une banane sur le Marché", need: 1, xpReward: 200, seasonPointsReward: 30, progress: (s) => s.seasonPass.questProgress.marketTrades || 0 },
   { id: "sq_coins_5000", desc: "Gagne 5000 pièces ce mois-ci (toutes sources)", need: 5000, xpReward: 250, seasonPointsReward: 40, progress: (s) => s.seasonPass.questProgress.coinsEarned || 0 },
-  { id: "sq_login_5", desc: "Connecte-toi 5 jours différents ce mois-ci", need: 5, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
   { id: "sq_medal_1", desc: "Débloque une médaille ce mois-ci", need: 1, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.medalsUnlocked || 0 },
+  // Échelle de connexion (J1, J5, J10...) plutôt qu'une seule quête isolée :
+  // un objectif régulier tout au long du mois, pensé pour accompagner le
+  // passe (maintenant sur 50 paliers) sur toute sa durée plutôt que de
+  // pouvoir être bouclé en une poignée de jours.
+  { id: "sq_login_1", desc: "Connecte-toi 1 jour ce mois-ci", need: 1, xpReward: 100, seasonPointsReward: 20, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_5", desc: "Connecte-toi 5 jours différents ce mois-ci", need: 5, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_10", desc: "Connecte-toi 10 jours différents ce mois-ci", need: 10, xpReward: 400, seasonPointsReward: 70, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_15", desc: "Connecte-toi 15 jours différents ce mois-ci", need: 15, xpReward: 500, seasonPointsReward: 90, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_20", desc: "Connecte-toi 20 jours différents ce mois-ci", need: 20, xpReward: 600, seasonPointsReward: 110, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_25", desc: "Connecte-toi 25 jours différents ce mois-ci", need: 25, xpReward: 700, seasonPointsReward: 130, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  { id: "sq_login_30", desc: "Connecte-toi 30 jours différents ce mois-ci", need: 30, xpReward: 900, seasonPointsReward: 160, progress: (s) => s.seasonPass.questProgress.loginDays || 0 },
+  // Quelques objectifs supplémentaires lisant directement des compteurs déjà
+  // suivis ailleurs (comme les quêtes permanentes) : aucun nouveau hook de
+  // progression à câbler.
+  { id: "sq_rolls_100", desc: "Effectue 100 tirages ce mois-ci", need: 100, xpReward: 200, seasonPointsReward: 35, progress: (s) => s.seasonPass.questProgress.rollsThisSeason || 0 },
+  { id: "sq_collection_30", desc: "Découvre 30 nouvelles bananes ce mois-ci", need: 30, xpReward: 400, seasonPointsReward: 70, progress: (s) => s.seasonPass.questProgress.discoveriesThisSeason || 0 },
+  { id: "sq_ads_3", desc: "Regarde 3 publicités ce mois-ci", need: 3, xpReward: 150, seasonPointsReward: 25, progress: (s) => s.seasonPass.questProgress.adsWatchedThisSeason || 0 },
+  { id: "sq_daily_quests_10", desc: "Termine 10 quêtes quotidiennes ce mois-ci", need: 10, xpReward: 250, seasonPointsReward: 40, progress: (s) => s.seasonPass.questProgress.dailyQuestsThisSeason || 0 },
+  { id: "sq_weekly_quests_3", desc: "Termine 3 quêtes hebdomadaires ce mois-ci", need: 3, xpReward: 300, seasonPointsReward: 50, progress: (s) => s.seasonPass.questProgress.weeklyQuestsThisSeason || 0 },
 ];
 
 function seasonQuestsView() {
@@ -1504,6 +1525,7 @@ function checkQuests() {
       grantCoins(quest.reward);
       grantXp(12);
       state.dailyQuestsCompletedTotal = (state.dailyQuestsCompletedTotal || 0) + 1;
+      bumpSeasonQuestProgress("dailyQuestsThisSeason");
       completedNow.push(quest);
     }
   }
@@ -1517,6 +1539,7 @@ function checkQuests() {
       grantCoins(quest.reward);
       grantXp(35);
       state.weeklyQuestsCompletedTotal = (state.weeklyQuestsCompletedTotal || 0) + 1;
+      bumpSeasonQuestProgress("weeklyQuestsThisSeason");
       completedNow.push(quest);
     }
   }

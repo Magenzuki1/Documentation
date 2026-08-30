@@ -76,7 +76,7 @@ async function run() {
     await page.click("#season-pass-btn");
     await page.waitForTimeout(300);
     const questRowCount = await page.$$eval("#season-pass-quests .quest-item", (els) => els.length);
-    assert.strictEqual(questRowCount, 13, `expected all 13 season quests rendered, got ${questRowCount}`);
+    assert.strictEqual(questRowCount, 24, `expected all 24 season quests rendered, got ${questRowCount}`);
 
     assert.strictEqual(pageErrors.length, 0, `unexpected page errors: ${pageErrors.join(", ")}`);
   } finally {

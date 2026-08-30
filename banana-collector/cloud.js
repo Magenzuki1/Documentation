@@ -77,6 +77,7 @@ const CLOUD = (() => {
     await refreshAccountStatus();
     await pullLedger();
     await pullBananas();
+    await pullPve();
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
     // encore rien poussé côté serveur, il faut que solde/inventaire soient à
     // jour avant que le joueur tente d'acheter/vendre/attaquer juste après.
@@ -99,6 +100,7 @@ const CLOUD = (() => {
     await refreshAccountStatus();
     await pullLedger();
     await pullBananas();
+    await pullPve();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
     // ou un inventaire périmé côté serveur juste après une connexion.
     await pushAll();
@@ -120,20 +122,21 @@ const CLOUD = (() => {
     }
     cachedUsername = null;
     cachedUserId = null;
+    const cloud = ensureCloudState();
+    cloud.linked = false;
+    saveState();
     // refreshAccountStatus() ne réinitialise plus ce statut à chaque appel
     // (voir son commentaire) : la déconnexion doit donc le faire elle-même,
     // sinon un ancien statut admin/banni resterait affiché après déconnexion.
     accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
-    // Toute la progression actuellement affichée (pièces, collection,
-    // cosmétiques, onglets débloqués...) vient du compte qui vient de se
-    // déconnecter — la laisser dans le state local ferait croire à la
-    // session invité suivante qu'elle a déjà tout ça. On repart donc d'un
-    // état tout neuf, comme un tout premier lancement, puis on recharge la
-    // page : plus simple et plus sûr que de ré-appeler manuellement chaque
-    // fonction de rendu (et ça redéclenche naturellement l'écran de
-    // bienvenue et le déverrouillage progressif des onglets).
-    resetSave();
-    location.reload();
+    // IMPORTANT — NE JAMAIS remettre l'état de jeu à zéro ici (resetSave()) :
+    // ça a été tenté, mais l'Arène solo, l'XP, les succès, les quêtes et les
+    // améliorations de la boutique ne sont PAS sauvegardés sur le cloud (seuls
+    // le solde, les bananes, les médailles et les cosmétiques le sont) — un
+    // reset local les détruisait définitivement, sans espoir de récupération
+    // à la reconnexion. La progression locale reste donc simplement affichée
+    // telle quelle après déconnexion (voir la discussion produit sur ce
+    // compromis) plutôt que de risquer de perdre la partie du joueur.
   }
 
   function isLinked() {
@@ -596,6 +599,24 @@ const CLOUD = (() => {
 
     const { error } = await supabase.rpc("sync_local_bananas", { rows });
     if (!error) lastPushedBananasSnapshot = snapshotKey;
+  }
+
+  // Récupère la progression PVE côté serveur et ne garde que le meilleur des
+  // deux (jamais un remplacement total) — même logique prudente que
+  // pullLedger/pullBananas. Manquait jusqu'ici : sync_local_pve() poussait
+  // bien la progression locale vers le serveur, mais rien ne la ramenait
+  // jamais en sens inverse, si bien qu'un état local perdu (stockage effacé,
+  // nouvel appareil, bug local) n'avait aucun moyen de se réparer tout seul
+  // à la reconnexion, alors que le serveur avait la vraie valeur.
+  async function pullPve() {
+    if (!isLinked()) return;
+    const { data, error } = await supabase.rpc("get_my_pve");
+    if (error || !data || data.length === 0) return;
+    const row = data[0];
+    state.pve.stage = Math.max(state.pve.stage || 0, row.pve_stage || 0);
+    state.pve.wins = Math.max(state.pve.wins || 0, row.pve_wins || 0);
+    state.pve.losses = Math.max(state.pve.losses || 0, row.pve_losses || 0);
+    saveState();
   }
 
   // Pousse (écrase) la progression PVE locale — même logique que
@@ -1360,6 +1381,7 @@ const CLOUD = (() => {
         await refreshAccountStatus();
         await pullLedger();
         await pullBananas();
+        await pullPve();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
         // ligne depuis sa dernière visite — pousse tout de suite pour que
         // Marché/PVP voient son vrai solde/inventaire sans attendre.
@@ -1384,6 +1406,7 @@ const CLOUD = (() => {
     currentUserId,
     pullLedger,
     pullBananas,
+    pullPve,
     pushBalance,
     pushBananas,
     pushPve,

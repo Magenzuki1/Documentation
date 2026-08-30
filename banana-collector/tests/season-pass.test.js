@@ -104,6 +104,13 @@ async function run() {
     assert.strictEqual(pvpPoints, 8, `expected +8 season points for a PVP arena win, got ${pvpPoints}`);
 
     await page.evaluate(() => {
+      // Le tirage réel plus haut (pour tester l'Arène solo) peut, par pur
+      // hasard, découvrir l'une des bananes 28/30 utilisées ci-dessous pour
+      // la réclamation du palier 5 — rendant le test flaky (une carte sur
+      // deux marquée "NOUVEAU" au lieu des deux). On force les deux hors de
+      // la collection juste avant, sans toucher au reste de l'état.
+      state.discovered = state.discovered.filter((id) => id !== 28 && id !== 30);
+
       CLOUD.available = true;
       CLOUD.isLinked = () => true;
       CLOUD.fetchSeasonPassTiers = async () => [
