@@ -82,6 +82,9 @@ const CLOUD = (() => {
     await pullLedger();
     await pullBananas();
     await pullPve();
+    await pullAchievements();
+    await pullMedals();
+    await pullAnimatedRollPref();
     // Pousse tout de suite (pas de débounce) : un compte fraîchement créé n'a
     // encore rien poussé côté serveur, il faut que solde/inventaire soient à
     // jour avant que le joueur tente d'acheter/vendre/attaquer juste après.
@@ -109,6 +112,9 @@ const CLOUD = (() => {
     await pullLedger();
     await pullBananas();
     await pullPve();
+    await pullAchievements();
+    await pullMedals();
+    await pullAnimatedRollPref();
     // Voir signUp() : on pousse tout de suite pour ne jamais laisser un solde
     // ou un inventaire périmé côté serveur juste après une connexion.
     await pushAll();
@@ -636,6 +642,60 @@ const CLOUD = (() => {
     saveState();
   }
 
+  // Récupère les succès déjà obtenus côté serveur et les fusionne (union,
+  // jamais un remplacement) dans l'état local — SANS jamais re-déclencher
+  // leur toast ni re-créditer leur récompense en pièces : ils ont déjà été
+  // accordés la première fois, ceci ne fait que rétablir le SOUVENIR qu'ils
+  // l'ont été. Sans ça, un succès déjà acquis se redéclenchait dès que ses
+  // conditions redevenaient vraies après un rapatriement de collection/
+  // solde (ex. juste après une connexion), puisque state.achievements.
+  // unlocked (jamais synchronisé avant ce correctif) ne le savait pas encore.
+  async function pullAchievements() {
+    if (!isLinked()) return;
+    const { data, error } = await supabase.rpc("get_my_achievements");
+    if (error || !data) return;
+    const merged = new Set([...(state.achievements.unlocked || []), ...data]);
+    if (merged.size !== (state.achievements.unlocked || []).length) {
+      state.achievements.unlocked = Array.from(merged);
+      saveState();
+    }
+  }
+
+  // Même logique que pullAchievements(), pour les médailles — sync_medals()
+  // fusionnait déjà côté serveur (voir son commentaire), mais rien ne
+  // ramenait jamais les médailles serveur vers un état local qui en aurait
+  // perdu la trace (nouvel appareil, instantané invité...).
+  async function pullMedals() {
+    if (!isLinked()) return;
+    const { data, error } = await supabase.rpc("get_my_medals");
+    if (error || !data) return;
+    const merged = new Set([...(state.medals.unlocked || []), ...data]);
+    if (merged.size !== (state.medals.unlocked || []).length) {
+      state.medals.unlocked = Array.from(merged);
+      saveState();
+    }
+  }
+
+  // Préférence "Mode animé"/"Mode rapide" de la récolte — jamais sauvegardée
+  // ailleurs que localement jusqu'ici, elle se retrouvait "remise à zéro" à
+  // chaque connexion/déconnexion (shadowée par l'instantané invité ou l'état
+  // par défaut). Simple préférence, dernier écrit gagne (pas de fusion).
+  async function pullAnimatedRollPref() {
+    if (!isLinked()) return;
+    const { data, error } = await supabase.rpc("get_my_animated_roll");
+    if (error || data === null || data === undefined) return;
+    if (state.settings.animatedRoll !== data) {
+      state.settings.animatedRoll = data;
+      saveState();
+    }
+  }
+
+  async function pushAnimatedRollPref() {
+    if (!isLinked()) return;
+    const { error } = await supabase.rpc("sync_animated_roll", { p_value: !!state.settings.animatedRoll });
+    return !error;
+  }
+
   // Pousse (écrase) la progression PVE locale — même logique que
   // pushBananas : l'état local est la source de vérité, jamais additif.
   let lastPushedPveSnapshot = null;
@@ -719,8 +779,21 @@ const CLOUD = (() => {
     ]);
   }
 
+  // Pousse les succès débloqués localement — sync_achievements() fusionne
+  // côté serveur (union, jamais un remplacement), donc sans risque même si
+  // l'état local envoyé est momentanément incomplet.
+  let lastPushedAchievementsSnapshot = null;
+  async function pushAchievements() {
+    if (!isLinked()) return;
+    const ids = state.achievements.unlocked || [];
+    const snapshotKey = JSON.stringify(ids);
+    if (snapshotKey === lastPushedAchievementsSnapshot) return;
+    const { error } = await supabase.rpc("sync_achievements", { p_ids: ids });
+    if (!error) lastPushedAchievementsSnapshot = snapshotKey;
+  }
+
   async function pushAll() {
-    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase(), pushSeasonPoints()]);
+    await Promise.all([pushBalance(), pushBananas(), pushPve(), pushShowcase(), pushSeasonPoints(), pushAchievements(), pushAnimatedRollPref()]);
   }
 
   // Le bouton "Réinitialiser la sauvegarde" ne touchait que le local — un
@@ -1399,6 +1472,9 @@ const CLOUD = (() => {
         await pullLedger();
         await pullBananas();
         await pullPve();
+        await pullAchievements();
+        await pullMedals();
+        await pullAnimatedRollPref();
         // Voir signUp() : un joueur qui revient a pu jouer en solo hors
         // ligne depuis sa dernière visite — pousse tout de suite pour que
         // Marché/PVP voient son vrai solde/inventaire sans attendre.
@@ -1428,6 +1504,7 @@ const CLOUD = (() => {
     pushBananas,
     pushPve,
     pushAll,
+    pushAnimatedRollPref,
     fetchSeasonPassTiers,
     getMySeasonStatus,
     claimSeasonTier,

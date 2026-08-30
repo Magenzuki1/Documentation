@@ -5079,6 +5079,7 @@ document.addEventListener("DOMContentLoaded", () => {
         saveState();
         renderRollModeSettings();
         SFX.click();
+        if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushAnimatedRollPref();
       });
     }
     const rollFastBtn = container.querySelector("#settings-roll-fast-btn");
@@ -5088,6 +5089,7 @@ document.addEventListener("DOMContentLoaded", () => {
         saveState();
         renderRollModeSettings();
         SFX.click();
+        if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushAnimatedRollPref();
       });
     }
     const prestigeBtn = container.querySelector("#profile-prestige-btn");
@@ -5231,6 +5233,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHeader();
       renderMarketTab();
       renderPvpTab();
+      // La connexion vient de rapatrier la collection du compte (pullBananas()
+      // met aussi à jour state.discovered) : les onglets Économie/Combat/Social
+      // doivent immédiatement refléter cette collection, pas rester bloqués sur
+      // l'état (souvent "nouveau joueur") d'avant la connexion.
+      refreshTabLocks();
       CLOUD.setAvatar(state.profile.avatarId);
       refreshAllSupportBadges();
     });
@@ -6543,6 +6550,13 @@ document.addEventListener("DOMContentLoaded", () => {
   CLOUD.init().then(async () => {
     updateAccountBtn();
     renderHeader();
+    // CLOUD.init() vient éventuellement de rapatrier la collection d'une
+    // session déjà connectée (pullBananas() met aussi à jour state.discovered) :
+    // les onglets Économie/Combat/Social doivent en tenir compte tout de
+    // suite, pas seulement au tout premier refreshTabLocks() plus haut
+    // (appelé avant que CLOUD.init() n'ait eu le temps de rapatrier quoi
+    // que ce soit).
+    refreshTabLocks();
     refreshAllSupportBadges();
     checkPvpAttackNotifications();
     checkMarketSaleNotifications();
