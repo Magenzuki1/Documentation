@@ -137,6 +137,43 @@ h1, h2, h3,
 }
 .account-btn.linked { background: linear-gradient(160deg, #ffd23f, var(--accent)); color: #2b1a00; }
 
+/* --- Bannière publicitaire compacte (entre l'événement du jour et les
+   onglets, visible sur toutes les pages) --- */
+
+.header-ad-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-height: 46px;
+  border: 1.5px dashed #d8c383;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.5);
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  text-align: center;
+}
+
+.header-ad-banner-label {
+  font-weight: 800;
+  font-size: 0.68rem;
+  color: #7a6224;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.header-ad-banner-sub {
+  font-size: 0.7rem;
+  color: #9c874f;
+}
+
+:root[data-theme="dark"] .header-ad-banner {
+  background: rgba(43, 48, 64, 0.5);
+  border-color: #4a4536;
+}
+
 /* --- Onglets --- */
 
 .tabs {
