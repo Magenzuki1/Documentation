@@ -337,6 +337,11 @@ h1, h2, h3,
   margin-top: 10px;
 }
 
+.welcome-modal-box { max-width: 380px; }
+.welcome-emoji { font-size: 48px; line-height: 1; margin-bottom: 4px; }
+.welcome-cta-hint { font-weight: 700; margin: 14px 0 4px; }
+#welcome-modal-close { margin-top: 8px; width: 100%; }
+
 /* Variante compacte de .harvest-reveal-card pour la grille de révélation
    groupée (potentiellement des dizaines de bananes distinctes à la fois) —
    même carte, juste redimensionnée et sans l'aura de fond (trop lourde à

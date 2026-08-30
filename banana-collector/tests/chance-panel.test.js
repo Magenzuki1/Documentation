@@ -4,6 +4,7 @@
 const assert = require("assert");
 const { launchChromium } = require("./lib/launch");
 const { startServer } = require("./lib/server");
+const { skipOnboardingUi } = require("./lib/skip-onboarding");
 
 async function run() {
   const { server, url } = await startServer();
@@ -15,6 +16,7 @@ async function run() {
 
     await page.goto(`${url}/index.html`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(200);
+    await skipOnboardingUi(page);
 
     assert.ok(
       await page.evaluate(() => document.getElementById("chance-panel").classList.contains("hidden")),

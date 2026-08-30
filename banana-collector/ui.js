@@ -285,6 +285,8 @@ document.addEventListener("DOMContentLoaded", () => {
     revealModalClose: document.getElementById("reveal-modal-close"),
     revealModalTitle: document.getElementById("reveal-modal-title"),
     revealModalGrid: document.getElementById("reveal-modal-grid"),
+    welcomeModal: document.getElementById("welcome-modal"),
+    welcomeModalClose: document.getElementById("welcome-modal-close"),
     chancePanelToggle: document.getElementById("chance-panel-toggle"),
     chancePanel: document.getElementById("chance-panel"),
     chancePanelList: document.getElementById("chance-panel-list"),
@@ -431,6 +433,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.bilanTabClassement.addEventListener("click", () => showBilanView("classement"));
   els.bilanTabStats.addEventListener("click", () => showBilanView("stats"));
+
+  // Cache les onglets pas encore débloqués (voir TAB_UNLOCK_RULES dans
+  // app.js) : à appeler au démarrage et chaque fois que checkTabUnlocks()
+  // (via checkQuests()) vient d'en révéler un nouveau.
+  function refreshTabLocks() {
+    els.tabButtons.forEach((b) => {
+      b.classList.toggle("hidden", !isTabUnlocked(b.dataset.tab));
+    });
+  }
 
   function showTab(name) {
     els.tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
@@ -927,6 +938,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function showQuestToasts(quests, playSound = true) {
     quests.forEach((quest, i) => {
       setTimeout(() => {
+        if (quest.isTabUnlock) {
+          if (playSound) SFX.quest();
+          refreshTabLocks();
+          showBanner("🔓 NOUVEL ONGLET !", { emoji: "🔓", name: `${TAB_UNLOCK_LABELS[quest.tabId] || quest.tabId} est maintenant disponible` }, 2200);
+          spawnConfetti(10);
+          return;
+        }
         if (quest.isSeasonTierUnlock) {
           // Jamais réclamé automatiquement (comme la boîte à cadeaux) —
           // juste signalé tout de suite, sans attendre que le joueur pense
@@ -3669,6 +3687,24 @@ document.addEventListener("DOMContentLoaded", () => {
   els.revealModalClose.addEventListener("click", () => els.revealModal.classList.add("hidden"));
   els.revealModal.addEventListener("pointerdown", (e) => {
     if (e.target === els.revealModal) els.revealModal.classList.add("hidden");
+  });
+
+  // Affiché une seule fois, au tout premier lancement (state.onboarding.welcomeSeen).
+  function showWelcomeModal() {
+    els.welcomeModal.classList.remove("hidden");
+  }
+
+  function closeWelcomeModal() {
+    els.welcomeModal.classList.add("hidden");
+    if (!state.onboarding.welcomeSeen) {
+      state.onboarding.welcomeSeen = true;
+      saveState();
+    }
+  }
+
+  els.welcomeModalClose.addEventListener("click", closeWelcomeModal);
+  els.welcomeModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.welcomeModal) closeWelcomeModal();
   });
 
   /* ---------------- Boîte à cadeaux du Boss ----------------
@@ -6487,6 +6523,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHeader();
     showMedalToasts(medalsUnlockedAtStart, false);
   }
+
+  refreshTabLocks();
+  if (!state.onboarding.welcomeSeen) showWelcomeModal();
 
   updateAccountBtn();
   // Vérifie une session cloud existante (déjà connecté précédemment) en

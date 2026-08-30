@@ -9,6 +9,7 @@
 const assert = require("assert");
 const { launchChromium } = require("./lib/launch");
 const { startServer } = require("./lib/server");
+const { skipOnboardingUi } = require("./lib/skip-onboarding");
 
 async function collectBannerTitles(page, waitMs) {
   await page.waitForTimeout(waitMs);
@@ -27,6 +28,7 @@ async function run() {
     // La prime de connexion quotidienne affiche son propre banner "JOUR 1 !"
     // via un setTimeout(500ms) au démarrage, sans rapport avec ce test.
     await page.waitForTimeout(700);
+    await skipOnboardingUi(page);
 
     await page.evaluate(() => {
       CLOUD.available = true;

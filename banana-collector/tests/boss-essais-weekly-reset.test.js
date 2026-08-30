@@ -8,6 +8,7 @@
 const assert = require("assert");
 const { launchChromium } = require("./lib/launch");
 const { startServer } = require("./lib/server");
+const { skipOnboardingUi } = require("./lib/skip-onboarding");
 
 async function run() {
   const { server, url } = await startServer();
@@ -19,6 +20,7 @@ async function run() {
 
     await page.goto(`${url}/index.html`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(200);
+    await skipOnboardingUi(page);
 
     await page.evaluate(() => {
       // Simule un niveau acheté la semaine dernière, jamais remis à zéro

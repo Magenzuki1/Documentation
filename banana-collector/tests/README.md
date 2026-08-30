@@ -45,6 +45,14 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `modal-backdrop-close.test.js` — cliquer en dehors de la boîte de dialogue
   ferme la fenêtre (Passe saisonnier, boîte à cadeaux), un clic à l'intérieur
   ne la ferme pas.
+- `onboarding.test.js` — le message de bienvenue s'affiche une seule fois au
+  premier lancement, et les onglets Économie/Combat/Social restent masqués
+  puis se révèlent au fil des premiers tirages (avec toast), sans jamais se
+  re-masquer une fois débloqués.
+- `sign-out-reset.test.js` — se déconnecter remet tout l'état local à zéro
+  (pièces, onglets débloqués, cosmétiques, titre équipé, lien cloud) comme un
+  tout premier lancement, plutôt que de laisser la progression du compte
+  visible dans une session invité qui reprendrait juste après.
 
 ## Ajouter un test
 
