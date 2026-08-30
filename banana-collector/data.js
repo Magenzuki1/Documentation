@@ -162,7 +162,6 @@ const BANANA_DEFS = [
   },
   {
     id: 20, name: "Banane pressée", rarity: "commune", image: "images/banana_20.png", emoji: "🍌",
-    deco: { accessories: [{ type: "text", text: "💨", style: "left:-14%; top:40%; font-size:.5em;" }] },
   },
   {
     id: 21, name: "Banane curieuse", rarity: "commune", image: "images/banana_21.png", emoji: "🍌",
