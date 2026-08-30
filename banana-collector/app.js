@@ -2228,13 +2228,13 @@ const BANANA_LEVEL_STAT_BONUS = {
 // sink de pièces de fin de partie plutôt qu'un simple recyclage gratuit de
 // doublons.
 const BANANA_LEVEL_UP_COIN_BASE = {
-  commune: 24,
-  peu_commune: 60,
-  rare: 180,
-  epique: 480,
-  legendaire: 1200,
-  mythique: 3600,
-  secrete: 9600,
+  commune: 72,
+  peu_commune: 180,
+  rare: 540,
+  epique: 1440,
+  legendaire: 3600,
+  mythique: 10800,
+  secrete: 28800,
 };
 
 function bananaLevelUpCoinCost(rarity, currentLevel) {
