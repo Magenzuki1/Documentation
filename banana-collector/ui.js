@@ -3667,6 +3667,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   els.revealModalClose.addEventListener("click", () => els.revealModal.classList.add("hidden"));
+  els.revealModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.revealModal) els.revealModal.classList.add("hidden");
+  });
 
   /* ---------------- Boîte à cadeaux du Boss ----------------
      Deux sortes de contenu : les récompenses du Boss, déjà créditées
@@ -3797,6 +3800,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.giftBoxBtn.addEventListener("click", openGiftBoxModal);
   els.giftBoxClose.addEventListener("click", () => els.giftBoxModal.classList.add("hidden"));
+  els.giftBoxModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.giftBoxModal) els.giftBoxModal.classList.add("hidden");
+  });
 
   /* ---------------- Passe saisonnier ----------------
      Une saison = un mois calendaire. La piste (paliers/récompenses) vient du
@@ -3919,6 +3925,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.seasonPassBtn.addEventListener("click", openSeasonPassModal);
   els.seasonPassClose.addEventListener("click", () => els.seasonPassModal.classList.add("hidden"));
+  els.seasonPassModal.addEventListener("pointerdown", (e) => {
+    if (e.target === els.seasonPassModal) els.seasonPassModal.classList.add("hidden");
+  });
 
   // Comme la "championne" en Arène solo : pas de liste à parcourir, la plus
   // forte banane possédée (rareté puis valeur, sans le niveau — voir
