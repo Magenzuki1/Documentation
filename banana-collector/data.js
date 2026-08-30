@@ -613,7 +613,7 @@ const BANANA_DEFS = [
     image: "images/banana_186.png",
   },
 
-  // ================= Épique (30) =================
+  // ================= Épique (34) =================
   {
     id: 65, name: "Banane dorée", rarity: "epique", image: "images/banana_65.png", emoji: "🍌",
     deco: { filter: "sepia(0.6) saturate(2) hue-rotate(-10deg) brightness(1.1) drop-shadow(0 0 5px #ffdb70)" },
@@ -802,6 +802,22 @@ const BANANA_DEFS = [
   {
     id: 151, name: "Banane Zeus", rarity: "epique", emoji: "🍌",
     image: "images/banana_151.png",
+  },
+  {
+    id: 187, name: "Banane casino", rarity: "epique", emoji: "🍌",
+    image: "images/banana_187.png",
+  },
+  {
+    id: 188, name: "Banane T-rex", rarity: "epique", emoji: "🍌",
+    image: "images/banana_188.png",
+  },
+  {
+    id: 189, name: "Banane tricératops", rarity: "epique", emoji: "🍌",
+    image: "images/banana_189.png",
+  },
+  {
+    id: 190, name: "Banane fossile", rarity: "epique", emoji: "🍌",
+    image: "images/banana_190.png",
   },
 
   // ================= Légendaire (17) =================
@@ -1199,6 +1215,10 @@ const BANANA_LORE = {
   149: { quote: "Elle règne sur l'évier et ses courants redoutables.", story: "Banane Poséidon brandit fièrement une fourchette en guise de trident. Son royaume englouti se limite au fond du bac à vaisselle." },
   150: { quote: "Elle règne sur les fruits oubliés au fond du frigo.", story: "Banane Hadès gouverne le royaume redouté du bac à légumes, là où les fruits oubliés finissent leur vie. Elle prend son rôle très, très au sérieux." },
   151: { quote: "Elle envoie la foudre. En réalité, juste un peu d'électricité statique.", story: "Banane Zeus se considère comme le roi incontesté du verger. Son plus grand pouvoir reste de faire sursauter tout le monde avec une pince à linge chargée en statique." },
+  187: { quote: "Elle compte les cartes depuis l'âge de trois semaines. On ne sait toujours pas comment.", story: "Banane casino ne perd jamais, ou du moins c'est ce qu'elle raconte à qui veut l'entendre. Sa machine à sous personnelle n'a affiché le jackpot qu'une seule fois, et elle en parle encore tous les jours." },
+  188: { quote: "Elle a des bras minuscules, mais ne rate jamais son goûter.", story: "Banane T-rex règne sur son petit coin de jungle sans jamais avoir réussi à applaudir une seule fois. Elle compense en dévorant tout ce qui passe à sa portée, deux cuisses de poulet à la fois." },
+  189: { quote: "Elle charge quiconque s'approche trop près de son goûter.", story: "Banane tricératops porte fièrement sa collerette et ses cornes, même si elle n'a jamais réussi à faire peur à qui que ce soit. Sa banane-queue reste sa fierté absolue, qu'elle secoue dès qu'on la complimente." },
+  190: { quote: "Elle affirme avoir des millions d'années. Personne n'a jamais vérifié.", story: "Banane fossile a été retrouvée figée dans la roche par des archéologues du verger, brosse et marteau à la main. Elle refuse de dire comment elle a fini là, se contentant d'un silence très, très ancien." },
   81: { quote: "Elle brille dans le noir. Personne ne sait pourquoi, ni si c'est prudent.", story: "Banane radioactive a été retrouvée près d'une vieille horloge lumineuse oubliée dans un tiroir. Elle refuse tout examen médical, \"juste au cas où\"." },
   82: { quote: "Elle renverse tout, mélange tout, et appelle ça de l'art.", story: "Banane du chaos a un jour réorganisé toute la cuisine en une nuit, sans raison apparente. Personne n'a jamais retrouvé la passoire depuis." },
   83: { quote: "Elle flotte, littéralement, un petit peu au-dessus du panier.", story: "Banane céleste prétend descendre directement du ciel, sans jamais préciser lequel. Elle dégage une lueur douce que personne n'ose vraiment questionner." },
