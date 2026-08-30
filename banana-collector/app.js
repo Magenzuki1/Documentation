@@ -273,6 +273,16 @@ function defaultState() {
     // personnelle (voir pushSeasonPoints côté cloud.js). Remis à zéro dès que
     // seasonKey ne correspond plus au mois courant (voir addSeasonPoints).
     seasonPass: { points: 0, seasonKey: null, questProgress: {}, questsCompleted: [] },
+    // Déverrouillage progressif des onglets Économie/Combat/Social — voir
+    // TAB_UNLOCK_RULES : le but n'est pas de cacher du contenu longtemps,
+    // juste d'étaler les toutes premières récoltes pour ne pas noyer un
+    // nouveau joueur sous 6 onglets d'un coup. Une fois débloqué, toujours
+    // débloqué (jamais reverrouillé) même si la condition ne redevient plus
+    // vraie ensuite (ex. total de tirages qui ne peut que grimper de toute
+    // façon, mais le principe reste : un déverrouillage est définitif).
+    tabsUnlocked: [],
+    // Message de bienvenue affiché une seule fois, au tout premier lancement.
+    onboarding: { welcomeSeen: false },
     settings: { muted: false, animatedRoll: true, darkMode: false },
     // Compte cloud (Marché / Arène PVP), opt-in — voir cloud.js. Le jeu solo
     // n'y touche jamais et continue de fonctionner 100% hors ligne sans lui.
@@ -1548,8 +1558,59 @@ function checkQuests() {
     }
   }
 
+  // checkQuests() est déjà appelé après toute action qui fait avancer
+  // totalRolls : on y greffe la détection de déverrouillage d'onglets plutôt
+  // que d'ajouter un appel séparé à chacun de ces mêmes appels.
+  for (const tabId of checkTabUnlocks()) {
+    completedNow.push({ isTabUnlock: true, tabId });
+  }
+
   if (completedNow.length > 0) saveState();
   return completedNow;
+}
+
+/* ---------------- Déverrouillage progressif des onglets ----------------
+   Un nouveau joueur qui arrive sur 6 onglets (dont certains avec leurs
+   propres sous-onglets : Arène solo/PVP/Boss, Marché/Cosmétiques...) d'un
+   coup peut vite se sentir noyé avant même d'avoir compris la boucle de
+   base (récolter). Économie/Combat/Social ne sont donc révélés qu'après
+   quelques premières récoltes — jamais verrouillés longtemps, juste étalés
+   sur les toutes premières minutes de jeu. Tirage/Progression/Bilan restent
+   toujours visibles : la récolte et son retour direct (collection) sont le
+   cœur du jeu, et Bilan n'est qu'un tableau de stats en lecture seule, sans
+   risque de perdre qui que ce soit. */
+const TAB_UNLOCK_RULES = {
+  economie: (s) => s.totalRolls >= 3,
+  combat: (s) => s.totalRolls >= 5,
+  social: (s) => s.totalRolls >= 8,
+};
+
+const TAB_UNLOCK_LABELS = {
+  economie: "💰 Économie",
+  combat: "⚔️ Combat",
+  social: "💬 Social",
+};
+
+function isTabUnlocked(tabId) {
+  const rule = TAB_UNLOCK_RULES[tabId];
+  if (!rule) return true;
+  return (state.tabsUnlocked || []).includes(tabId) || rule(state);
+}
+
+// À appeler après toute action qui fait avancer totalRolls (donc partout où
+// checkQuests() l'est déjà) : détecte les onglets tout juste débloqués et
+// les fige dans tabsUnlocked pour qu'un déverrouillage reste définitif.
+function checkTabUnlocks() {
+  if (!state.tabsUnlocked) state.tabsUnlocked = [];
+  const newlyUnlocked = [];
+  for (const tabId of Object.keys(TAB_UNLOCK_RULES)) {
+    if (!state.tabsUnlocked.includes(tabId) && TAB_UNLOCK_RULES[tabId](state)) {
+      state.tabsUnlocked.push(tabId);
+      newlyUnlocked.push(tabId);
+    }
+  }
+  if (newlyUnlocked.length > 0) saveState();
+  return newlyUnlocked;
 }
 
 /* ---------------- Succès ---------------- */

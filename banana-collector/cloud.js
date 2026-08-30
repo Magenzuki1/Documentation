@@ -106,17 +106,34 @@ const CLOUD = (() => {
   }
 
   async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    // Si le SDK Supabase n'a pas pu charger (CDN indisponible...), on ne
+    // peut pas invalider la session côté serveur, mais la déconnexion locale
+    // (l'essentiel pour le joueur) doit quand même se faire — sinon le
+    // bouton "Déconnexion" resterait sans effet visible. Même logique pour
+    // ne jamais rester bloqué indéfiniment si l'appel réseau traîne
+    // (connexion lente/coupée) : un délai raisonnable suffit.
+    if (supabase) {
+      await Promise.race([
+        supabase.auth.signOut().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    }
     cachedUsername = null;
     cachedUserId = null;
-    const cloud = ensureCloudState();
-    cloud.linked = false;
-    saveState();
     // refreshAccountStatus() ne réinitialise plus ce statut à chaque appel
     // (voir son commentaire) : la déconnexion doit donc le faire elle-même,
     // sinon un ancien statut admin/banni resterait affiché après déconnexion.
     accountStatus = { isAdmin: false, banned: false, bannedReason: null, pvpRating: 1000 };
+    // Toute la progression actuellement affichée (pièces, collection,
+    // cosmétiques, onglets débloqués...) vient du compte qui vient de se
+    // déconnecter — la laisser dans le state local ferait croire à la
+    // session invité suivante qu'elle a déjà tout ça. On repart donc d'un
+    // état tout neuf, comme un tout premier lancement, puis on recharge la
+    // page : plus simple et plus sûr que de ré-appeler manuellement chaque
+    // fonction de rendu (et ça redéclenche naturellement l'écran de
+    // bienvenue et le déverrouillage progressif des onglets).
+    resetSave();
+    location.reload();
   }
 
   function isLinked() {
