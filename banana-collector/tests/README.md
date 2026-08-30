@@ -59,6 +59,9 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   la connexion quand aucun compte n'est lié, et le formulaire de connexion/
   création de compte apparaît en premier dans la modale "Compte", avant toute
   la section profil (plutôt que noyé tout en bas).
+- `account-login-refreshes-tabs.test.js` — les onglets Économie/Combat/Social
+  se débloquent immédiatement après une connexion qui rapatrie une collection
+  déjà riche, sans attendre une action supplémentaire.
 
 ## Ajouter un test
 
