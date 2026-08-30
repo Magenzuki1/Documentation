@@ -4802,8 +4802,8 @@ document.addEventListener("DOMContentLoaded", () => {
         errorEl.textContent = "Pseudo invalide (3 à 20 caractères : lettres minuscules, chiffres, _).";
         return;
       }
-      if (password.length < 6) {
-        errorEl.textContent = "Mot de passe trop court (6 caractères minimum).";
+      if (isSignup && password.length < 8) {
+        errorEl.textContent = "Mot de passe trop court (8 caractères minimum).";
         return;
       }
 
