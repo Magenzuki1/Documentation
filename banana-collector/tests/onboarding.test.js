@@ -54,6 +54,14 @@ async function run() {
     const welcomeVisibleAfterReload = await page.$eval("#welcome-modal", (el) => !el.classList.contains("hidden"));
     assert.strictEqual(welcomeVisibleAfterReload, false, "the welcome modal must not reappear once seen");
 
+    // Ce rechargement relance aussi le bandeau de la prime de connexion
+    // quotidienne ("JOUR 1 !", son propre setTimeout(500ms) au démarrage) :
+    // le laisser terminer son cycle avant la section suivante, sinon il
+    // occupe la file d'attente des notifications (un seul bandeau visible à
+    // la fois, voir showBanner() dans ui.js) au moment même où on vérifie le
+    // toast de déverrouillage d'onglet.
+    await page.waitForTimeout(2700);
+
     // 2) Déverrouillage progressif des onglets au fil des tirages, avec
     // toast — tirages forcés déterministes (rareté "commune", pas d'anim)
     // pour éviter qu'une quête de saison ou un succès parasite le compte de
@@ -61,6 +69,20 @@ async function run() {
     await page.evaluate(() => {
       state.settings.animatedRoll = false;
       Math.random = () => 0;
+      // Un succès ("Première récolte"), une quête du jour/de la semaine
+      // assignée pour aujourd'hui, ou une Quête de saison (au moins
+      // "Connecte-toi 1 jour ce mois-ci", satisfaite dès la première
+      // session) peuvent se compléter sur ces mêmes tirages sans rapport
+      // avec le déverrouillage d'onglet testé — chacun prendrait la place
+      // du bandeau attendu dans la file d'attente des notifications (un
+      // seul bandeau visible à la fois, voir showBanner() dans ui.js). Tout
+      // est neutralisé d'un coup plutôt que de traquer au cas par cas quel
+      // identifiant précis correspond au jour où le test tourne.
+      state.achievements.unlocked = ACHIEVEMENTS.map((a) => a.id);
+      state.quests.assigned = [];
+      state.weeklyQuests.assigned = [];
+      state.permanentQuests.completed = PERMANENT_QUEST_POOL.map((q) => q.id);
+      state.seasonPass.questsCompleted = SEASON_QUEST_POOL.map((q) => q.id);
       document.querySelectorAll(".rare-banner").forEach((b) => b.remove());
     });
 

@@ -37,7 +37,6 @@ async function run() {
       // Cache local des paliers, comme rempli par CLOUD.init() au démarrage
       // normal — un seul palier à seuil bas suffit pour ce test.
       setSeasonPassTiersCache([{ tier: 1, threshold: 100 }]);
-      state.seasonPass = { points: 90, seasonKey: currentSeasonKey(), questProgress: {}, questsCompleted: [], notifiedTiers: [] };
       // Mode rapide (pas de roulette de rareté animée) et rareté toujours
       // "commune" (Math.random figé à 0) : sans ça, un tirage rare/légendaire
       // obtenu par pur hasard peut compléter une Quête de saison en même
@@ -46,6 +45,25 @@ async function run() {
       // qui ne s'intéresse qu'au franchissement de palier lui-même.
       state.settings.animatedRoll = false;
       Math.random = () => 0;
+      // Un succès, une quête du jour/de la semaine assignée pour aujourd'hui,
+      // ou une autre Quête de saison peuvent se compléter sur ces mêmes
+      // tirages sans rapport avec le palier testé — chacun prendrait la
+      // place du bandeau de palier dans la file d'attente des notifications
+      // (un seul bandeau visible à la fois, voir showBanner() dans ui.js).
+      // Tout est neutralisé d'un coup pour isoler la seule chose que ce
+      // test vérifie, plutôt que de traquer au cas par cas quel identifiant
+      // précis correspond au jour où le test tourne.
+      state.achievements.unlocked = ACHIEVEMENTS.map((a) => a.id);
+      state.quests.assigned = [];
+      state.weeklyQuests.assigned = [];
+      state.permanentQuests.completed = PERMANENT_QUEST_POOL.map((q) => q.id);
+      state.seasonPass = {
+        points: 90,
+        seasonKey: currentSeasonKey(),
+        questProgress: {},
+        questsCompleted: SEASON_QUEST_POOL.map((q) => q.id),
+        notifiedTiers: [],
+      };
       document.querySelectorAll(".rare-banner").forEach((b) => b.remove());
     });
 

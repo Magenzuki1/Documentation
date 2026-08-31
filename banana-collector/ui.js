@@ -887,7 +887,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // showBanner() est appelée depuis une vingtaine d'endroits indépendants
+  // (bonus quotidien, succès, médailles, quêtes, achats, erreurs de combat...)
+  // qui n'ont connaissance ni les uns des autres ni d'un éventuel bandeau déjà
+  // affiché. Sans file d'attente, deux événements simultanés (ex. la roue
+  // quotidienne ET une quête de saison qui se termine au même moment) créent
+  // chacun leur bandeau — tous deux `position: fixed` au même endroit — et le
+  // second masque complètement le premier : le joueur ne voit jamais le gain
+  // de la roue. La file garantit qu'un seul bandeau est visible à la fois,
+  // dans l'ordre d'arrivée.
+  const bannerQueue = [];
+  let bannerShowing = false;
+
   function showBanner(title, banana, duration) {
+    bannerQueue.push({ title, banana, duration });
+    advanceBannerQueue();
+  }
+
+  function advanceBannerQueue() {
+    if (bannerShowing || bannerQueue.length === 0) return;
+    bannerShowing = true;
+    const { title, banana, duration } = bannerQueue.shift();
     const banner = document.createElement("div");
     banner.className = "rare-banner";
     const bannerGlyph = banana.image ? `<img class="inline-banana-icon" src="${banana.image}" alt="" />` : banana.emoji;
@@ -896,7 +916,11 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(() => banner.classList.add("show"));
     setTimeout(() => {
       banner.classList.remove("show");
-      setTimeout(() => banner.remove(), 400);
+      setTimeout(() => {
+        banner.remove();
+        bannerShowing = false;
+        advanceBannerQueue();
+      }, 400);
     }, duration);
   }
 
