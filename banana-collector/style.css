@@ -1,7 +1,14 @@
 :root {
+  /* Surfaces : panneaux crème, bordures dorées et pistes de barres de
+     progression. Réunies en tokens pour que le mode sombre les bascule d'un
+     bloc au lieu de laisser des panneaux clairs isolés au milieu d'une
+     interface nuit (voir le bloc :root[data-theme="dark"]). */
+  --panel-bg: #fff6d5;
+  --panel-bg-soft: #fffdf5;
+  --panel-border: #f0dfa8;
+  --track-bg: #f0e2b6;
   /* Textes secondaires bruns : lisibles sur le fond crème du mode clair,
-     redéfinis plus haut en luminosité en mode sombre (sinon quasi noirs sur
-     fond nuit — voir le bloc :root[data-theme="dark"]). */
+     éclaircis en mode sombre (sinon quasi noirs sur fond nuit). */
   --text-muted-1: #5c4a1a;
   --text-muted-2: #6b5a30;
   --text-muted-3: #7a6224;
@@ -752,9 +759,7 @@ h1, h2, h3,
   right: 6px;
   font-size: 0.65rem;
   font-weight: 800;
-  /* Pastille blanche dans les deux thèmes : le texte doit rester foncé, donc
-     surtout pas var(--text-muted-*) qui s'éclaircit en mode sombre. */
-  color: #7a6224;
+  color: var(--text-muted-3);
   background: rgba(255, 255, 255, 0.7);
   border-radius: 999px;
   padding: 1px 6px;
@@ -984,6 +989,9 @@ h1, h2, h3,
    et le halo de la carte) : on ne peut pas le redéfinir ici, on repeint donc
    directement le libellé de rareté. */
 .banana-card.rarity-secrete .banana-rarity { color: #d9c9ff; }
+/* La pastille du numéro est blanche translucide sur les cartes claires ; sur
+   la carte secrète, sombre dans les deux thèmes, elle doit s'inverser aussi. */
+.banana-card.rarity-secrete .banana-card-number { background: rgba(0, 0, 0, 0.35); }
 .banana-card.rarity-secrete .banana-name, .banana-card.rarity-secrete .banana-value, .banana-card.rarity-secrete .banana-count { color: #f0e8ff; }
 .banana-card.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
 
@@ -1140,7 +1148,7 @@ h1, h2, h3,
 .progress-bar {
   height: 16px;
   border-radius: 999px;
-  background: #f0e2b6;
+  background: var(--track-bg);
   overflow: hidden;
   margin-top: 6px;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
@@ -1188,7 +1196,7 @@ h1, h2, h3,
   font-weight: 700;
   color: var(--text);
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 6px 10px;
   cursor: pointer;
@@ -1205,7 +1213,7 @@ h1, h2, h3,
   font-weight: 700;
   color: var(--text);
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 6px 10px;
   min-width: 0;
@@ -1222,7 +1230,7 @@ h1, h2, h3,
   gap: 4px;
   margin: 4px 0 18px;
   flex-wrap: wrap;
-  border-bottom: 2px solid #f0dfa8;
+  border-bottom: 2px solid var(--panel-border);
 }
 
 .economie-coin-balance {
@@ -1277,8 +1285,8 @@ h1, h2, h3,
 }
 .market-subtabs-nested .market-subtab-btn {
   background: #fff8e6;
-  border: 2px solid #f0e2b6;
-  border-bottom: 2px solid #f0e2b6;
+  border: 2px solid var(--track-bg);
+  border-bottom: 2px solid var(--track-bg);
   border-radius: 999px;
   padding: 5px 12px;
   margin-bottom: 0;
@@ -1344,8 +1352,8 @@ h1, h2, h3,
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 6px 8px;
   cursor: pointer;
@@ -1363,7 +1371,7 @@ h1, h2, h3,
   min-width: 100px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   font-family: inherit;
   font-size: 0.9rem;
 }
@@ -1478,7 +1486,7 @@ h1, h2, h3,
 .quest-progress-bar {
   height: 10px;
   border-radius: 999px;
-  background: #f0e2b6;
+  background: var(--track-bg);
   overflow: hidden;
   margin-top: 8px;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
@@ -1517,7 +1525,7 @@ h1, h2, h3,
 .settings-section {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 2px solid #f0dfa8;
+  border-top: 2px solid var(--panel-border);
 }
 
 .settings-row {
@@ -1537,7 +1545,7 @@ h1, h2, h3,
 }
 
 .settings-toggle-btn {
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   background: var(--card-bg);
   color: var(--text);
   border-radius: 999px;
@@ -1617,7 +1625,7 @@ h1, h2, h3,
   gap: 16px;
   width: 100%;
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 16px 18px;
   text-align: left;
@@ -1764,11 +1772,11 @@ h1, h2, h3,
   justify-content: center;
   backface-visibility: hidden;
   border-radius: 12px;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
 }
 
-.memory-card-back { background: #fff6d5; font-size: 1.8rem; }
-.memory-card-front { background: #fffdf5; transform: rotateY(180deg); }
+.memory-card-back { background: var(--panel-bg); font-size: 1.8rem; }
+.memory-card-front { background: var(--panel-bg-soft); transform: rotateY(180deg); }
 
 .memory-level-picker {
   display: flex;
@@ -1878,8 +1886,8 @@ h1, h2, h3,
   width: 50px;
   height: 70px;
   border-radius: 8px;
-  background: #fffdf5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg-soft);
+  border: 2px solid var(--panel-border);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
@@ -1941,7 +1949,7 @@ h1, h2, h3,
 
 .slot-cell {
   aspect-ratio: 1;
-  background: #fffdf5;
+  background: var(--panel-bg-soft);
   border: 2px solid var(--accent);
   border-radius: 10px;
   display: flex;
@@ -2115,8 +2123,8 @@ h1, h2, h3,
 /* --- Vitrine du profil (banane favorite + médailles) --- */
 
 .showcase-section {
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 14px 16px;
   margin: 12px 0;
@@ -2184,13 +2192,13 @@ h1, h2, h3,
   min-width: 160px;
   padding: 6px 8px;
   border-radius: 8px;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   font-size: 0.85rem;
 }
 
 .showcase-medal-picker-row { flex-direction: column; align-items: stretch; }
 .showcase-medal-pickers { display: flex; gap: 6px; flex-wrap: wrap; }
-.showcase-medal-pickers select { flex: 1; min-width: 100px; padding: 6px 8px; border-radius: 8px; border: 2px solid #f0dfa8; font-size: 0.8rem; }
+.showcase-medal-pickers select { flex: 1; min-width: 100px; padding: 6px 8px; border-radius: 8px; border: 2px solid var(--panel-border); font-size: 0.8rem; }
 .showcase-medal-picker-hint { margin: 4px 0 0; font-weight: 400; font-size: 0.72rem; color: #9c8850; font-style: italic; }
 
 .showcase-stats-row {
@@ -2200,7 +2208,7 @@ h1, h2, h3,
   gap: 6px 14px;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid #f0dfa8;
+  border-top: 1px solid var(--panel-border);
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-muted-3);
@@ -2217,7 +2225,7 @@ h1, h2, h3,
 
 .medal-card {
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 12px 10px;
   text-align: center;
@@ -2237,8 +2245,8 @@ h1, h2, h3,
 /* --- Combat : l'Arène des Ananas --- */
 
 .profile-level-panel {
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 12px 16px;
   margin: 12px 0;
@@ -2252,8 +2260,8 @@ h1, h2, h3,
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 12px 16px;
   margin: 12px 0 16px;
@@ -2447,7 +2455,7 @@ h1, h2, h3,
 .pve-stage-chip {
   position: relative;
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 8px 12px;
   font-size: 1.3rem;
@@ -2474,7 +2482,7 @@ h1, h2, h3,
   align-items: center;
   gap: 8px;
   background: var(--card-bg);
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 6px 10px;
   cursor: pointer;
@@ -2624,10 +2632,9 @@ h1, h2, h3,
 }
 
 .leaderboard-table thead th {
-  /* En-tête doré codé en dur dans les deux thèmes : texte foncé imposé. */
-  background: #f0dfa8;
+  background: var(--panel-border);
   font-weight: 800;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
 }
 
 .leaderboard-player-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -2643,7 +2650,7 @@ h1, h2, h3,
 .leaderboard-table tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.03); }
 
 .leaderboard-table tbody tr.leaderboard-me {
-  background: #fff6d5;
+  background: var(--panel-bg);
   box-shadow: inset 0 0 0 2px var(--accent);
   font-weight: 700;
 }
@@ -3269,7 +3276,7 @@ h1, h2, h3,
 }
 
 .profile-section {
-  border-bottom: 2px solid #f0dfa8;
+  border-bottom: 2px solid var(--panel-border);
   padding-bottom: 16px;
   margin-bottom: 16px;
 }
@@ -3404,8 +3411,8 @@ h1, h2, h3,
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   cursor: pointer;
   padding: 4px;
@@ -3420,8 +3427,8 @@ h1, h2, h3,
    quand aucun compte n'est lié — mis en avant visuellement puisque c'est
    maintenant la toute première chose visible à l'ouverture. */
 .account-form-primary {
-  background: linear-gradient(160deg, #fff6d5, #ffecb0);
-  border: 2px solid #f0dfa8;
+  background: linear-gradient(160deg, var(--panel-bg), #ffecb0);
+  border: 2px solid var(--panel-border);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 18px;
@@ -3434,7 +3441,7 @@ h1, h2, h3,
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   font-size: 0.95rem;
   font-family: inherit;
   box-sizing: border-box;
@@ -3507,8 +3514,8 @@ h1, h2, h3,
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #fffdf5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg-soft);
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -3525,7 +3532,7 @@ h1, h2, h3,
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 700;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 5px 8px;
 }
@@ -3536,7 +3543,7 @@ h1, h2, h3,
   flex-wrap: wrap;
   gap: 4px 10px;
   font-size: 0.8rem;
-  border-bottom: 1px solid #f0dfa8;
+  border-bottom: 1px solid var(--panel-border);
   padding-bottom: 8px;
 }
 .admin-log-user { font-weight: 800; }
@@ -3555,7 +3562,7 @@ h1, h2, h3,
   cursor: pointer;
   color: inherit;
 }
-.admin-support-thread-row:hover { background: #fff6d5; border-radius: 8px; }
+.admin-support-thread-row:hover { background: var(--panel-bg); border-radius: 8px; }
 .admin-support-unread-badge {
   display: inline-block;
   background: var(--danger);
@@ -3571,7 +3578,7 @@ h1, h2, h3,
   width: 100%;
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 8px 12px;
   margin-top: 10px;
@@ -3590,8 +3597,8 @@ h1, h2, h3,
   align-items: center;
   text-align: center;
   gap: 4px;
-  background: #fffdf5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg-soft);
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 12px 8px;
 }
@@ -3608,7 +3615,7 @@ h1, h2, h3,
 .admin-news-form textarea {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 8px 12px;
   resize: vertical;
@@ -3621,7 +3628,7 @@ h1, h2, h3,
 .admin-events-form input, .admin-events-form select {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3630,7 +3637,7 @@ h1, h2, h3,
 .admin-bananas-form input, .admin-bananas-form select {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3641,7 +3648,7 @@ h1, h2, h3,
 .admin-banana-content-form input[type="text"], .admin-banana-content-form select {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3651,7 +3658,7 @@ h1, h2, h3,
 .admin-quests-form input, .admin-quests-form select {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3662,7 +3669,7 @@ h1, h2, h3,
 .admin-medals-form input, .admin-medals-form select {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3674,7 +3681,7 @@ h1, h2, h3,
 .admin-rewards-form select, .admin-rewards-form input {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -3708,8 +3715,8 @@ h1, h2, h3,
 
 .support-message-admin {
   align-self: flex-start;
-  background: #fff6d5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
 }
 
 .support-message-meta { font-size: 0.68rem; font-weight: 700; opacity: 0.75; margin-bottom: 3px; }
@@ -3725,7 +3732,7 @@ h1, h2, h3,
 .support-form select, .support-form textarea {
   font-family: inherit;
   font-size: 0.85rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 8px 10px;
   background: var(--card-bg);
@@ -3751,7 +3758,7 @@ h1, h2, h3,
   flex: 1;
   font-family: inherit;
   font-size: 0.9rem;
-  border: 2px solid #f0dfa8;
+  border: 2px solid var(--panel-border);
   border-radius: 10px;
   padding: 9px 12px;
   background: var(--card-bg);
@@ -3765,8 +3772,8 @@ h1, h2, h3,
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #fffdf5;
-  border: 2px solid #f0dfa8;
+  background: var(--panel-bg-soft);
+  border: 2px solid var(--panel-border);
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -3791,6 +3798,10 @@ h1, h2, h3,
 /* --- Mode nuit --- */
 
 :root[data-theme="dark"] {
+  --panel-bg: #2b3040;
+  --panel-bg-soft: #262b39;
+  --panel-border: #3a3f52;
+  --track-bg: #161922;
   --text-muted-1: #c9bf9c;
   --text-muted-2: #bfb492;
   --text-muted-3: #b3a884;
@@ -3858,40 +3869,76 @@ h1, h2, h3,
   color: #2b1a00;
 }
 
-/* Filet de sécurité : quelques composants gardent volontairement un fond clair
-   (doré, blanc, crème) même en mode sombre. Tout le texte qui s'y trouve doit
-   donc rester foncé — on y remet --text et les --text-muted-* à leur valeur du
-   mode clair, ce qui vaut aussi pour tous leurs descendants (les variables CSS
-   s'héritent). */
-:root[data-theme="dark"] .harvest-btn,
-:root[data-theme="dark"] .daily-event-banner,
-:root[data-theme="dark"] .home-card,
-:root[data-theme="dark"] .banana-card.rarity-mythique,
-:root[data-theme="dark"] .market-sell-option,
+/* Surfaces qui restaient claires en mode sombre : elles basculent maintenant
+   avec le reste de l'interface. Ce qui suit ne concerne que celles dont la
+   couleur était codée en dur au lieu de passer par --panel-bg/--panel-border,
+   parce qu'elles portent une teinte propre (métal, rose mythique, pastels
+   d'état, alertes) qu'il faut transposer plutôt que remplacer. */
+
+/* Plaque « métal » du tableau de bord : même effet de brillance, en acier
+   sombre plutôt qu'en nacre. */
+:root[data-theme="dark"] .home-card {
+  background: linear-gradient(135deg, #343a4c 0%, #2a2f3e 25%, #3d4356 50%, #262b39 75%, #343a4c 100%);
+  background-size: 220% 220%;
+  border-color: #3f4557;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+:root[data-theme="dark"] .home-card::after {
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.14) 50%, transparent 60%);
+  background-size: 250% 250%;
+}
+:root[data-theme="dark"] .home-card-title { color: #d8c48a; text-shadow: none; }
+:root[data-theme="dark"] #home-xp-label { color: #bfae7e; }
+
+/* Carte mythique : le rose reste la signature de la rareté, en prune sombre. */
+:root[data-theme="dark"] .banana-card.rarity-mythique {
+  background: linear-gradient(135deg, #3a2333, #2c1b28);
+}
+
+/* Voile de début/fin des mini-jeux, posé par-dessus l'aire de jeu. */
 :root[data-theme="dark"] .catch-start-overlay,
-:root[data-theme="dark"] .catch-result,
-:root[data-theme="dark"] .memory-card-back,
-:root[data-theme="dark"] .memory-card-front,
+:root[data-theme="dark"] .catch-result {
+  background: rgba(16, 18, 26, 0.92);
+}
+
+/* Pastilles d'état (taux de retour, chances de victoire) : mêmes trois
+   couleurs sémantiques, en versions sourdes avec un texte clair. */
 :root[data-theme="dark"] .game-rtp-badge,
-:root[data-theme="dark"] .bj-card,
-:root[data-theme="dark"] .slot-cell,
-:root[data-theme="dark"] .showcase-section,
-:root[data-theme="dark"] .prestige-panel,
-:root[data-theme="dark"] .pve-win-chance-badge,
-:root[data-theme="dark"] .leaderboard-table thead th,
-:root[data-theme="dark"] .leaderboard-table tbody tr.leaderboard-me,
-:root[data-theme="dark"] .profile-avatar-option,
-:root[data-theme="dark"] .account-form-primary,
-:root[data-theme="dark"] .account-warning,
-:root[data-theme="dark"] .account-banned-notice,
-:root[data-theme="dark"] .admin-player-row,
-:root[data-theme="dark"] .admin-stat-card,
-:root[data-theme="dark"] .friend-row {
-  --text: #3d2b00;
-  --text-muted-1: #5c4a1a;
-  --text-muted-2: #6b5a30;
-  --text-muted-3: #7a6224;
-  color: var(--text);
+:root[data-theme="dark"] .pve-win-chance-badge.favorable {
+  background: #24361d;
+  color: #b6dc96;
+}
+:root[data-theme="dark"] .pve-win-chance-badge.neutral {
+  background: #3a301a;
+  color: #f0cd82;
+}
+:root[data-theme="dark"] .pve-win-chance-badge.unfavorable {
+  background: #3b2020;
+  color: #f5a8a8;
+}
+
+/* Encadré de connexion mis en avant en tête de la modale « Compte ». */
+:root[data-theme="dark"] .account-form-primary {
+  background: linear-gradient(160deg, #313749, #262b39);
+}
+
+:root[data-theme="dark"] .account-warning {
+  background: #3a301a;
+  color: #f0cd82;
+}
+
+:root[data-theme="dark"] .account-banned-notice {
+  background: #3b1c1c;
+  color: #f5a8a8;
+}
+
+:root[data-theme="dark"] .admin-player-row.banned { background: #331d1d; }
+:root[data-theme="dark"] .profile-avatar-option.locked { background: #1e222d; }
+
+/* Pastille du numéro de collection : une touche de blanc translucide sur une
+   carte claire, de noir translucide sur une carte sombre. */
+:root[data-theme="dark"] .banana-card-number {
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* Pendant sombre de .banana-rarity : sur le fond nuit des cartes, la teinte
@@ -3905,12 +3952,6 @@ h1, h2, h3,
    spécificité mais écrite après — lui reprendrait sinon. */
 :root[data-theme="dark"] .banana-card.rarity-secrete .banana-rarity {
   color: #d9c9ff;
-}
-
-/* Exception : la carte mythique garde son fond rose pâle en mode sombre, son
-   libellé de rareté suit donc la formule du mode clair. */
-:root[data-theme="dark"] .banana-card.rarity-mythique .banana-rarity {
-  color: color-mix(in srgb, var(--rarity-color) 70%, #000);
 }
 
 :root[data-theme="dark"] .support-message-admin {

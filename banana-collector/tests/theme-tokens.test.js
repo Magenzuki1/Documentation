@@ -19,9 +19,21 @@ const DARK_BLOCK_START = ':root[data-theme="dark"] {';
 // Bruns historiquement codés en dur, désormais servis par les tokens.
 const MUTED = { "#5c4a1a": "--text-muted-1", "#6b5a30": "--text-muted-2", "#7a6224": "--text-muted-3" };
 
+// Surfaces (fonds de panneau, bordures, pistes de barres). Mêmes valeurs qu'à
+// l'origine en mode clair, basculées en bloc en mode sombre : les recoder en
+// dur laisserait un panneau crème isolé au milieu de l'interface nuit.
+const SURFACES = {
+  "#fff6d5": "--panel-bg",
+  "#fffdf5": "--panel-bg-soft",
+  "#f0dfa8": "--panel-border",
+  "#f0e2b6": "--track-bg",
+};
+
 // Sélecteurs dont le fond reste clair dans les deux thèmes : leur texte doit
 // justement NE PAS suivre les tokens (voir les commentaires dans style.css).
-const HARDCODED_ON_PURPOSE = [".banana-card-number", ".leaderboard-table thead th"];
+// Vide depuis que toutes les surfaces basculent avec le thème ; la mécanique
+// reste en place pour le jour où un composant devra de nouveau y échapper.
+const HARDCODED_ON_PURPOSE = [];
 
 function lightSection() {
   const cut = CSS.indexOf(DARK_BLOCK_START);
@@ -61,8 +73,25 @@ function run() {
     "couleurs de texte secondaire codées en dur (illisibles en mode sombre) :\n  " + hardcoded.join("\n  ")
   );
 
+  // 1 bis. Idem pour les surfaces : la définition des tokens elle-même est le
+  // seul endroit où ces valeurs ont le droit d'apparaître.
+  const surfaces = [];
+  for (const { selector, body } of rules(light)) {
+    if (selector === ":root") continue;
+    for (const [hex, token] of Object.entries(SURFACES)) {
+      if (body.toLowerCase().includes(hex)) {
+        surfaces.push(`${selector} => ${hex} (utiliser var(${token}))`);
+      }
+    }
+  }
+  assert.strictEqual(
+    surfaces.length,
+    0,
+    "surfaces codées en dur (elles resteraient claires en mode sombre) :\n  " + surfaces.join("\n  ")
+  );
+
   // 2. Les tokens sont bien redéfinis pour le mode sombre.
-  for (const token of Object.values(MUTED)) {
+  for (const token of [...Object.values(MUTED), ...Object.values(SURFACES)]) {
     assert.ok(
       new RegExp(`${token}:\\s*#`).test(dark),
       `${token} n'est pas redéfini dans le bloc mode sombre`
