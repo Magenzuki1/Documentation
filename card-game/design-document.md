@@ -1,4 +1,4 @@
-# [Nom du jeu — à définir] — Document de design (v0.2)
+# [Nom du jeu — à définir] — Document de design (v0.3)
 
 > Document de travail. Chiffres (PV, taille de deck, coûts) donnés à titre indicatif et à ajuster en playtest — marqués `(à équilibrer)`.
 
@@ -82,7 +82,7 @@ Chaque couleur a une jauge qui **se dépense comme une monnaie**, pas comme un s
 | Palier | Coût | Effet |
 |---|---|---|
 | Pacte | 3 Loyauté | pioche une carte d'une couleur alliée présente dans ton deck |
-| Coalition | 6 Loyauté | ce tour, tes créatures gagnent les bonus de toutes les couleurs représentées dans ton deck |
+| Coalition | 6 Loyauté | tes créatures gagnent +1/+1 pour chaque couleur différente que tu contrôles en jeu (créatures + Territoires), jusqu'à la fin du tour |
 | ULTIMATUM | 10 Loyauté | copie la capacité d'une carte alliée en jeu sur toutes tes créatures ce tour |
 
 ### Violet (Pacte) — monte en sacrifiant tes propres ressources (vie, cartes, créatures)
@@ -103,22 +103,39 @@ Deux jauges peuvent être combinées à un seuil réduit pour débloquer un pouv
 
 Ceci récompense explicitement les decks multicolores, en complément des decks mono-couleur qui accèdent plus vite aux paliers hauts d'une seule jauge.
 
-## 7. Mécaniques de carte
+## 7. Combat
+
+- Chaque créature a deux statistiques : **Attaque** et **Vie**. Les dégâts ne sont pas permanents : ils s'effacent en fin de tour (une créature qui survit à un combat repart avec toute sa Vie au tour suivant).
+- **Fatigue d'arrivée** : une créature ne peut pas attaquer le tour où elle arrive en jeu, sauf si elle a le mot-clé **Ruée**.
+- **Déroulé d'un combat** : le joueur actif déclare ses attaquants (ils se "tappent" en attaquant, sauf Vigilance) → le joueur défenseur assigne ses créatures non-tappées en blocage, une par attaquant (ou plus, si l'attaquant a Illusion) → les dégâts se résolvent simultanément : créature bloquée = échange de dégâts avec son(ses) bloqueur(s) ; créature non bloquée = les dégâts touchent directement les PV du joueur adverse.
+- **Englué** (statut central de la jauge Toile) : une créature englué ne peut ni attaquer ni bloquer. Le statut se retire au début du tour de son contrôleur, sauf effet qui le maintient plus longtemps.
+
+### Mots-clés de combat par couleur
+
+| Couleur | Mot-clé | Effet |
+|---|---|---|
+| ⚪ Blanc | Vigilance | attaque sans se tapper — reste disponible pour bloquer ce tour |
+| 🔵 Bleu | Illusion | ne peut être bloqué que par deux créatures ou plus |
+| 🔴 Rouge | Ruée | peut attaquer dès son entrée en jeu (ignore la Fatigue d'arrivée) |
+| 🟢 Vert | Engluer | inflige le statut Englué à la créature touchée (voir ci-dessus) |
+| ⚫ Noir | Vol de vie | les dégâts infligés par cette créature soignent son contrôleur d'autant |
+| 🟣 Violet | Sacrifice | la capacité nécessite de sacrifier une autre créature/carte pour se déclencher |
+
+## 8. Mécaniques de carte
 
 Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition exacte des cartes qui les portent à définir) :
 
 - **Surcharge X** : en jouant la carte, le joueur peut payer X Essence supplémentaire pour un effet ponctuel bonus au moment où elle arrive en jeu (façon "kicker").
 - **Montée (condition)** : capacité passive active **tant que** le joueur contrôle un seuil d'Essence d'une couleur donnée (via ses Territoires en jeu). Se désactive si le seuil n'est plus atteint. Garde les cartes à faible coût pertinentes en fin de partie sans qu'il faille les rejouer.
 
-## 8. Deckbuilding : mono vs multicolore
+## 9. Deckbuilding : mono vs multicolore
 
 - **Mono-couleur** : jauge unique qui monte vite, accès fiable aux paliers hauts (10+), identité de jeu tranchée (agro Rouge, contrôle Bleu, etc.).
 - **Multicolore** : jauges multiples qui montent plus lentement chacune, mais accès aux pouvoirs hybrides et plus de flexibilité de Territoires. Aucun mix n'est interdit par les règles — le choix est purement stratégique.
 
-## 9. Points encore à définir (v0.2)
+## 10. Points encore à définir
 
 - Points de vie de départ, taille de deck, taille de main, conditions de victoire précises `(à équilibrer)`
-- Détail du combat (attaque/défense, mots-clés de combat type "immobilisation", "vol", "poison"...)
 - Premier lot de cartes de test pour jouer des parties blanches
 - Lore détaillé de l'univers (factions, géographie, personnages)
 - Nom du jeu et identité visuelle
@@ -128,3 +145,4 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 
 - v0.1 — Première formalisation : univers, 6 couleurs/races, Territoires mixables, jauges de couleur dépensables par paliers + hybrides, Surcharge/Montée.
 - v0.2 — Paliers complets des 6 jauges de couleur (Fureur, Savoir, Toile, Corruption, Loyauté, Pacte).
+- v0.3 — Système de combat (Attaque/Vie, Fatigue d'arrivée, déroulé d'un combat, statut Englué) et mots-clés de combat par couleur (Vigilance, Illusion, Ruée, Engluer, Vol de vie, Sacrifice).
