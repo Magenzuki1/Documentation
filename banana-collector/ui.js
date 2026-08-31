@@ -4988,15 +4988,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ${showcaseSectionHTML()}
         ${levelPanelHTML()}
         ${prestigePanelHTML()}
-        <div class="settings-section">
-          <div class="settings-row">
-            <span class="settings-row-label">🎰 Animation de récolte</span>
-            <div class="settings-toggle-group">
-              <button id="settings-roll-animated-btn" class="settings-toggle-btn ${state.settings.animatedRoll ? "active" : ""}" title="Une petite roulette de rareté avant de révéler la banane">🎰 Mode animé</button>
-              <button id="settings-roll-fast-btn" class="settings-toggle-btn ${state.settings.animatedRoll ? "" : "active"}" title="Résultat instantané, comme avant">⚡ Mode rapide</button>
-            </div>
-          </div>
-        </div>
         <p class="account-hint">Choisis ton avatar. Les avatars verrouillés se débloquent en obtenant le succès indiqué.</p>
         <div class="profile-avatar-grid">
           ${AVATARS.map((a) => {
@@ -5072,26 +5063,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
-    const rollAnimatedBtn = container.querySelector("#settings-roll-animated-btn");
-    if (rollAnimatedBtn) {
-      rollAnimatedBtn.addEventListener("click", () => {
-        state.settings.animatedRoll = true;
-        saveState();
-        renderRollModeSettings();
-        SFX.click();
-        if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushAnimatedRollPref();
-      });
-    }
-    const rollFastBtn = container.querySelector("#settings-roll-fast-btn");
-    if (rollFastBtn) {
-      rollFastBtn.addEventListener("click", () => {
-        state.settings.animatedRoll = false;
-        saveState();
-        renderRollModeSettings();
-        SFX.click();
-        if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushAnimatedRollPref();
-      });
-    }
     const prestigeBtn = container.querySelector("#profile-prestige-btn");
     if (prestigeBtn) {
       prestigeBtn.addEventListener("click", () => {
@@ -6438,10 +6409,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ---------------- Réglages : mode de récolte animé/rapide ----------------
-     Vit maintenant dans le Profil (voir profileSectionHTML()/wireProfileSection())
-     plutôt que Statistiques : les boutons n'existent donc que pendant que le
-     panneau Compte est ouvert — on les cherche à chaque appel plutôt que de
-     les mettre en cache dans `els`, et on tolère leur absence. */
+     Le choix vit à côté du bouton de récolte, dans l'onglet Tirage : c'est là
+     qu'il produit son effet, donc c'est là qu'on le cherche. Les boutons sont
+     statiques dans index.html, on les câble une seule fois au démarrage. */
   function renderRollModeSettings() {
     const animatedBtn = document.getElementById("settings-roll-animated-btn");
     const fastBtn = document.getElementById("settings-roll-fast-btn");
@@ -6449,6 +6419,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const animated = !!(state.settings && state.settings.animatedRoll);
     animatedBtn.classList.toggle("active", animated);
     fastBtn.classList.toggle("active", !animated);
+  }
+
+  function setRollMode(animated) {
+    state.settings.animatedRoll = animated;
+    saveState();
+    renderRollModeSettings();
+    SFX.click();
+    if (CLOUD.available && CLOUD.isLinked()) CLOUD.pushAnimatedRollPref();
+  }
+
+  function wireRollModeButtons() {
+    const animatedBtn = document.getElementById("settings-roll-animated-btn");
+    const fastBtn = document.getElementById("settings-roll-fast-btn");
+    if (animatedBtn) animatedBtn.addEventListener("click", () => setRollMode(true));
+    if (fastBtn) fastBtn.addEventListener("click", () => setRollMode(false));
   }
 
   /* ---------------- Confirmation générique ---------------- */
@@ -6508,6 +6493,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderHeader();
   renderMuteBtn();
+  wireRollModeButtons();
   renderRollModeSettings();
   renderDailyEventBanner();
   startActivityFeedPolling(); // le fil est global (en-tête), actif dès le chargement
@@ -6562,6 +6548,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // (appelé avant que CLOUD.init() n'ait eu le temps de rapatrier quoi
     // que ce soit).
     refreshTabLocks();
+    // Idem pour la préférence d'animation de récolte : elle est rapatriée par
+    // CLOUD.init(), et ses boutons sont maintenant statiques dans la page (ils
+    // ne se re-rendent plus à l'ouverture d'une modale).
+    renderRollModeSettings();
     refreshAllSupportBadges();
     checkPvpAttackNotifications();
     checkMarketSaleNotifications();

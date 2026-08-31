@@ -84,7 +84,11 @@ async function run() {
         nums: { playerXp: 99999, totalRolls: 4000 },
         upgrades: { panier: 9, cosmique: 3 },
         bananaLevels: { 1: 50, 7: 12 },
-        prestigeLevel: 9,
+        // Même niveau de Prestige que le local (laissé à 4 par le scénario
+        // précédent) : on est bien dans le cas "même manche, l'autre appareil
+        // a juste plus avancé". Un Prestige de niveau différent a ses propres
+        // scénarios dédiés plus bas.
+        prestigeLevel: 4,
         permanentQuests: { completed: ["pq_c"] },
         market: { purchases: 40 },
         catchGame: { bestScore: 500 },
@@ -97,7 +101,6 @@ async function run() {
       return {
         changed,
         xp: state.playerXp,
-        prestige: state.prestige.level,
         panier: state.upgrades.panier,
         cosmique: state.upgrades.cosmique,
         bananaLevel7: state.bananaLevels[7],
@@ -112,7 +115,6 @@ async function run() {
 
     assert.strictEqual(richer.changed, true, "merging a richer remote state must report a change");
     assert.strictEqual(richer.xp, 99999, "a richer remote state must raise local XP");
-    assert.strictEqual(richer.prestige, 9, "a richer remote state must raise the prestige level");
     assert.strictEqual(richer.panier, 9, "a richer remote state must raise a shop upgrade");
     assert.strictEqual(richer.cosmique, 3, "an upgrade only known remotely must be brought in");
     assert.strictEqual(richer.bananaLevel7, 12, "a banana level only known remotely must be brought in");
@@ -125,6 +127,9 @@ async function run() {
 
     // --- Quêtes datées : période plus récente côté serveur ----------------
     const quests = await page.evaluate(() => {
+      // Scénario indépendant du Prestige : on repart d'un niveau 0 pour que
+      // la fusion ne soit pas court-circuitée par la garde anti-Prestige.
+      state.prestige.level = 0;
       state.quests = { date: "2026-01-01", assigned: ["a1"], progress: { rolls: 5 }, completed: ["a1"] };
       mergeRemoteState({ v: 1, quests: { date: "2026-06-01", assigned: ["b1", "b2"], progress: { rolls: 2 }, completed: [] } });
       const newer = { ...state.quests };
@@ -143,6 +148,7 @@ async function run() {
 
     // --- Passe saisonnier : une saison révolue ne revient jamais ----------
     const season = await page.evaluate(() => {
+      state.prestige.level = 0;
       state.seasonPass = { points: 500, seasonKey: "2026-08", questProgress: { rolls: 10 }, questsCompleted: ["sq_a"], notifiedTiers: [1] };
       // Saison PLUS ANCIENNE côté serveur : ignorée.
       mergeRemoteState({ v: 1, seasonPass: { points: 99999, seasonKey: "2026-01", questProgress: {}, questsCompleted: [], notifiedTiers: [] } });
@@ -165,6 +171,100 @@ async function run() {
     assert.strictEqual(season.progress.pvp, 7, "same season: progress only known remotely is brought in");
     assert.deepStrictEqual(season.completed, ["sq_a", "sq_b"], "same season: completed quests are unioned");
     assert.deepStrictEqual(season.notified, [1, 2], "same season: notified tiers are unioned (no re-notification)");
+
+    // --- Le Prestige ne doit JAMAIS être annulé par la synchronisation ----
+    // Régression réelle : la fusion par maximum/union ressuscitait les
+    // améliorations de boutique, compteurs, quêtes et onglets qu'un Prestige
+    // venait de remettre à zéro, en les reprenant au bloc serveur d'AVANT.
+    const prestige = await page.evaluate(() => {
+      // Une partie bien avancée, puis un Prestige.
+      state.prestige.level = 0;
+      state.playerXp = 12000;
+      state.bananaLevels = { 3: 25 };
+      state.upgrades.panier = 8;
+      state.totalRolls = 3000;
+      state.tabsUnlocked = ["economie", "combat", "social"];
+      state.market.purchases = 50;
+      // Le Prestige exige la collection normale complète (canPrestige()).
+      state.discovered = NORMAL_BANANAS.map((b) => b.id);
+      state.counts = { [NORMAL_BANANAS[0].id]: 4 };
+      saveState();
+
+      const blobAvantPrestige = collectSyncableState();
+      doPrestige();
+      const apresPrestige = {
+        level: state.prestige.level,
+        collection: state.discovered.length,
+        panier: state.upgrades.panier,
+        totalRolls: state.totalRolls,
+        tabs: state.tabsUnlocked.length,
+        xp: state.playerXp,
+        bananaLevel3: state.bananaLevels[3],
+      };
+
+      // Le serveur porte encore le bloc d'AVANT le Prestige.
+      mergeRemoteState(blobAvantPrestige);
+      return {
+        apresPrestige,
+        apresFusion: {
+          level: state.prestige.level,
+          panier: state.upgrades.panier,
+          totalRolls: state.totalRolls,
+          tabs: state.tabsUnlocked.length,
+          purchases: state.market.purchases,
+          xp: state.playerXp,
+          bananaLevel3: state.bananaLevels[3],
+        },
+      };
+    });
+
+    // Le Prestige lui-même (comportement existant du jeu).
+    assert.strictEqual(prestige.apresPrestige.level, 1, "prestige must raise the prestige level");
+    assert.strictEqual(prestige.apresPrestige.collection, 0, "prestige must wipe the collection");
+    assert.strictEqual(prestige.apresPrestige.panier, 0, "prestige must reset shop upgrades");
+    assert.strictEqual(prestige.apresPrestige.xp, 12000, "prestige must KEEP player XP (meta progression)");
+    assert.strictEqual(prestige.apresPrestige.bananaLevel3, 25, "prestige must KEEP banana levels");
+
+    // Et surtout : rapatrier l'ancien bloc serveur ne doit rien ressusciter.
+    assert.strictEqual(prestige.apresFusion.panier, 0, "a pre-prestige remote state must NOT resurrect shop upgrades");
+    assert.strictEqual(prestige.apresFusion.totalRolls, 0, "a pre-prestige remote state must NOT resurrect cumulative counters");
+    assert.strictEqual(prestige.apresFusion.tabs, 0, "a pre-prestige remote state must NOT resurrect unlocked tabs");
+    assert.strictEqual(prestige.apresFusion.purchases, 0, "a pre-prestige remote state must NOT resurrect market counters");
+    assert.strictEqual(prestige.apresFusion.level, 1, "the prestige level must not go back down");
+    assert.strictEqual(prestige.apresFusion.xp, 12000, "XP must survive (kept by prestige, merged by max)");
+    assert.strictEqual(prestige.apresFusion.bananaLevel3, 25, "banana levels must survive (kept by prestige)");
+
+    // --- Prestige fait sur un AUTRE appareil : la manche locale est révolue
+    const remotePrestige = await page.evaluate(() => {
+      state.prestige.level = 1;
+      state.upgrades.panier = 6;
+      state.totalRolls = 900;
+      state.tabsUnlocked = ["economie", "combat"];
+      state.playerXp = 500;
+      saveState();
+
+      mergeRemoteState({
+        v: 1,
+        prestigeLevel: 3,
+        playerXp: 20000,
+        nums: { totalRolls: 12 },
+        upgrades: { panier: 1 },
+        tabsUnlocked: ["economie"],
+      });
+      return {
+        level: state.prestige.level,
+        panier: state.upgrades.panier,
+        totalRolls: state.totalRolls,
+        tabs: state.tabsUnlocked.slice().sort(),
+        xp: state.playerXp,
+      };
+    });
+
+    assert.strictEqual(remotePrestige.level, 3, "a higher remote prestige level must be adopted");
+    assert.strictEqual(remotePrestige.panier, 1, "a stale local run must not keep its higher upgrades past a newer prestige");
+    assert.strictEqual(remotePrestige.totalRolls, 12, "a stale local run must not keep its higher counters past a newer prestige");
+    assert.deepStrictEqual(remotePrestige.tabs, ["economie"], "a stale local run must not keep tabs unlocked in a previous run");
+    assert.strictEqual(remotePrestige.xp, 20000, "XP is meta progression and must still be merged by max");
 
     // --- Robustesse : un état serveur absent/invalide ne casse rien -------
     const robust = await page.evaluate(() => {

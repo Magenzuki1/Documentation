@@ -1,4 +1,10 @@
 :root {
+  /* Textes secondaires bruns : lisibles sur le fond crème du mode clair,
+     redéfinis plus haut en luminosité en mode sombre (sinon quasi noirs sur
+     fond nuit — voir le bloc :root[data-theme="dark"]). */
+  --text-muted-1: #5c4a1a;
+  --text-muted-2: #6b5a30;
+  --text-muted-3: #7a6224;
   --bg-1: #fff6d5;
   --bg-2: #ffe08a;
   --text: #3d2b00;
@@ -233,6 +239,31 @@ h1, h2, h3,
   box-shadow: none;
 }
 
+/* Choix du mode de récolte, juste sous le bouton de récolte */
+.roll-mode-bar {
+  width: min(100%, 420px);
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+}
+
+.roll-mode-bar-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.roll-mode-bar .settings-toggle-btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
 .chance-panel-toggle {
   display: block;
   width: min(100%, 420px);
@@ -455,7 +486,7 @@ h1, h2, h3,
 .header-ad-banner-label {
   font-weight: 800;
   font-size: 0.68rem;
-  color: #7a6224;
+  color: var(--text-muted-3);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -492,7 +523,7 @@ h1, h2, h3,
 .tab-btn {
   border: none;
   background: transparent;
-  color: #7a6224;
+  color: var(--text-muted-3);
   font-weight: 700;
   padding: 10px 16px;
   border-radius: 999px;
@@ -552,7 +583,7 @@ h1, h2, h3,
 }
 
 .empty-hint {
-  color: #7a6224;
+  color: var(--text-muted-3);
   font-style: italic;
 }
 
@@ -607,7 +638,12 @@ h1, h2, h3,
   margin-top: 8px;
   padding: 4px 16px;
   border-radius: 999px;
+  /* La couleur de rareté brute est trop claire pour du texte blanc sur les
+     raretés pâles (vert "peu commune" : 2,8:1). On l'assombrit d'un quart en
+     gardant sa teinte ; la première déclaration sert de repli aux navigateurs
+     sans color-mix(). */
   background: var(--rarity-color);
+  background: color-mix(in srgb, var(--rarity-color) 75%, #1a1000);
   color: #fff;
   font-weight: 800;
   font-size: 0.78rem;
@@ -623,7 +659,7 @@ h1, h2, h3,
   margin-top: 14px;
   font-weight: 800;
   font-size: 1.05rem;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
 }
 
 .harvest-reveal-card.pop-in { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -716,6 +752,8 @@ h1, h2, h3,
   right: 6px;
   font-size: 0.65rem;
   font-weight: 800;
+  /* Pastille blanche dans les deux thèmes : le texte doit rester foncé, donc
+     surtout pas var(--text-muted-*) qui s'éclaircit en mode sombre. */
   color: #7a6224;
   background: rgba(255, 255, 255, 0.7);
   border-radius: 999px;
@@ -873,14 +911,22 @@ h1, h2, h3,
 .banana-card-stats {
   font-size: 0.76rem;
   font-weight: 700;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
   margin-top: 2px;
 }
 
 .banana-rarity {
   font-size: 0.8rem;
   font-weight: 700;
+  /* Les couleurs de rareté sont pensées pour des bordures et des halos, pas
+     pour du texte : brutes, elles tombent entre 2,1 et 2,8:1 sur la carte
+     (gris "commune", vert "peu commune", orange "légendaire" sur fond clair ;
+     violet "épique" sur fond nuit). On garde la teinte mais on la pousse vers
+     le noir en mode clair (et vers le blanc en mode sombre, plus bas), ce qui
+     la rend lisible sans lui faire perdre son identité. La déclaration brute
+     reste le repli des navigateurs sans color-mix(). */
   color: var(--rarity-color);
+  color: color-mix(in srgb, var(--rarity-color) 70%, #000);
   text-transform: uppercase;
   margin-top: 2px;
 }
@@ -888,7 +934,7 @@ h1, h2, h3,
 .banana-value, .banana-count {
   font-size: 0.85rem;
   margin-top: 2px;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
 }
 
 .banana-card.pop-in { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -924,7 +970,20 @@ h1, h2, h3,
 
 /* --- Rareté couleurs de fond légères (cartes collection/marché uniquement,
    pas la carte de révélation de récolte qui utilise une aura) --- */
-.banana-card.rarity-secrete { background: linear-gradient(135deg, #1c1c2b, #3a2d5c); color: white; }
+/* Seule carte à fond nuit dans les DEUX thèmes : tout son texte doit être
+   clair, y compris les tokens secondaires et la couleur de rareté (le noir
+   #111827 des secrètes serait invisible sur ce fond). */
+.banana-card.rarity-secrete {
+  background: linear-gradient(135deg, #1c1c2b, #3a2d5c);
+  color: white;
+  --text-muted-1: #cdc4d8;
+  --text-muted-2: #cdc4d8;
+  --text-muted-3: #cdc4d8;
+}
+/* --rarity-color est posé en style inline par ui.js (il pilote aussi la bordure
+   et le halo de la carte) : on ne peut pas le redéfinir ici, on repeint donc
+   directement le libellé de rareté. */
+.banana-card.rarity-secrete .banana-rarity { color: #d9c9ff; }
 .banana-card.rarity-secrete .banana-name, .banana-card.rarity-secrete .banana-value, .banana-card.rarity-secrete .banana-count { color: #f0e8ff; }
 .banana-card.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
 
@@ -1111,7 +1170,7 @@ h1, h2, h3,
 .collection-upgrade-all-hint {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #7a6224;
+  color: var(--text-muted-3);
 }
 
 .collection-control {
@@ -1120,7 +1179,7 @@ h1, h2, h3,
   gap: 6px;
   font-weight: 700;
   font-size: 0.85rem;
-  color: #7a6224;
+  color: var(--text-muted-3);
 }
 
 .collection-control select {
@@ -1154,7 +1213,7 @@ h1, h2, h3,
 .collection-control-search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .secret-section { margin-top: 30px; }
-.secret-hint { font-style: italic; color: #6b5a30; }
+.secret-hint { font-style: italic; color: var(--text-muted-2); }
 
 /* --- Marché --- */
 
@@ -1201,7 +1260,9 @@ h1, h2, h3,
 .market-subtab-btn:hover { color: var(--text); }
 .market-subtab-btn.active {
   background: transparent;
-  color: var(--accent-dark);
+  /* Or plus profond que --accent-dark : ce libellé est petit et gras, et
+     l'accent standard passait sous le seuil de contraste sur le fond crème. */
+  color: #96600a;
   border-bottom-color: var(--accent);
   box-shadow: none;
 }
@@ -1251,8 +1312,8 @@ h1, h2, h3,
    numéro seulement) — jamais de spoil, même sur sa propre demande. */
 .market-listing-card.locked { filter: grayscale(1); opacity: 0.7; }
 
-.market-listing-seller { font-size: 0.75rem; color: #7a6224; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
-.market-listing-qty { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
+.market-listing-seller { font-size: 0.75rem; color: var(--text-muted-3); margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.market-listing-qty { font-size: 0.8rem; color: var(--text-muted-1); margin-top: 2px; }
 .market-listing-price { font-weight: 800; color: var(--accent-dark); margin-top: 6px; }
 .market-listing-status { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
 .market-listing-status.sold,
@@ -1294,7 +1355,7 @@ h1, h2, h3,
    reste sélectionnable, juste visuellement en retrait derrière sa silhouette. */
 .market-sell-option.locked { opacity: 0.75; }
 .market-sell-option.selected { border-color: var(--accent-dark); box-shadow: 0 0 0 2px var(--accent); }
-.market-sell-option-count { font-size: 0.68rem; font-weight: 700; color: #5c4a1a; }
+.market-sell-option-count { font-size: 0.68rem; font-weight: 700; color: var(--text-muted-1); }
 
 .market-sell-inputs { display: flex; gap: 8px; flex-wrap: wrap; }
 .market-sell-inputs input {
@@ -1310,7 +1371,7 @@ h1, h2, h3,
 
 /* --- Boutique --- */
 
-.shop-hint { color: #6b5a30; }
+.shop-hint { color: var(--text-muted-2); }
 
 .shop-list { display: flex; flex-direction: column; gap: 12px; }
 
@@ -1327,8 +1388,8 @@ h1, h2, h3,
 }
 
 .shop-item-name { font-weight: 700; }
-.shop-item-level { font-weight: 400; font-size: 0.8rem; color: #7a6224; margin-left: 6px; }
-.shop-item-desc { font-size: 0.85rem; color: #5c4a1a; margin-top: 2px; }
+.shop-item-level { font-weight: 400; font-size: 0.8rem; color: var(--text-muted-3); margin-left: 6px; }
+.shop-item-desc { font-size: 0.85rem; color: var(--text-muted-1); margin-top: 2px; }
 
 /* --- Cosmétiques (cadres, titres, effets de profil) --- */
 
@@ -1385,7 +1446,7 @@ h1, h2, h3,
 .profile-cosmetics-select:focus { border-color: var(--accent); outline: none; }
 
 .cosmetic-card-name { font-weight: 700; font-size: 0.85rem; }
-.cosmetic-card-rarity { font-size: 0.72rem; color: #7a6224; margin: 2px 0 8px; font-style: italic; }
+.cosmetic-card-rarity { font-size: 0.72rem; color: var(--text-muted-3); margin: 2px 0 8px; font-style: italic; }
 .cosmetic-card .btn, .cosmetic-locked-hint, .cosmetic-equipped-badge { margin-top: 8px; display: inline-block; }
 .cosmetic-locked-hint { font-size: 0.75rem; color: #8a6d1f; font-weight: 700; }
 .cosmetic-equipped-badge { font-size: 0.75rem; color: #2e7d32; font-weight: 800; }
@@ -1429,7 +1490,7 @@ h1, h2, h3,
   transition: width 0.4s ease;
 }
 
-.quest-item-count { font-size: 0.78rem; color: #7a6224; margin-top: 4px; }
+.quest-item-count { font-size: 0.78rem; color: var(--text-muted-3); margin-top: 4px; }
 
 /* --- Boutons génériques --- */
 
@@ -1507,7 +1568,7 @@ h1, h2, h3,
 
 .ad-slot-label {
   font-weight: 800;
-  color: #7a6224;
+  color: var(--text-muted-3);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   font-size: 0.85rem;
@@ -1529,7 +1590,7 @@ h1, h2, h3,
 
 .ad-quota {
   text-align: center;
-  color: #7a6224;
+  color: var(--text-muted-3);
   font-size: 0.85rem;
   margin-top: 10px;
 }
@@ -1570,7 +1631,7 @@ h1, h2, h3,
 .game-card-icon { font-size: 2.2rem; line-height: 1; flex-shrink: 0; }
 .game-card-body { display: flex; flex-direction: column; gap: 3px; }
 .game-card-title { font-weight: 800; font-size: 1.05rem; }
-.game-card-desc { font-size: 0.85rem; color: #5c4a1a; }
+.game-card-desc { font-size: 0.85rem; color: var(--text-muted-1); }
 .game-card-best { font-size: 0.8rem; font-weight: 700; color: var(--accent-dark); }
 
 .game-back-btn { margin-bottom: 14px; }
@@ -1630,10 +1691,10 @@ h1, h2, h3,
   padding: 20px;
 }
 
-.catch-instructions { color: #5c4a1a; max-width: 240px; }
+.catch-instructions { color: var(--text-muted-1); max-width: 240px; }
 
 .catch-result-title { font-size: 1.3rem; font-weight: 800; }
-.catch-result-line { font-size: 0.95rem; color: #5c4a1a; }
+.catch-result-line { font-size: 0.95rem; color: var(--text-muted-1); }
 .catch-result-coins { font-size: 1.4rem; font-weight: 800; color: var(--accent-dark); }
 
 .catch-item {
@@ -2007,7 +2068,7 @@ h1, h2, h3,
 }
 
 .stat-num { font-size: 1.3rem; font-weight: 800; word-break: break-word; }
-.stat-label { font-size: 0.85rem; color: #5c4a1a; margin-top: 4px; }
+.stat-label { font-size: 0.85rem; color: var(--text-muted-1); margin-top: 4px; }
 
 /* --- Succès --- */
 
@@ -2023,7 +2084,7 @@ h1, h2, h3,
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #7a6224;
+  color: var(--text-muted-3);
 }
 
 .achievements-list {
@@ -2048,7 +2109,7 @@ h1, h2, h3,
 .achievement-icon { font-size: 1.7rem; flex-shrink: 0; width: 1.7rem; text-align: center; }
 .achievement-info { flex: 1; min-width: 0; }
 .achievement-name { font-weight: 800; font-size: 0.95rem; }
-.achievement-desc { font-size: 0.8rem; color: #5c4a1a; margin-top: 2px; }
+.achievement-desc { font-size: 0.8rem; color: var(--text-muted-1); margin-top: 2px; }
 .achievement-reward { font-weight: 800; font-size: 0.85rem; color: var(--accent-dark); white-space: nowrap; }
 
 /* --- Vitrine du profil (banane favorite + médailles) --- */
@@ -2142,7 +2203,7 @@ h1, h2, h3,
   border-top: 1px solid #f0dfa8;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #7a6224;
+  color: var(--text-muted-3);
 }
 
 .medals-section { margin-top: 16px; }
@@ -2168,7 +2229,7 @@ h1, h2, h3,
 
 .medal-icon-img { display: inline-block; width: auto; object-fit: contain; vertical-align: middle; }
 .medal-name { font-weight: 800; font-size: 0.85rem; }
-.medal-desc { font-size: 0.72rem; color: #5c4a1a; margin-top: 2px; font-style: italic; }
+.medal-desc { font-size: 0.72rem; color: var(--text-muted-1); margin-top: 2px; font-style: italic; }
 .medal-status { font-size: 0.72rem; font-weight: 700; margin-top: 6px; }
 .medal-card.unlocked .medal-status { color: #2e7d32; }
 .medal-card.locked .medal-status { color: #8a6d1f; }
@@ -2204,7 +2265,7 @@ h1, h2, h3,
   gap: 2px;
   font-weight: 700;
 }
-.prestige-panel-info span:last-child { font-size: 0.8rem; color: #5c4a1a; font-weight: 600; }
+.prestige-panel-info span:last-child { font-size: 0.8rem; color: var(--text-muted-1); font-weight: 600; }
 
 .prestige-btn {
   padding: 10px 18px;
@@ -2251,9 +2312,9 @@ h1, h2, h3,
   justify-content: center;
 }
 
-.pve-fighter-empty { color: #7a6224; font-style: italic; font-size: 0.85rem; }
+.pve-fighter-empty { color: var(--text-muted-3); font-style: italic; font-size: 0.85rem; }
 .pve-fighter-name { font-weight: 800; font-size: 0.85rem; margin-top: 6px; }
-.pve-fighter-stats { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
+.pve-fighter-stats { font-size: 0.78rem; color: var(--text-muted-1); margin-top: 2px; }
 
 /* Chaque ennemi de l'Arène Solo suit toujours le même schéma de 6 paliers
    par famille (sauvage/acide/doré/de fer/légendaire/royal) — le fruit est
@@ -2357,7 +2418,7 @@ h1, h2, h3,
 }
 
 .pve-result-title { font-size: 1.2rem; font-weight: 800; }
-.pve-result-line { font-size: 0.9rem; color: #5c4a1a; margin-top: 4px; }
+.pve-result-line { font-size: 0.9rem; color: var(--text-muted-1); margin-top: 4px; }
 .pve-result-coins { font-size: 1.2rem; font-weight: 800; color: var(--accent-dark); margin-top: 6px; }
 
 .pve-stage-label { font-weight: 700; margin: 22px 0 8px; }
@@ -2373,7 +2434,7 @@ h1, h2, h3,
 .pve-stage-group-label {
   font-weight: 700;
   font-size: 0.85rem;
-  color: #7a6224;
+  color: var(--text-muted-3);
   margin-bottom: 6px;
 }
 
@@ -2400,7 +2461,7 @@ h1, h2, h3,
 
 /* --- Arène PVP --- */
 
-.pvp-team-count { font-weight: 700; color: #5c4a1a; display: block; margin: 10px 0; }
+.pvp-team-count { font-weight: 700; color: var(--text-muted-1); display: block; margin: 10px 0; }
 
 .pvp-team-slots {
   display: flex;
@@ -2420,7 +2481,7 @@ h1, h2, h3,
 }
 
 .pvp-slot-name { font-weight: 700; font-size: 0.85rem; }
-.pvp-slot-stats { font-size: 0.75rem; color: #5c4a1a; }
+.pvp-slot-stats { font-size: 0.75rem; color: var(--text-muted-1); }
 .pvp-slot-upgrade-hint { font-size: 0.7rem; opacity: 0.75; margin-left: -2px; }
 
 .pvp-opponent-card {
@@ -2432,7 +2493,7 @@ h1, h2, h3,
   box-shadow: var(--shadow);
 }
 .pvp-opponent-name { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.pvp-opponent-power { font-size: 0.85rem; color: #5c4a1a; margin-top: 4px; }
+.pvp-opponent-power { font-size: 0.85rem; color: var(--text-muted-1); margin-top: 4px; }
 
 .pvp-report-card {
   background: var(--card-bg);
@@ -2444,7 +2505,7 @@ h1, h2, h3,
 }
 .pvp-report-card.lost { border-left-color: var(--danger); }
 .pvp-report-title { font-weight: 800; }
-.pvp-report-line { font-size: 0.85rem; color: #5c4a1a; margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pvp-report-line { font-size: 0.85rem; color: var(--text-muted-1); margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 .pvp-division-banner { margin: 4px 0 14px; }
 .pvp-division-badge {
@@ -2468,7 +2529,7 @@ h1, h2, h3,
 .boss-card-header { display: flex; align-items: center; gap: 12px; }
 .boss-card-emoji { font-size: 2.4rem; line-height: 1; }
 .boss-card-name { font-weight: 800; font-size: 1.05rem; }
-.boss-card-hp-label { font-size: 0.85rem; color: #7a6224; margin-top: 2px; }
+.boss-card-hp-label { font-size: 0.85rem; color: var(--text-muted-3); margin-top: 2px; }
 .boss-hp-bar {
   margin-top: 10px;
   height: 16px;
@@ -2482,7 +2543,7 @@ h1, h2, h3,
   transition: width 0.4s ease;
 }
 .boss-hp-bar-fill.defeated { background: linear-gradient(90deg, #4caf50, #7be08a); }
-.boss-attempts-label { margin-top: 8px; font-size: 0.8rem; color: #5c4a1a; }
+.boss-attempts-label { margin-top: 8px; font-size: 0.8rem; color: var(--text-muted-1); }
 .boss-sunday-boost-banner {
   margin-top: 10px;
   background: linear-gradient(90deg, #ff9f1c, #e63946);
@@ -2523,7 +2584,7 @@ h1, h2, h3,
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
 }
 .boss-event-bubble-hp { font-size: 0.88rem; font-weight: 700; color: var(--accent-dark); }
 .boss-event-bubble-hp.defeated { color: #2e7d32; }
@@ -2563,6 +2624,7 @@ h1, h2, h3,
 }
 
 .leaderboard-table thead th {
+  /* En-tête doré codé en dur dans les deux thèmes : texte foncé imposé. */
   background: #f0dfa8;
   font-weight: 800;
   color: #5c4a1a;
@@ -2936,9 +2998,9 @@ h1, h2, h3,
 }
 
 .banana-level-title { font-weight: 800; font-size: 0.95rem; }
-.banana-level-bonus { font-weight: 600; font-size: 0.78rem; color: #5c4a1a; }
+.banana-level-bonus { font-weight: 600; font-size: 0.78rem; color: var(--text-muted-1); }
 
-.banana-level-progress-label { font-size: 0.78rem; color: #5c4a1a; margin: 8px 0 4px; }
+.banana-level-progress-label { font-size: 0.78rem; color: var(--text-muted-1); margin: 8px 0 4px; }
 
 .banana-level-progress-bar {
   height: 10px;
@@ -3044,7 +3106,10 @@ h1, h2, h3,
   top: 16px;
   left: 50%;
   transform: translate(-50%, -140%);
-  background: linear-gradient(135deg, #ff9800, #ff5722);
+  /* Orange assombri : sur l'orange vif d'origine (#ff9800), le texte blanc
+     du bandeau tombait à 2,2:1 — sous le seuil de lisibilité, dans les deux
+     thèmes. */
+  background: linear-gradient(135deg, #c96a00, #c02f10);
   color: white;
   padding: 14px 22px;
   border-radius: var(--radius);
@@ -3098,7 +3163,7 @@ h1, h2, h3,
 .pvp-notify-toast-title,
 .market-notify-toast-title { font-weight: 800; font-size: 0.85rem; }
 .pvp-notify-toast-line,
-.market-notify-toast-line { font-size: 0.78rem; color: #5c4a1a; margin-top: 2px; }
+.market-notify-toast-line { font-size: 0.78rem; color: var(--text-muted-1); margin-top: 2px; }
 .pvp-notify-toast-close,
 .market-notify-toast-close {
   position: absolute;
@@ -3109,7 +3174,7 @@ h1, h2, h3,
   border: none;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.08);
-  color: #5c4a1a;
+  color: var(--text-muted-1);
   font-size: 0.7rem;
   line-height: 1;
   cursor: pointer;
@@ -3198,7 +3263,7 @@ h1, h2, h3,
   background: none;
   font-size: 1.1rem;
   cursor: pointer;
-  color: #7a6224;
+  color: var(--text-muted-3);
   padding: 4px;
   line-height: 1;
 }
@@ -3226,7 +3291,7 @@ h1, h2, h3,
   gap: 6px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #5c4a1a;
+  color: var(--text-muted-1);
 }
 .profile-medal-icon { font-size: 1.3rem; line-height: 1; }
 
@@ -3361,7 +3426,7 @@ h1, h2, h3,
   padding: 16px;
   margin-bottom: 18px;
 }
-.account-form-primary .account-hint { text-align: center; font-size: 0.82rem; color: #5c4a1a; margin: 0 0 12px; }
+.account-form-primary .account-hint { text-align: center; font-size: 0.82rem; color: var(--text-muted-1); margin: 0 0 12px; }
 
 .account-field { margin-bottom: 12px; }
 .account-field label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
@@ -3396,7 +3461,7 @@ h1, h2, h3,
 .account-switch-mode {
   background: none;
   border: none;
-  color: #7a6224;
+  color: var(--text-muted-3);
   font-size: 0.82rem;
   text-decoration: underline;
   cursor: pointer;
@@ -3405,7 +3470,7 @@ h1, h2, h3,
 
 .account-logged-in { text-align: center; }
 .account-logged-in .account-username { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.account-logged-in .account-hint { font-size: 0.82rem; color: #5c4a1a; margin-bottom: 16px; }
+.account-logged-in .account-hint { font-size: 0.82rem; color: var(--text-muted-1); margin-bottom: 16px; }
 
 .account-banned-notice {
   background: #fde2e2;
@@ -3451,7 +3516,7 @@ h1, h2, h3,
 
 .admin-player-main { display: flex; flex-direction: column; gap: 2px; }
 .admin-player-name { font-weight: 800; }
-.admin-player-meta { font-size: 0.75rem; color: #7a6224; }
+.admin-player-meta { font-size: 0.75rem; color: var(--text-muted-3); }
 .admin-player-ban-reason { font-size: 0.75rem; color: var(--danger); font-weight: 700; }
 
 .admin-player-actions { display: flex; align-items: center; gap: 6px; }
@@ -3478,7 +3543,7 @@ h1, h2, h3,
 .admin-log-delta { font-weight: 800; }
 .admin-log-delta.positive { color: #2e7d32; }
 .admin-log-delta.negative { color: var(--danger); }
-.admin-log-reason { color: #5c4a1a; }
+.admin-log-reason { color: var(--text-muted-1); }
 .admin-log-date { color: #9c8b5e; margin-left: auto; }
 
 .admin-support-thread-row {
@@ -3532,7 +3597,7 @@ h1, h2, h3,
 }
 .admin-stat-icon { font-size: 1.3rem; }
 .admin-stat-value { font-size: 1.1rem; font-weight: 800; }
-.admin-stat-label { font-size: 0.72rem; color: #7a6224; }
+.admin-stat-label { font-size: 0.72rem; color: var(--text-muted-3); }
 
 .admin-news-form {
   display: flex;
@@ -3550,7 +3615,7 @@ h1, h2, h3,
   min-height: 60px;
   box-sizing: border-box;
 }
-.admin-news-history-title { font-size: 0.85rem; margin: 14px 0 4px; color: #5c4a1a; }
+.admin-news-history-title { font-size: 0.85rem; margin: 14px 0 4px; color: var(--text-muted-1); }
 
 .admin-events-form { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .admin-events-form input, .admin-events-form select {
@@ -3726,6 +3791,9 @@ h1, h2, h3,
 /* --- Mode nuit --- */
 
 :root[data-theme="dark"] {
+  --text-muted-1: #c9bf9c;
+  --text-muted-2: #bfb492;
+  --text-muted-3: #b3a884;
   --bg-1: #1b1e2a;
   --bg-2: #10121a;
   --text: #eae6da;
@@ -3752,6 +3820,18 @@ h1, h2, h3,
   color: #a9a493;
 }
 
+/* L'onglet actif garde sa pastille dorée : sans ce rappel, la règle sombre
+   ci-dessus (plus spécifique que `.tab-btn.active`) repeignait son libellé en
+   gris clair sur fond doré — quasi illisible. Idem pour le sous-onglet actif,
+   qui perdait sa couleur d'accent et devenait indistinct des autres. */
+:root[data-theme="dark"] .tab-btn.active {
+  color: #2b1a00;
+}
+
+:root[data-theme="dark"] .market-subtab-btn.active {
+  color: var(--accent);
+}
+
 :root[data-theme="dark"] .market-subtabs {
   border-bottom-color: #3a3f52;
 }
@@ -3769,6 +3849,68 @@ h1, h2, h3,
 :root[data-theme="dark"] .profile-section,
 :root[data-theme="dark"] .settings-toggle-btn {
   border-color: #3a3f52;
+}
+
+/* La bannière de l'événement du jour garde volontairement son fond doré en
+   mode sombre : son texte doit donc rester foncé, pas suivre var(--text). */
+:root[data-theme="dark"] .daily-event-banner,
+:root[data-theme="dark"] .daily-event-toggle {
+  color: #2b1a00;
+}
+
+/* Filet de sécurité : quelques composants gardent volontairement un fond clair
+   (doré, blanc, crème) même en mode sombre. Tout le texte qui s'y trouve doit
+   donc rester foncé — on y remet --text et les --text-muted-* à leur valeur du
+   mode clair, ce qui vaut aussi pour tous leurs descendants (les variables CSS
+   s'héritent). */
+:root[data-theme="dark"] .harvest-btn,
+:root[data-theme="dark"] .daily-event-banner,
+:root[data-theme="dark"] .home-card,
+:root[data-theme="dark"] .banana-card.rarity-mythique,
+:root[data-theme="dark"] .market-sell-option,
+:root[data-theme="dark"] .catch-start-overlay,
+:root[data-theme="dark"] .catch-result,
+:root[data-theme="dark"] .memory-card-back,
+:root[data-theme="dark"] .memory-card-front,
+:root[data-theme="dark"] .game-rtp-badge,
+:root[data-theme="dark"] .bj-card,
+:root[data-theme="dark"] .slot-cell,
+:root[data-theme="dark"] .showcase-section,
+:root[data-theme="dark"] .prestige-panel,
+:root[data-theme="dark"] .pve-win-chance-badge,
+:root[data-theme="dark"] .leaderboard-table thead th,
+:root[data-theme="dark"] .leaderboard-table tbody tr.leaderboard-me,
+:root[data-theme="dark"] .profile-avatar-option,
+:root[data-theme="dark"] .account-form-primary,
+:root[data-theme="dark"] .account-warning,
+:root[data-theme="dark"] .account-banned-notice,
+:root[data-theme="dark"] .admin-player-row,
+:root[data-theme="dark"] .admin-stat-card,
+:root[data-theme="dark"] .friend-row {
+  --text: #3d2b00;
+  --text-muted-1: #5c4a1a;
+  --text-muted-2: #6b5a30;
+  --text-muted-3: #7a6224;
+  color: var(--text);
+}
+
+/* Pendant sombre de .banana-rarity : sur le fond nuit des cartes, la teinte
+   doit être poussée vers le blanc et non vers le noir. */
+:root[data-theme="dark"] .banana-rarity {
+  color: color-mix(in srgb, var(--rarity-color) 70%, #fff);
+}
+
+/* La carte secrète est sombre dans les deux thèmes : son libellé garde le
+   violet clair posé plus haut, que la règle sombre générique — de même
+   spécificité mais écrite après — lui reprendrait sinon. */
+:root[data-theme="dark"] .banana-card.rarity-secrete .banana-rarity {
+  color: #d9c9ff;
+}
+
+/* Exception : la carte mythique garde son fond rose pâle en mode sombre, son
+   libellé de rareté suit donc la formule du mode clair. */
+:root[data-theme="dark"] .banana-card.rarity-mythique .banana-rarity {
+  color: color-mix(in srgb, var(--rarity-color) 70%, #000);
 }
 
 :root[data-theme="dark"] .support-message-admin {

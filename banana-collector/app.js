@@ -501,9 +501,26 @@ function saveState() {
    appareil en retard (ou hors ligne depuis longtemps) ne peut donc pas
    effacer une progression réalisée ailleurs — c'est exactement le piège qui
    a déjà coûté à des joueurs leurs achats du Marché. */
+// Compteurs remis à zéro par le Prestige (voir doPrestige()) : ils
+// appartiennent à la PARTIE en cours, pas au compte. playerXp en est
+// volontairement exclu, c'est une progression méta conservée d'un Prestige à
+// l'autre — il est traité à part dans mergeRemoteState().
 const SYNCED_MAX_NUMBER_FIELDS = [
-  "totalCoinsEarned", "clicks", "totalRolls", "mythicCount", "playerXp",
+  "totalCoinsEarned", "clicks", "totalRolls", "mythicCount",
   "wheelSpinsTotal", "dailyQuestsCompletedTotal", "weeklyQuestsCompletedTotal",
+];
+
+// Champs de l'état local remis à zéro par le Prestige. Une progression
+// venant d'un Prestige ANTÉRIEUR ne doit jamais les faire remonter : sans
+// cette distinction, la fusion par maximum/union ressusciterait les
+// améliorations de boutique, les compteurs et les onglets qu'un Prestige
+// vient justement de remettre à zéro — elle annulerait le Prestige.
+const PRESTIGE_RESET_STATE_FIELDS = [
+  "totalCoinsEarned", "clicks", "totalRolls", "mythicCount", "wheelSpinsTotal",
+  "dailyQuestsCompletedTotal", "weeklyQuestsCompletedTotal", "upgrades",
+  "firstObtainedAt", "ads", "streak", "catchGame", "memoryGame",
+  "blackjackGame", "slotGame", "quests", "weeklyQuests", "permanentQuests",
+  "seasonPass", "market", "chanceBoost", "tabsUnlocked", "onboarding",
 ];
 
 function collectSyncableState(s = state) {
@@ -513,6 +530,7 @@ function collectSyncableState(s = state) {
       acc[k] = s[k] || 0;
       return acc;
     }, {}),
+    playerXp: s.playerXp || 0,
     upgrades: { ...s.upgrades },
     bananaLevels: { ...s.bananaLevels },
     firstObtainedAt: { ...s.firstObtainedAt },
@@ -581,12 +599,39 @@ function mergeRemoteState(remote) {
   if (!remote || typeof remote !== "object") return false;
   const before = JSON.stringify(collectSyncableState());
 
+  const remotePrestige = Number(remote.prestigeLevel) || 0;
+  const localPrestige = Number(state.prestige.level) || 0;
+
+  // Progression méta, conservée d'un Prestige à l'autre (voir doPrestige()) :
+  // toujours fusionnée au maximum, quel que soit le niveau de Prestige.
+  state.playerXp = maxNum(state.playerXp, remote.playerXp != null ? remote.playerXp : (remote.nums && remote.nums.playerXp));
+  state.bananaLevels = mergeMaxMap(state.bananaLevels, remote.bananaLevels);
+  state.prestige.level = Math.max(localPrestige, remotePrestige);
+
+  // Le serveur porte une progression d'un Prestige ANTÉRIEUR : elle a été
+  // remise à zéro depuis, la reprendre annulerait le Prestige. On s'arrête
+  // donc à la progression méta ci-dessus.
+  if (remotePrestige < localPrestige) {
+    const changedMeta = JSON.stringify(collectSyncableState()) !== before;
+    if (changedMeta) saveState();
+    return changedMeta;
+  }
+
+  // Le serveur porte un Prestige PLUS AVANCÉ (fait sur un autre appareil) :
+  // la partie locale appartient à une manche révolue. On la remet à zéro
+  // avant de fusionner, sinon ses compteurs plus élevés survivraient au
+  // Prestige par le jeu du maximum.
+  if (remotePrestige > localPrestige) {
+    const fresh = defaultState();
+    for (const field of PRESTIGE_RESET_STATE_FIELDS) {
+      state[field] = fresh[field];
+    }
+  }
+
   for (const key of SYNCED_MAX_NUMBER_FIELDS) {
     state[key] = maxNum(state[key], remote.nums && remote.nums[key]);
   }
   state.upgrades = mergeMaxMap(state.upgrades, remote.upgrades);
-  state.bananaLevels = mergeMaxMap(state.bananaLevels, remote.bananaLevels);
-  state.prestige.level = maxNum(state.prestige.level, remote.prestigeLevel);
   state.ads.totalWatched = maxNum(state.ads.totalWatched, remote.adsTotalWatched);
 
   // Date de première découverte : c'est la PLUS ANCIENNE qui est la vraie.
