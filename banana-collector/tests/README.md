@@ -81,6 +81,12 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
 - `account-login-refreshes-tabs.test.js` — les onglets Économie/Combat/Social
   se débloquent immédiatement après une connexion qui rapatrie une collection
   déjà riche, sans attendre une action supplémentaire.
+- `reward-banner-queue.test.js` — deux notifications de récompense qui se
+  déclenchent au même instant (ex. un succès ET une quête complétés par le
+  même tirage) ne s'affichent jamais l'une par-dessus l'autre : au plus un
+  bandeau visible à la fois, dans l'ordre où ils se sont déclenchés — repéré
+  en jouant manuellement (le bonus de la roue quotidienne restait masqué par
+  une quête de saison qui se terminait au même moment).
 
 ## Ajouter un test
 
