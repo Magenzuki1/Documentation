@@ -1,4 +1,4 @@
-# [Nom du jeu — à définir] — Document de design (v0.4)
+# [Nom du jeu — à définir] — Document de design (v0.5)
 
 > Document de travail. Chiffres (PV, taille de deck, coûts) donnés à titre indicatif et à ajuster en playtest — marqués `(à équilibrer)`.
 
@@ -147,10 +147,11 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 
 ## 11. Points encore à définir
 
-- Premier lot de cartes de test pour jouer des parties blanches
 - Lore détaillé de l'univers (factions, géographie, personnages)
 - Nom du jeu et identité visuelle
 - Choix technique de l'application desktop (moteur de jeu, stack technique)
+
+Un premier lot de cartes de test (4 cartes par couleur : Territoire, créature à Montée, créature à Surcharge, sort) est disponible dans [`cartes-test.md`](./cartes-test.md), pour valider les mécaniques via une partie blanche avant d'élargir le pool.
 
 ## Historique
 
@@ -158,3 +159,4 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 - v0.2 — Paliers complets des 6 jauges de couleur (Fureur, Savoir, Toile, Corruption, Loyauté, Pacte).
 - v0.3 — Système de combat (Attaque/Vie, Fatigue d'arrivée, déroulé d'un combat, statut Englué) et mots-clés de combat par couleur (Vigilance, Illusion, Ruée, Engluer, Vol de vie, Sacrifice).
 - v0.4 — Paramètres de partie : PV de départ (35–40), taille de deck (50–65), copies max, main de départ, mulligan, premier joueur, condition de victoire.
+- v0.5 — Premier lot de cartes de test (`cartes-test.md`) : 4 cartes par couleur illustrant Territoire, Montée, Surcharge et sort.
