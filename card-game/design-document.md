@@ -1,4 +1,4 @@
-# [Nom du jeu — à définir] — Document de design (v0.3)
+# [Nom du jeu — à définir] — Document de design (v0.4)
 
 > Document de travail. Chiffres (PV, taille de deck, coûts) donnés à titre indicatif et à ajuster en playtest — marqués `(à équilibrer)`.
 
@@ -133,9 +133,20 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 - **Mono-couleur** : jauge unique qui monte vite, accès fiable aux paliers hauts (10+), identité de jeu tranchée (agro Rouge, contrôle Bleu, etc.).
 - **Multicolore** : jauges multiples qui montent plus lentement chacune, mais accès aux pouvoirs hybrides et plus de flexibilité de Territoires. Aucun mix n'est interdit par les règles — le choix est purement stratégique.
 
-## 10. Points encore à définir
+## 10. Paramètres de partie
 
-- Points de vie de départ, taille de deck, taille de main, conditions de victoire précises `(à équilibrer)`
+| Paramètre | Valeur |
+|---|---|
+| Points de vie de départ | 35–40 `(à trancher précisément en playtest)` |
+| Taille de deck | 50 à 65 cartes |
+| Copies max par carte | 3 (créatures/sorts), illimité pour les Territoires, 1 pour les Légendes |
+| Main de départ | 7 cartes |
+| Mulligan | illimité façon "London mulligan" : à chaque mulligan, la main est remélangée et redistribuée à 7, puis une carte est mise de côté sous le deck par mulligan pris |
+| Premier joueur | tirage au sort ; le joueur qui commence ne pioche pas lors de son premier tour |
+| Condition de victoire | l'adversaire tombe à 0 PV, ou doit piocher alors que son deck est vide (fatigue) |
+
+## 11. Points encore à définir
+
 - Premier lot de cartes de test pour jouer des parties blanches
 - Lore détaillé de l'univers (factions, géographie, personnages)
 - Nom du jeu et identité visuelle
@@ -146,3 +157,4 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 - v0.1 — Première formalisation : univers, 6 couleurs/races, Territoires mixables, jauges de couleur dépensables par paliers + hybrides, Surcharge/Montée.
 - v0.2 — Paliers complets des 6 jauges de couleur (Fureur, Savoir, Toile, Corruption, Loyauté, Pacte).
 - v0.3 — Système de combat (Attaque/Vie, Fatigue d'arrivée, déroulé d'un combat, statut Englué) et mots-clés de combat par couleur (Vigilance, Illusion, Ruée, Engluer, Vol de vie, Sacrifice).
+- v0.4 — Paramètres de partie : PV de départ (35–40), taille de deck (50–65), copies max, main de départ, mulligan, premier joueur, condition de victoire.
