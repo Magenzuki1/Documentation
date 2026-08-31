@@ -65,6 +65,18 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   la connexion quand aucun compte n'est lié, et le formulaire de connexion/
   création de compte apparaît en premier dans la modale "Compte", avant toute
   la section profil (plutôt que noyé tout en bas).
+- `dark-mode-contrast.test.js` — parcourt les six onglets dans les deux
+  thèmes et refuse tout texte sous 3:1 de contraste (les couleurs de texte
+  secondaire brunes et les libellés sur pastille dorée étaient illisibles en
+  mode sombre).
+- `theme-tokens.test.js` — contrôle statique de `style.css` (sans navigateur) :
+  les bruns de texte secondaire doivent passer par `--text-muted-*`, redéfinis
+  en mode sombre, sauf pour les rares composants dont le fond reste clair dans
+  les deux thèmes. Couvre ce que le test précédent ne voit pas : modales,
+  panneau admin, mini-jeux.
+- `roll-mode-placement.test.js` — le choix "Animation de récolte" (mode animé /
+  mode rapide) est directement à côté du bouton de récolte dans l'onglet
+  d'accueil, visible sans ouvrir de modale, et le choix survit au rechargement.
 - `account-login-refreshes-tabs.test.js` — les onglets Économie/Combat/Social
   se débloquent immédiatement après une connexion qui rapatrie une collection
   déjà riche, sans attendre une action supplémentaire.

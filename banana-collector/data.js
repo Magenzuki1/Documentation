@@ -1,6 +1,6 @@
 /* ============================================================
    Banana Collector — Données du jeu
-   Raretés, table de bananes (150 normales + 9 secrètes)
+   Raretés, table de bananes (178 normales + 12 secrètes)
    ============================================================ */
 
 // Ordre du plus commun au plus rare (utilisé pour comparer les raretés)
@@ -1345,5 +1345,5 @@ const BANANAS_BY_ID = Object.fromEntries(BANANAS.map((b) => [b.id, b]));
 const NORMAL_BANANAS = BANANAS.filter((b) => !b.secret);
 const SECRET_BANANAS = BANANAS.filter((b) => b.secret);
 
-const TOTAL_NORMAL = NORMAL_BANANAS.length; // 150
-const TOTAL_SECRET = SECRET_BANANAS.length; // 9
+const TOTAL_NORMAL = NORMAL_BANANAS.length; // 178
+const TOTAL_SECRET = SECRET_BANANAS.length; // 12
