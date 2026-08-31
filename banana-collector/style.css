@@ -918,7 +918,15 @@ h1, h2, h3,
 .banana-rarity {
   font-size: 0.8rem;
   font-weight: 700;
+  /* Les couleurs de rareté sont pensées pour des bordures et des halos, pas
+     pour du texte : brutes, elles tombent entre 2,1 et 2,8:1 sur la carte
+     (gris "commune", vert "peu commune", orange "légendaire" sur fond clair ;
+     violet "épique" sur fond nuit). On garde la teinte mais on la pousse vers
+     le noir en mode clair (et vers le blanc en mode sombre, plus bas), ce qui
+     la rend lisible sans lui faire perdre son identité. La déclaration brute
+     reste le repli des navigateurs sans color-mix(). */
   color: var(--rarity-color);
+  color: color-mix(in srgb, var(--rarity-color) 70%, #000);
   text-transform: uppercase;
   margin-top: 2px;
 }
@@ -962,7 +970,20 @@ h1, h2, h3,
 
 /* --- Rareté couleurs de fond légères (cartes collection/marché uniquement,
    pas la carte de révélation de récolte qui utilise une aura) --- */
-.banana-card.rarity-secrete { background: linear-gradient(135deg, #1c1c2b, #3a2d5c); color: white; }
+/* Seule carte à fond nuit dans les DEUX thèmes : tout son texte doit être
+   clair, y compris les tokens secondaires et la couleur de rareté (le noir
+   #111827 des secrètes serait invisible sur ce fond). */
+.banana-card.rarity-secrete {
+  background: linear-gradient(135deg, #1c1c2b, #3a2d5c);
+  color: white;
+  --text-muted-1: #cdc4d8;
+  --text-muted-2: #cdc4d8;
+  --text-muted-3: #cdc4d8;
+}
+/* --rarity-color est posé en style inline par ui.js (il pilote aussi la bordure
+   et le halo de la carte) : on ne peut pas le redéfinir ici, on repeint donc
+   directement le libellé de rareté. */
+.banana-card.rarity-secrete .banana-rarity { color: #d9c9ff; }
 .banana-card.rarity-secrete .banana-name, .banana-card.rarity-secrete .banana-value, .banana-card.rarity-secrete .banana-count { color: #f0e8ff; }
 .banana-card.rarity-mythique { background: linear-gradient(135deg, #fff0f7, #ffe0f0); }
 
@@ -3837,11 +3858,11 @@ h1, h2, h3,
   color: #2b1a00;
 }
 
-/* Filet de sécurité pour --text-muted-* : quelques composants gardent
-   volontairement un fond clair (doré, blanc, crème) même en mode sombre. Le
-   texte secondaire qui s'y trouve doit donc rester foncé — on y remet les
-   tokens à leur valeur du mode clair, ce qui vaut aussi pour tous leurs
-   descendants (les variables CSS s'héritent). */
+/* Filet de sécurité : quelques composants gardent volontairement un fond clair
+   (doré, blanc, crème) même en mode sombre. Tout le texte qui s'y trouve doit
+   donc rester foncé — on y remet --text et les --text-muted-* à leur valeur du
+   mode clair, ce qui vaut aussi pour tous leurs descendants (les variables CSS
+   s'héritent). */
 :root[data-theme="dark"] .harvest-btn,
 :root[data-theme="dark"] .daily-event-banner,
 :root[data-theme="dark"] .home-card,
@@ -3866,9 +3887,30 @@ h1, h2, h3,
 :root[data-theme="dark"] .admin-player-row,
 :root[data-theme="dark"] .admin-stat-card,
 :root[data-theme="dark"] .friend-row {
+  --text: #3d2b00;
   --text-muted-1: #5c4a1a;
   --text-muted-2: #6b5a30;
   --text-muted-3: #7a6224;
+  color: var(--text);
+}
+
+/* Pendant sombre de .banana-rarity : sur le fond nuit des cartes, la teinte
+   doit être poussée vers le blanc et non vers le noir. */
+:root[data-theme="dark"] .banana-rarity {
+  color: color-mix(in srgb, var(--rarity-color) 70%, #fff);
+}
+
+/* La carte secrète est sombre dans les deux thèmes : son libellé garde le
+   violet clair posé plus haut, que la règle sombre générique — de même
+   spécificité mais écrite après — lui reprendrait sinon. */
+:root[data-theme="dark"] .banana-card.rarity-secrete .banana-rarity {
+  color: #d9c9ff;
+}
+
+/* Exception : la carte mythique garde son fond rose pâle en mode sombre, son
+   libellé de rareté suit donc la formule du mode clair. */
+:root[data-theme="dark"] .banana-card.rarity-mythique .banana-rarity {
+  color: color-mix(in srgb, var(--rarity-color) 70%, #000);
 }
 
 :root[data-theme="dark"] .support-message-admin {
