@@ -70,10 +70,11 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   secondaire brunes et les libellés sur pastille dorée étaient illisibles en
   mode sombre).
 - `theme-tokens.test.js` — contrôle statique de `style.css` (sans navigateur) :
-  les bruns de texte secondaire doivent passer par `--text-muted-*`, redéfinis
-  en mode sombre, sauf pour les rares composants dont le fond reste clair dans
-  les deux thèmes. Couvre ce que le test précédent ne voit pas : modales,
-  panneau admin, mini-jeux.
+  les bruns de texte secondaire doivent passer par `--text-muted-*` et les
+  surfaces (fonds de panneau, bordures, pistes de barres) par `--panel-bg`,
+  `--panel-bg-soft`, `--panel-border` et `--track-bg`, tous redéfinis en mode
+  sombre. Couvre ce que le test précédent ne voit pas : modales, panneau
+  admin, mini-jeux.
 - `roll-mode-placement.test.js` — le choix "Animation de récolte" (mode animé /
   mode rapide) est directement à côté du bouton de récolte dans l'onglet
   d'accueil, visible sans ouvrir de modale, et le choix survit au rechargement.
