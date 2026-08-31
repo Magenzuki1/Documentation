@@ -106,6 +106,11 @@ h1, h2, h3,
 }
 .mute-btn.muted { opacity: 0.55; }
 
+/* Masqué par défaut : .roll-mode-bar (dans l'onglet Tirage) fait déjà le
+   travail sur mobile. Réapparaît en grand écran, voir le bloc @media plus bas. */
+.roll-mode-icon-btn { display: none; }
+.roll-mode-icon-btn.animated { background: linear-gradient(160deg, #ffd23f, var(--accent)); }
+
 .gift-box-btn {
   position: relative;
   border: none;
@@ -3957,4 +3962,51 @@ h1, h2, h3,
 :root[data-theme="dark"] .support-message-admin {
   background: #2b3040;
   border-color: #3a3f52;
+}
+
+/* --- Mise en page grand écran (onglet Tirage) -------------------------------
+   Jusqu'ici le jeu n'avait que des breakpoints qui RÉTRÉCISSENT encore pour
+   les très petits téléphones (voir plus haut) : sur une fenêtre de bureau
+   large mais courte en hauteur, la colonne unique conçue pour un écran de
+   téléphone (haut et étroit) oblige à faire défiler pour tout voir. Signalé
+   par un joueur sur PC. À partir de cette largeur, on regroupe horizontalement
+   ce qui peut l'être et on comprime les panneaux les plus hauts, pour que
+   l'onglet Tirage tienne sur un seul écran sans défilement. Le mobile (en
+   dessous de ce seuil) garde exactement la mise en page d'avant. --- */
+@media (min-width: 860px) {
+  .topbar-hero {
+    padding: 10px 18px 8px;
+    margin-bottom: 8px;
+  }
+  .topbar h1 {
+    font-size: 1.5rem;
+    margin: 0 0 8px;
+  }
+  .stats-bar {
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+  }
+
+  /* Fil d'actualité + bonus du jour côte à côte plutôt que l'un sous l'autre. */
+  .topbar-secondary-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .topbar-secondary-row .activity-feed-section,
+  .topbar-secondary-row .daily-event-banner {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 8px;
+  }
+
+  /* Panneaux Niveau/Collection nettement plus fins. */
+  .home-dashboard { margin-bottom: 8px; }
+  .home-card { padding: 4px 10px; }
+  .home-card-title { margin-bottom: 2px; }
+
+  /* Le choix "Animation de récolte" quitte le fil principal pour un
+     interrupteur compact dans l'en-tête (voir #roll-mode-icon-btn). */
+  .roll-mode-bar { display: none; }
+  .roll-mode-icon-btn { display: inline-flex; align-items: center; justify-content: center; }
 }

@@ -12,6 +12,12 @@ async function run() {
   const browser = await launchChromium();
   try {
     const page = await browser.newPage();
+    // Ce test vérifie la mise en page MOBILE (la barre complète à côté du
+    // bouton de récolte) ; sans largeur explicite, Playwright utilise sa
+    // fenêtre par défaut (1280px), au-dessus du seuil où le @media dans
+    // style.css bascule sur l'icône compacte de l'en-tête à la place — voir
+    // desktop-compact-layout.test.js pour ce cas-là.
+    await page.setViewportSize({ width: 420, height: 1000 });
     const pageErrors = [];
     page.on("pageerror", (e) => pageErrors.push(String(e)));
 
