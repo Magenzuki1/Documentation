@@ -6435,14 +6435,26 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------------- Réglages : mode de récolte animé/rapide ----------------
      Le choix vit à côté du bouton de récolte, dans l'onglet Tirage : c'est là
      qu'il produit son effet, donc c'est là qu'on le cherche. Les boutons sont
-     statiques dans index.html, on les câble une seule fois au démarrage. */
+     statiques dans index.html, on les câble une seule fois au démarrage.
+     #roll-mode-icon-btn (en-tête) est la réplique compacte utilisée en grand
+     écran (voir le @media dans style.css) : les deux widgets restent toujours
+     synchronisés d'ici, peu importe lequel est visuellement affiché. */
   function renderRollModeSettings() {
     const animatedBtn = document.getElementById("settings-roll-animated-btn");
     const fastBtn = document.getElementById("settings-roll-fast-btn");
-    if (!animatedBtn || !fastBtn) return;
+    const iconBtn = document.getElementById("roll-mode-icon-btn");
     const animated = !!(state.settings && state.settings.animatedRoll);
-    animatedBtn.classList.toggle("active", animated);
-    fastBtn.classList.toggle("active", !animated);
+    if (animatedBtn && fastBtn) {
+      animatedBtn.classList.toggle("active", animated);
+      fastBtn.classList.toggle("active", !animated);
+    }
+    if (iconBtn) {
+      iconBtn.textContent = animated ? "🎰" : "⚡";
+      iconBtn.classList.toggle("animated", animated);
+      iconBtn.title = animated
+        ? "Animation de récolte : mode animé (clic pour passer en rapide)"
+        : "Animation de récolte : mode rapide (clic pour passer en animé)";
+    }
   }
 
   function setRollMode(animated) {
@@ -6456,8 +6468,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireRollModeButtons() {
     const animatedBtn = document.getElementById("settings-roll-animated-btn");
     const fastBtn = document.getElementById("settings-roll-fast-btn");
+    const iconBtn = document.getElementById("roll-mode-icon-btn");
     if (animatedBtn) animatedBtn.addEventListener("click", () => setRollMode(true));
     if (fastBtn) fastBtn.addEventListener("click", () => setRollMode(false));
+    if (iconBtn) iconBtn.addEventListener("click", () => setRollMode(!state.settings.animatedRoll));
   }
 
   /* ---------------- Confirmation générique ---------------- */

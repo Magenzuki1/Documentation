@@ -25,23 +25,35 @@
           <button id="gift-box-btn" class="gift-box-btn" title="Boîte à cadeaux">🎁<span id="gift-box-badge" class="gift-box-badge hidden">0</span></button>
           <button id="season-pass-btn" class="gift-box-btn" title="Passe saisonnier">🎫<span id="season-pass-badge" class="gift-box-badge hidden">0</span></button>
           <button id="mute-btn" class="mute-btn" title="Couper/activer le son">🔊</button>
+          <!-- Réplique compacte du choix "Animation de récolte" (voir .roll-mode-bar
+               dans l'onglet Tirage) : sur grand écran, .roll-mode-bar se masque et
+               ce bouton prend le relais pour économiser de la hauteur — un simple
+               interrupteur à icône, comme #mute-btn, plutôt que deux boutons côte
+               à côte. Les deux restent synchronisés par renderRollModeSettings(). -->
+          <button id="roll-mode-icon-btn" class="mute-btn roll-mode-icon-btn" title="Animation de récolte">🎰</button>
           <button id="account-btn" class="account-btn">👤 Compte</button>
           <button id="settings-btn" class="settings-gear-btn" title="Paramètres">⚙️</button>
         </div>
       </div>
-      <div id="activity-feed-section" class="activity-feed-section">
-        <span class="activity-feed-icon" title="Activité récente">📰</span>
-        <div class="activity-feed-viewport">
-          <div id="activity-feed-track" class="activity-feed-track"></div>
+      <!-- Sur grand écran, ces deux bandeaux passent côte à côte plutôt que
+           l'un sous l'autre (voir le bloc @media dans style.css) : regroupés
+           dans un conteneur commun pour que la mise en page flexbox n'ait à
+           toucher qu'un seul élément plutôt que le <header> tout entier. -->
+      <div class="topbar-secondary-row">
+        <div id="activity-feed-section" class="activity-feed-section">
+          <span class="activity-feed-icon" title="Activité récente">📰</span>
+          <div class="activity-feed-viewport">
+            <div id="activity-feed-track" class="activity-feed-track"></div>
+          </div>
         </div>
-      </div>
-      <div id="daily-event-banner" class="daily-event-banner">
-        <button id="daily-event-toggle" class="daily-event-toggle" type="button">
-          <span id="daily-event-summary"></span>
-          <span class="daily-event-chevron">▾</span>
-        </button>
-        <div id="daily-event-details" class="daily-event-details hidden">
-          <div id="daily-event-tomorrow"></div>
+        <div id="daily-event-banner" class="daily-event-banner">
+          <button id="daily-event-toggle" class="daily-event-toggle" type="button">
+            <span id="daily-event-summary"></span>
+            <span class="daily-event-chevron">▾</span>
+          </button>
+          <div id="daily-event-details" class="daily-event-details hidden">
+            <div id="daily-event-tomorrow"></div>
+          </div>
         </div>
       </div>
     </header>

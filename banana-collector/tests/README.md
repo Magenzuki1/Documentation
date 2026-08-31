@@ -87,6 +87,11 @@ Sur un poste sans Chromium déjà installé, lancez d'abord
   bandeau visible à la fois, dans l'ordre où ils se sont déclenchés — repéré
   en jouant manuellement (le bonus de la roue quotidienne restait masqué par
   une quête de saison qui se terminait au même moment).
+- `desktop-compact-layout.test.js` — sur grand écran, le fil d'actualité et le
+  bandeau de l'événement du jour passent côte à côte et le choix "Animation
+  de récolte" devient une icône compacte dans l'en-tête (synchronisée avec la
+  barre complète, masquée mais toujours présente) ; sous le seuil, la mise en
+  page mobile reste inchangée.
 
 ## Ajouter un test
 
