@@ -1,4 +1,4 @@
-# [Nom du jeu — à définir] — Document de design (v0.1)
+# [Nom du jeu — à définir] — Document de design (v0.2)
 
 > Document de travail. Chiffres (PV, taille de deck, coûts) donnés à titre indicatif et à ajuster en playtest — marqués `(à équilibrer)`.
 
@@ -53,7 +53,45 @@ Chaque couleur a une jauge qui **se dépense comme une monnaie**, pas comme un s
 | Frénésie | 6 Fureur | toutes les créatures orques ont +1 attaque ce tour |
 | WARCRY | 10 Fureur | toutes les créatures attaquent une seconde fois ce tour |
 
-Même logique de paliers (à écrire) pour Savoir, Toile, Corruption, Loyauté, Pacte — v0.2.
+### Bleu (Savoir) — monte via les sorts lancés
+
+| Palier | Coût | Effet |
+|---|---|---|
+| Étincelle | 3 Savoir | pioche une carte, ou le prochain sort coûte 2 de moins |
+| Résonance | 6 Savoir | recopie le dernier sort joué et relance-le sur une nouvelle cible |
+| SINGULARITÉ | 10 Savoir | prends le contrôle d'une créature adverse jusqu'à la fin de la partie |
+
+### Vert (Toile) — monte via les immobilisations d'ennemis
+
+| Palier | Coût | Effet |
+|---|---|---|
+| Piège | 3 Toile | la prochaine créature adverse qui attaque est automatiquement engluée |
+| Essaim | 6 Toile | invoque un jeton Araignée qui engluera automatiquement à son entrée |
+| REINE-MÈRE | 10 Toile | prends le contrôle permanent d'une créature adverse engluée |
+
+### Noir (Corruption) — monte via la mort d'une créature, alliée ou adverse
+
+| Palier | Coût | Effet |
+|---|---|---|
+| Charognard | 3 Corruption | récupère une carte depuis n'importe quel cimetière |
+| Épidémie | 6 Corruption | jusqu'à la fin du tour, chaque créature adverse qui meurt inflige 1 dégât au joueur adverse |
+| FOSSE COMMUNE | 10 Corruption | réanime toutes tes créatures mortes cette partie, affaiblies (-50 % de leurs stats) |
+
+### Blanc (Loyauté) — monte via des cartes d'autres couleurs jouées dans le même deck
+
+| Palier | Coût | Effet |
+|---|---|---|
+| Pacte | 3 Loyauté | pioche une carte d'une couleur alliée présente dans ton deck |
+| Coalition | 6 Loyauté | ce tour, tes créatures gagnent les bonus de toutes les couleurs représentées dans ton deck |
+| ULTIMATUM | 10 Loyauté | copie la capacité d'une carte alliée en jeu sur toutes tes créatures ce tour |
+
+### Violet (Pacte) — monte en sacrifiant tes propres ressources (vie, cartes, créatures)
+
+| Palier | Coût | Effet |
+|---|---|---|
+| Marché | 3 Pacte | sacrifie une carte de ta main : pioche 2 cartes |
+| Corruption profonde | 6 Pacte | détruis une créature adverse, perds 3 PV |
+| PACTE ULTIME | 10 Pacte | invoque un Démon majeur gratuitement, mais perds la moitié de tes PV actuels |
 
 ### Hybrides
 
@@ -81,7 +119,6 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 
 - Points de vie de départ, taille de deck, taille de main, conditions de victoire précises `(à équilibrer)`
 - Détail du combat (attaque/défense, mots-clés de combat type "immobilisation", "vol", "poison"...)
-- Paliers complets des 5 autres jauges de couleur
 - Premier lot de cartes de test pour jouer des parties blanches
 - Lore détaillé de l'univers (factions, géographie, personnages)
 - Nom du jeu et identité visuelle
@@ -90,3 +127,4 @@ Deux mots-clés génériques, utilisables sur toutes les couleurs (répartition 
 ## Historique
 
 - v0.1 — Première formalisation : univers, 6 couleurs/races, Territoires mixables, jauges de couleur dépensables par paliers + hybrides, Surcharge/Montée.
+- v0.2 — Paliers complets des 6 jauges de couleur (Fureur, Savoir, Toile, Corruption, Loyauté, Pacte).
