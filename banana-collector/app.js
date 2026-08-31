@@ -154,7 +154,11 @@ const UPGRADES = [
     name: "🔄 Récolteur automatique",
     desc: "Récolte automatiquement une banane à intervalles réguliers, sans avoir à cliquer",
     targets: [],
-    basePrice: 3400,
+    // basePrice baissé de 3400 à 1880 (retour joueur : le palier max à
+    // 36 203 pièces était énorme) : mêmes proportions entre paliers
+    // (priceMult inchangé), juste toute l'échelle ramenée à ~55% pour un
+    // palier max autour de 20 000 (1880 / 4136 / 9099 / 20 018).
+    basePrice: 1880,
     priceMult: 2.2,
     maxLevel: 4,
     intervalsMs: [60000, 45000, 30000, 20000],
