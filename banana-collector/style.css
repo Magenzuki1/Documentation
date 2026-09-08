@@ -4010,3 +4010,15 @@ h1, h2, h3,
   .roll-mode-bar { display: none; }
   .roll-mode-icon-btn { display: inline-flex; align-items: center; justify-content: center; }
 }
+
+/* Pied de page présent sur tous les onglets : liens vers "Comment jouer"
+   et la politique de confidentialité, toujours accessibles sans naviguer
+   jusqu'au sous-onglet Publicité. */
+.site-footer {
+  text-align: center;
+  padding: 18px 16px 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted-3);
+}
+.site-footer a { color: var(--text-muted-1); text-decoration: underline; }
+.site-footer .site-footer-sep { margin: 0 8px; opacity: 0.6; }
