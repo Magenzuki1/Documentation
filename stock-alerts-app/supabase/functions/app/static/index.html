@@ -52,7 +52,10 @@
     <section id="panel-ranking" class="panel">
       <div class="section-head">
         <h2>🏆 Classement du jour</h2>
-        <span class="muted">meilleure &rarr; moins bonne evolution</span>
+      </div>
+      <div class="chart-ranges" id="ranking-filter">
+        <button class="range-btn active" data-dir="desc">📈 Meilleure d'abord</button>
+        <button class="range-btn" data-dir="asc">📉 Moins bonne d'abord</button>
       </div>
       <ul id="ranking-list" class="ranking-list"></ul>
     </section>

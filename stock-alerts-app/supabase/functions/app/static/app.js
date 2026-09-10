@@ -131,6 +131,17 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
 }
 
 // ---------- Classement ----------
+let rankingSortDir = 'desc'; // 'desc' = meilleure d'abord, 'asc' = moins bonne d'abord
+
+document.getElementById('ranking-filter').addEventListener('click', (e) => {
+  const btn = e.target.closest('.range-btn');
+  if (!btn) return;
+  document.querySelectorAll('#ranking-filter .range-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  rankingSortDir = btn.dataset.dir;
+  renderRanking();
+});
+
 function renderRanking() {
   const list = document.getElementById('ranking-list');
   if (!list) return;
@@ -139,7 +150,8 @@ function renderRanking() {
     return;
   }
   const maxAbs = Math.max(...rankingData.map((q) => Math.abs(q.changePercent)), 0.1);
-  list.innerHTML = rankingData
+  const ordered = rankingSortDir === 'asc' ? [...rankingData].reverse() : rankingData;
+  list.innerHTML = ordered
     .map((q) => {
       const dir = q.changePercent >= 0 ? 'up' : 'down';
       const isGold = q.rank <= 3 && q.changePercent > 0;
