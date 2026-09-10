@@ -1,7 +1,8 @@
 name: Deploy Banana Collector to GitHub Pages
 
-# Déploie uniquement le dossier banana-collector/ sur GitHub Pages.
-# N'interfère pas avec le pipeline de documentation existant (Doc-preview).
+# Déploie banana-collector/ à la racine du site Pages, et le tableau de bord
+# stock-alerts-app en sous-chemin /stock-alerts/ du même site (aucun réglage
+# GitHub supplémentaire requis : la Source Pages est déjà "GitHub Actions").
 #
 # Étape manuelle à faire UNE FOIS dans GitHub, avant que ce workflow
 # puisse publier quoi que ce soit :
@@ -12,6 +13,7 @@ on:
     branches: ["main"]
     paths:
       - "banana-collector/**"
+      - "stock-alerts-app/supabase/functions/app/static/**"
   workflow_dispatch:
 
 permissions:
@@ -39,10 +41,18 @@ jobs:
       - name: Stamp cache-busting version into index.html
         run: sed -i "s/__CACHEBUST__/${{ github.sha }}/g" banana-collector/index.html
 
-      - name: Upload banana-collector/ as Pages artifact
+      - name: Assemble combined Pages site
+        run: |
+          mkdir -p site
+          cp -r banana-collector/. site/
+          rm -rf site/node_modules site/.gitignore site/tests
+          mkdir -p site/stock-alerts
+          cp -r stock-alerts-app/supabase/functions/app/static/. site/stock-alerts/
+
+      - name: Upload combined site as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: banana-collector
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
