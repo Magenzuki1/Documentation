@@ -53,17 +53,34 @@ function range52Bar(q) {
     </div>`;
 }
 
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+// Classement du jour, calcule une fois par rafraichissement et reutilise par
+// les cartes (badge dore) et l'onglet Classement.
+let rankingData = [];
+
+function computeRanking(quotes) {
+  const valid = quotes.filter((q) => !q.error && typeof q.changePercent === 'number' && q.price != null);
+  const sorted = [...valid].sort((a, b) => b.changePercent - a.changePercent);
+  sorted.forEach((q, i) => (q.rank = i + 1));
+  return sorted;
+}
+
 async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
   const quotes = await quotesRes.json();
   const quotesBySymbol = Object.fromEntries(quotes.map((q) => [q.symbol, q]));
 
-  renderQuoteGroup('quotes-sante', watchlist.filter((s) => s.sector === 'sante'), quotesBySymbol);
-  renderQuoteGroup('quotes-energie', watchlist.filter((s) => s.sector === 'energie'), quotesBySymbol);
+  rankingData = computeRanking(quotes);
+  const rankBySymbol = Object.fromEntries(rankingData.map((q) => [q.symbol, q.rank]));
+
+  renderQuoteGroup('quotes-sante', watchlist.filter((s) => s.sector === 'sante'), quotesBySymbol, rankBySymbol);
+  renderQuoteGroup('quotes-energie', watchlist.filter((s) => s.sector === 'energie'), quotesBySymbol, rankBySymbol);
+  renderRanking();
 }
 
-function renderQuoteGroup(containerId, stocks, quotesBySymbol) {
+function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
   const container = document.getElementById(containerId);
   container.innerHTML = stocks
     .map((stock) => {
@@ -71,15 +88,21 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol) {
       if (!q || q.error || q.price == null) {
         return `<div class="quote-card error" data-symbol="${stock.symbol}" data-name="${stock.name}"><div class="name">${stock.name}</div><div class="symbol">${stock.symbol}</div><div class="muted">indisponible</div></div>`;
       }
+      const rank = rankBySymbol[stock.symbol];
+      const isGold = rank && rank <= 3 && q.changePercent > 0;
       const dir = q.changePercent >= 0 ? 'up' : 'down';
+      const tier = isGold ? 'gold' : dir;
       const sign = q.changePercent >= 0 ? '+' : '';
+      const arrow = q.changePercent >= 0 ? '▲' : '▼';
+      const medal = isGold ? MEDALS[rank] : '';
       return `
-        <div class="quote-card" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
+        <div class="quote-card tier-${tier}" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
+          ${medal ? `<span class="medal-badge">${medal}</span>` : ''}
           <div class="name">${stock.name}</div>
           <div class="symbol">${stock.symbol}</div>
           <div class="price-row">
             <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
-            <span class="change ${dir}">${sign}${Number(q.changePercent).toFixed(1)}%</span>
+            <span class="change ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
           </div>
           ${range52Bar(q)}
           <div class="quote-extra muted">
@@ -96,6 +119,46 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openChart(card.dataset.symbol, card.dataset.name);
+      }
+    });
+  });
+}
+
+// ---------- Classement ----------
+function renderRanking() {
+  const list = document.getElementById('ranking-list');
+  if (!list) return;
+  if (rankingData.length === 0) {
+    list.innerHTML = '<p class="muted">Pas encore de donnees.</p>';
+    return;
+  }
+  const maxAbs = Math.max(...rankingData.map((q) => Math.abs(q.changePercent)), 0.1);
+  list.innerHTML = rankingData
+    .map((q) => {
+      const dir = q.changePercent >= 0 ? 'up' : 'down';
+      const isGold = q.rank <= 3 && q.changePercent > 0;
+      const tier = isGold ? 'gold' : dir;
+      const sign = q.changePercent >= 0 ? '+' : '';
+      const barPct = (Math.abs(q.changePercent) / maxAbs) * 100;
+      const medal = isGold ? MEDALS[q.rank] : '';
+      return `
+        <li class="rank-row tier-${tier}" data-symbol="${q.symbol}" data-name="${q.name}" tabindex="0" role="button">
+          <span class="rank-pos">${medal || `#${q.rank}`}</span>
+          <div class="rank-main">
+            <div class="rank-name">${q.name} <span class="muted">${q.symbol}</span></div>
+            <div class="rank-bar-track"><div class="rank-bar-fill ${dir}" style="width:${barPct.toFixed(1)}%"></div></div>
+          </div>
+          <span class="rank-value ${dir}">${sign}${Number(q.changePercent).toFixed(1)}%</span>
+        </li>`;
+    })
+    .join('');
+
+  list.querySelectorAll('.rank-row').forEach((row) => {
+    row.addEventListener('click', () => openChart(row.dataset.symbol, row.dataset.name));
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openChart(row.dataset.symbol, row.dataset.name);
       }
     });
   });

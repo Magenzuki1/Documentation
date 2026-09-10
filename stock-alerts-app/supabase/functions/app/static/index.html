@@ -29,6 +29,7 @@
 
   <nav class="tabs" id="tabs">
     <button class="tab active" data-tab="quotes">Cours</button>
+    <button class="tab" data-tab="ranking">🏆 Classement</button>
     <button class="tab" data-tab="news">Actualites</button>
     <button class="tab" data-tab="history">Historique</button>
     <button class="tab" data-tab="settings">Reglages</button>
@@ -46,6 +47,14 @@
         <h2>Energie</h2>
       </div>
       <div id="quotes-energie" class="quote-grid"></div>
+    </section>
+
+    <section id="panel-ranking" class="panel">
+      <div class="section-head">
+        <h2>🏆 Classement du jour</h2>
+        <span class="muted">meilleure &rarr; moins bonne evolution</span>
+      </div>
+      <ul id="ranking-list" class="ranking-list"></ul>
     </section>
 
     <section id="panel-news" class="panel">
