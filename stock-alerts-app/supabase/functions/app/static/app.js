@@ -28,7 +28,7 @@ const DOMAIN_ORDER = [
 // Cette page est servie de facon statique depuis Supabase Storage ; l'API
 // (donnees + abonnements push) vit dans une Edge Function separee, appelee
 // ici en URL absolue (CORS autorise cote fonction).
-const API_BASE = 'https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/';
+const API_BASE = 'https://egyizjvisjomgqbaovpo.supabase.co/functions/v1/app/api/';
 const api = (path) => API_BASE + path;
 
 // Chemin de base de la page courante (avec "/" final), utilise uniquement
