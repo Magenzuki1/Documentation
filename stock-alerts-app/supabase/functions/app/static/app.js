@@ -42,14 +42,17 @@ function formatCompactNumber(n) {
   return String(n);
 }
 
-function range52Bar(q) {
-  if (q.fiftyTwoWeekLow == null || q.fiftyTwoWeekHigh == null || q.fiftyTwoWeekHigh <= q.fiftyTwoWeekLow) return '';
-  const pct = Math.min(100, Math.max(0, ((q.price - q.fiftyTwoWeekLow) / (q.fiftyTwoWeekHigh - q.fiftyTwoWeekLow)) * 100));
+function rangeBar(title, low, high, price) {
+  if (low == null || high == null || high <= low) return '';
+  const pct = Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
   return `
-    <div class="range52">
-      <span class="range52-label">${Number(q.fiftyTwoWeekLow).toFixed(2)}</span>
-      <div class="range52-track"><span class="range52-marker" style="left:${pct.toFixed(1)}%"></span></div>
-      <span class="range52-label">${Number(q.fiftyTwoWeekHigh).toFixed(2)}</span>
+    <div class="range-block">
+      <span class="range-title muted">${title}</span>
+      <div class="range52">
+        <span class="range52-label">${Number(low).toFixed(2)}</span>
+        <div class="range52-track"><span class="range52-marker" style="left:${pct.toFixed(1)}%"></span></div>
+        <span class="range52-label">${Number(high).toFixed(2)}</span>
+      </div>
     </div>`;
 }
 
@@ -104,10 +107,10 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
             <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
             <span class="change ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
           </div>
-          ${range52Bar(q)}
+          ${rangeBar('Aujourd’hui', q.dayLow, q.dayHigh, q.price)}
+          ${rangeBar('52 semaines', q.fiftyTwoWeekLow, q.fiftyTwoWeekHigh, q.price)}
           <div class="quote-extra muted">
             ${q.volume != null ? `Vol. ${formatCompactNumber(q.volume)}` : ''}
-            ${q.dayLow != null && q.dayHigh != null ? ` &middot; Jour ${Number(q.dayLow).toFixed(2)}-${Number(q.dayHigh).toFixed(2)}` : ''}
           </div>
         </div>`;
     })
@@ -243,7 +246,12 @@ async function openChart(symbol, name) {
 }
 
 async function loadChart() {
-  chartContainer.innerHTML = '<p class="muted">Chargement...</p>';
+  // Pas de placeholder "Chargement..." si un graphique est deja affiche (cas
+  // du rafraichissement automatique) pour eviter un clignotement toutes les
+  // 20s : le graphique existant reste visible jusqu'a l'arrivee des nouvelles
+  // donnees.
+  const hasChart = Boolean(chartContainer.querySelector('.chart-svg'));
+  if (!hasChart) chartContainer.innerHTML = '<p class="muted">Chargement...</p>';
   try {
     const res = await fetch(api(`history?symbol=${encodeURIComponent(chartState.symbol)}&range=${chartState.range}`));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -252,9 +260,9 @@ async function loadChart() {
       chartContainer.innerHTML = '<p class="muted">Pas assez de donnees pour ce graphique.</p>';
       return;
     }
-    renderLineChart(chartContainer, data.points, data.currency || '');
+    renderLineChart(chartContainer, data.points, data.currency || '', Boolean(data.intraday));
   } catch (err) {
-    chartContainer.innerHTML = `<p class="muted">Graphique indisponible (${err.message}).</p>`;
+    if (!hasChart) chartContainer.innerHTML = `<p class="muted">Graphique indisponible (${err.message}).</p>`;
   }
 }
 
@@ -270,7 +278,7 @@ function simpleMovingAverage(closes, window) {
   });
 }
 
-function renderLineChart(container, points, currency) {
+function renderLineChart(container, points, currency, intraday) {
   const width = 640;
   const padL = 52;
   const padR = 16;
@@ -344,7 +352,9 @@ function renderLineChart(container, points, currency) {
   const lastX = x(points.length - 1);
   const lastY = y(closes[closes.length - 1]);
 
-  const dateLabel = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  const dateLabel = intraday
+    ? (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
   const volBottom = volTop + volH;
 
@@ -546,7 +556,9 @@ document.getElementById('notif-btn').addEventListener('click', enablePush);
 
 // ---------- Init ----------
 async function refreshAll() {
-  await Promise.all([loadQuotes(), loadNews(), loadHistory(), loadStatus()]);
+  const tasks = [loadQuotes(), loadNews(), loadHistory(), loadStatus()];
+  if (!chartModal.hidden) tasks.push(loadChart());
+  await Promise.all(tasks);
 }
 
 async function init() {

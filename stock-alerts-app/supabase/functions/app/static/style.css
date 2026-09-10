@@ -151,7 +151,9 @@ body {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
 }
 
-.range52 { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.range-block { margin-top: 8px; }
+.range-title { font-size: 0.6rem; display: block; margin-bottom: 2px; }
+.range52 { display: flex; align-items: center; gap: 6px; }
 .range52-label { font-size: 0.62rem; color: var(--muted); }
 .range52-track {
   position: relative;

@@ -63,7 +63,7 @@ export async function fetchQuotes(watchlist: Stock[]) {
   return mapWithConcurrency(watchlist, 8, fetchOne);
 }
 
-const HISTORY_RANGES = new Set(["1mo", "3mo", "6mo", "1y", "5y"]);
+const HISTORY_RANGES = new Set(["1j", "1mo", "3mo", "6mo", "1y", "5y"]);
 
 export interface HistoryPoint {
   date: string;
@@ -73,9 +73,14 @@ export interface HistoryPoint {
 
 export async function fetchHistory(symbol: string, range: string) {
   const safeRange = HISTORY_RANGES.has(range) ? range : "6mo";
+  // "1j" = intraday (bougies 5 min sur la seance en cours, se remplit au fil
+  // de la journee) ; les autres plages restent en cloture quotidienne.
+  const isIntraday = safeRange === "1j";
+  const interval = isIntraday ? "5m" : "1d";
+  const yahooRange = isIntraday ? "1d" : safeRange;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
-  )}?interval=1d&range=${safeRange}`;
+  )}?interval=${interval}&range=${yahooRange}`;
 
   const res = await fetch(url, {
     headers: {
@@ -100,7 +105,7 @@ export async function fetchHistory(symbol: string, range: string) {
     const close = closes[i];
     if (close == null) continue;
     points.push({
-      date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10),
+      date: new Date(timestamps[i] * 1000).toISOString(),
       close,
       volume: volumes[i] ?? null,
     });
@@ -109,6 +114,7 @@ export async function fetchHistory(symbol: string, range: string) {
   return {
     symbol,
     range: safeRange,
+    intraday: isIntraday,
     currency: result.meta?.currency ?? null,
     fiftyTwoWeekHigh: result.meta?.fiftyTwoWeekHigh ?? null,
     fiftyTwoWeekLow: result.meta?.fiftyTwoWeekLow ?? null,
