@@ -120,7 +120,7 @@ function matchCompanyInBatch(title: string, batch: Stock[]): Stock | null {
   return best;
 }
 
-const BATCH_SIZE = 7;
+const BATCH_SIZE = 10;
 
 async function fetchCompanyBatch(batch: Stock[], sector: string): Promise<NewsItem[]> {
   const query = `${batch.map((s) => `"${s.name}"`).join(" OR ")} bourse`;

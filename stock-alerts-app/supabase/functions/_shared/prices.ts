@@ -60,7 +60,7 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 }
 
 export async function fetchQuotes(watchlist: Stock[]) {
-  return mapWithConcurrency(watchlist, 8, fetchOne);
+  return mapWithConcurrency(watchlist, 10, fetchOne);
 }
 
 const HISTORY_RANGES = new Set(["1j", "1mo", "3mo", "6mo", "1y", "5y"]);
