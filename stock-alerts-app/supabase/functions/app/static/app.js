@@ -35,6 +35,24 @@ function fmtDateTime(iso) {
 }
 
 // ---------- Quotes ----------
+function formatCompactNumber(n) {
+  if (n == null) return '?';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function range52Bar(q) {
+  if (q.fiftyTwoWeekLow == null || q.fiftyTwoWeekHigh == null || q.fiftyTwoWeekHigh <= q.fiftyTwoWeekLow) return '';
+  const pct = Math.min(100, Math.max(0, ((q.price - q.fiftyTwoWeekLow) / (q.fiftyTwoWeekHigh - q.fiftyTwoWeekLow)) * 100));
+  return `
+    <div class="range52">
+      <span class="range52-label">${Number(q.fiftyTwoWeekLow).toFixed(2)}</span>
+      <div class="range52-track"><span class="range52-marker" style="left:${pct.toFixed(1)}%"></span></div>
+      <span class="range52-label">${Number(q.fiftyTwoWeekHigh).toFixed(2)}</span>
+    </div>`;
+}
+
 async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
@@ -62,6 +80,11 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol) {
           <div class="price-row">
             <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
             <span class="change ${dir}">${sign}${Number(q.changePercent).toFixed(1)}%</span>
+          </div>
+          ${range52Bar(q)}
+          <div class="quote-extra muted">
+            ${q.volume != null ? `Vol. ${formatCompactNumber(q.volume)}` : ''}
+            ${q.dayLow != null && q.dayHigh != null ? ` &middot; Jour ${Number(q.dayLow).toFixed(2)}-${Number(q.dayHigh).toFixed(2)}` : ''}
           </div>
         </div>`;
     })
@@ -186,15 +209,23 @@ function simpleMovingAverage(closes, window) {
 
 function renderLineChart(container, points, currency) {
   const width = 640;
-  const height = 260;
   const padL = 52;
   const padR = 16;
   const padT = 16;
+  const priceH = 180;
+  const volGap = 14;
+  const volH = 50;
   const padB = 28;
+  const height = padT + priceH + volGap + volH + padB;
   const plotW = width - padL - padR;
-  const plotH = height - padT - padB;
+  const plotH = priceH;
+  const volTop = padT + priceH + volGap;
 
   const closes = points.map((p) => p.close);
+  const volumes = points.map((p) => p.volume ?? 0);
+  const hasVolume = volumes.some((v) => v > 0);
+  const maxVol = Math.max(...volumes, 1);
+  const avgVol = hasVolume ? volumes.reduce((a, b) => a + b, 0) / volumes.length : null;
   const min = Math.min(...closes);
   const max = Math.max(...closes);
   const range = max - min || 1;
@@ -207,8 +238,21 @@ function renderLineChart(container, points, currency) {
 
   const x = (i) => padL + (i / (points.length - 1)) * plotW;
   const y = (v) => padT + plotH - ((v - min) / range) * plotH;
+  const volY = (v) => volTop + volH - (v / maxVol) * volH;
+  const barW = Math.max(1, (plotW / points.length) * 0.7);
 
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.close).toFixed(1)}`).join(' ');
+
+  const volBars = hasVolume
+    ? points
+        .map((p, i) => {
+          const v = p.volume ?? 0;
+          const barTop = volY(v);
+          const barH = volTop + volH - barTop;
+          return `<rect x="${(x(i) - barW / 2).toFixed(1)}" y="${barTop.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" fill="var(--volume-bar)" />`;
+        })
+        .join('')
+    : '';
 
   let maPath = '';
   if (hasMA) {
@@ -239,32 +283,39 @@ function renderLineChart(container, points, currency) {
 
   const dateLabel = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
+  const volBottom = volTop + volH;
+
   const svg = `
-    <svg viewBox="0 0 ${width} ${height}" class="chart-svg" role="img" aria-label="Historique du cours">
+    <svg viewBox="0 0 ${width} ${height}" class="chart-svg" role="img" aria-label="Historique du cours et du volume">
       ${gridLines}
+      ${hasVolume ? `<text x="${padL - 8}" y="${volTop + 8}" class="chart-axis-text" text-anchor="end">${formatCompactNumber(maxVol)}</text>` : ''}
+      ${hasVolume ? `<text x="${padL - 8}" y="${volBottom}" class="chart-axis-text" text-anchor="end">0</text>` : ''}
       <text x="${padL}" y="${height - 6}" class="chart-axis-text" text-anchor="start">${dateLabel(points[0].date)}</text>
       <text x="${width - padR}" y="${height - 6}" class="chart-axis-text" text-anchor="end">${dateLabel(points[points.length - 1].date)}</text>
+      ${volBars}
       ${hasMA ? `<path d="${maPath}" fill="none" stroke="var(--ma-line)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" />` : ''}
       <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
       <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${color}" stroke="var(--bg-elevated)" stroke-width="2" />
       <g id="chart-crosshair" style="display:none">
-        <line id="chart-crosshair-line" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" class="chart-crosshair-line" />
+        <line id="chart-crosshair-line" x1="0" y1="${padT}" x2="0" y2="${volBottom}" class="chart-crosshair-line" />
         <circle id="chart-crosshair-dot" r="4" fill="${color}" stroke="var(--bg-elevated)" stroke-width="2" />
       </g>
-      <rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" id="chart-hit-area" />
+      <rect x="${padL}" y="${padT}" width="${plotW}" height="${volBottom - padT}" fill="transparent" id="chart-hit-area" />
     </svg>
     <div id="chart-tooltip" class="chart-tooltip" hidden></div>
     <div class="chart-legend">
       <span class="legend-item"><span class="legend-swatch" style="background:${color}"></span>Cours de cloture</span>
       ${hasMA ? `<span class="legend-item"><span class="legend-swatch dashed"></span>Moyenne mobile (${MA_WINDOW}j)</span>` : ''}
+      ${hasVolume ? `<span class="legend-item"><span class="legend-swatch" style="background:var(--volume-bar)"></span>Volume</span>` : ''}
     </div>
     <div class="chart-stats">
       <div class="chart-stat"><span class="muted">Plus haut (periode)</span><strong>${max.toFixed(2)} ${currency}</strong></div>
       <div class="chart-stat"><span class="muted">Plus bas (periode)</span><strong>${min.toFixed(2)} ${currency}</strong></div>
       <div class="chart-stat"><span class="muted">Cours actuel vs plus bas</span><strong class="up">+${pctFromMin.toFixed(1)}%</strong></div>
       <div class="chart-stat"><span class="muted">Cours actuel vs plus haut</span><strong class="down">${pctFromMax.toFixed(1)}%</strong></div>
+      ${hasVolume ? `<div class="chart-stat"><span class="muted">Volume moyen (periode)</span><strong>${formatCompactNumber(Math.round(avgVol))}</strong></div>` : ''}
     </div>
-    <p class="chart-disclaimer">Reperes informatifs (moyenne mobile, ecarts haut/bas) &mdash; pas un signal d'achat, pas une prediction.</p>
+    <p class="chart-disclaimer">Reperes informatifs (moyenne mobile, ecarts haut/bas, volume) &mdash; pas un signal d'achat, pas une prediction.</p>
   `;
 
   container.innerHTML = svg;
@@ -296,7 +347,8 @@ function renderLineChart(container, points, currency) {
 
     const containerRect = container.getBoundingClientRect();
     tooltip.hidden = false;
-    tooltip.textContent = `${dateLabel(p.date)} · ${p.close.toFixed(2)} ${currency}`;
+    const volText = p.volume != null ? ` · Vol ${formatCompactNumber(p.volume)}` : '';
+    tooltip.textContent = `${dateLabel(p.date)} · ${p.close.toFixed(2)} ${currency}${volText}`;
     let left = clientX - containerRect.left + 12;
     if (left + 140 > containerRect.width) left = clientX - containerRect.left - 140;
     tooltip.style.left = `${left}px`;
@@ -327,7 +379,7 @@ async function loadStatus() {
   document.getElementById('quotes-updated').textContent = fmtTime(status.lastPriceUpdate);
   document.getElementById('news-updated').textContent = fmtTime(status.lastNewsUpdate);
   document.getElementById('push-status').textContent = status.pushConfigured
-    ? `Notifications configurees — ${status.subscriptionsCount} appareil(s) abonne(s). Verification automatique toutes les 10 min.`
+    ? `Notifications configurees — ${status.subscriptionsCount} appareil(s) abonne(s). Cours verifies toutes les 2 min, actualites toutes les 5 min.`
     : 'Notifications non configurees cote serveur.';
 }
 

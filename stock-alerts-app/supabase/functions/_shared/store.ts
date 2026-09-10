@@ -187,6 +187,12 @@ export const store = {
       previous_close: q.error ? null : q.previousClose,
       change_percent: q.error ? null : q.changePercent,
       currency: q.error ? null : q.currency,
+      fifty_two_week_high: q.error ? null : q.fiftyTwoWeekHigh,
+      fifty_two_week_low: q.error ? null : q.fiftyTwoWeekLow,
+      day_high: q.error ? null : q.dayHigh,
+      day_low: q.error ? null : q.dayLow,
+      volume: q.error ? null : q.volume,
+      full_exchange_name: q.error ? null : q.fullExchangeName,
       error: q.error || null,
       updated_at: new Date().toISOString(),
     }));

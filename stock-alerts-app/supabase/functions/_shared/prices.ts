@@ -33,6 +33,12 @@ async function fetchOne(stock: Stock) {
       previousClose: prevClose,
       changePercent,
       currency: meta.currency,
+      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+      fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+      dayHigh: meta.regularMarketDayHigh ?? null,
+      dayLow: meta.regularMarketDayLow ?? null,
+      volume: meta.regularMarketVolume ?? null,
+      fullExchangeName: meta.fullExchangeName ?? null,
       updatedAt: new Date().toISOString(),
     };
   } catch (err) {
@@ -62,6 +68,7 @@ const HISTORY_RANGES = new Set(["1mo", "3mo", "6mo", "1y", "5y"]);
 export interface HistoryPoint {
   date: string;
   close: number;
+  volume: number | null;
 }
 
 export async function fetchHistory(symbol: string, range: string) {
@@ -86,18 +93,25 @@ export async function fetchHistory(symbol: string, range: string) {
 
   const timestamps: number[] = result.timestamp || [];
   const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
+  const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume || [];
 
   const points: HistoryPoint[] = [];
   for (let i = 0; i < timestamps.length; i++) {
     const close = closes[i];
     if (close == null) continue;
-    points.push({ date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10), close });
+    points.push({
+      date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10),
+      close,
+      volume: volumes[i] ?? null,
+    });
   }
 
   return {
     symbol,
     range: safeRange,
     currency: result.meta?.currency ?? null,
+    fiftyTwoWeekHigh: result.meta?.fiftyTwoWeekHigh ?? null,
+    fiftyTwoWeekLow: result.meta?.fiftyTwoWeekLow ?? null,
     points,
   };
 }
