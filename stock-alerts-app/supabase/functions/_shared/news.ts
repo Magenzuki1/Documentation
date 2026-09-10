@@ -43,7 +43,7 @@ function extractTag(block: string, tag: string): string | null {
   return decodeEntities(cdata ? cdata[1] : raw);
 }
 
-async function fetchFeed(query: string, meta: Partial<NewsItem>): Promise<NewsItem[]> {
+async function fetchRssItems(query: string): Promise<{ block: string; link: string; title: string; pubDate: string | null; source: string }[]> {
   try {
     const res = await fetch(GOOGLE_NEWS_RSS(query), {
       headers: {
@@ -56,27 +56,77 @@ async function fetchFeed(query: string, meta: Partial<NewsItem>): Promise<NewsIt
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const xml = await res.text();
     const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 8);
-    return items.map(([, block]) => {
-      const link = extractTag(block, "link") || "";
-      const title = extractTag(block, "title") || "(sans titre)";
-      const catalyst = detectCatalyst(title);
-      return {
-        id: link,
-        title,
-        link,
-        pubDate: extractTag(block, "pubDate"),
-        source: extractTag(block, "source") || "Google News",
-        symbol: meta.symbol ?? null,
-        company: meta.company ?? null,
-        sector: meta.sector ?? null,
-        scope: meta.scope!,
-        catalyst: catalyst?.label ?? null,
-      };
-    });
+    return items.map(([, block]) => ({
+      block,
+      link: extractTag(block, "link") || "",
+      title: extractTag(block, "title") || "(sans titre)",
+      pubDate: extractTag(block, "pubDate"),
+      source: extractTag(block, "source") || "Google News",
+    }));
   } catch (err) {
     console.error(`[news] echec flux "${query}":`, (err as Error).message);
     return [];
   }
+}
+
+function toItem(
+  raw: { link: string; title: string; pubDate: string | null; source: string },
+  meta: Partial<NewsItem>
+): NewsItem {
+  const catalyst = detectCatalyst(raw.title);
+  return {
+    id: raw.link,
+    title: raw.title,
+    link: raw.link,
+    pubDate: raw.pubDate,
+    source: raw.source,
+    symbol: meta.symbol ?? null,
+    company: meta.company ?? null,
+    sector: meta.sector ?? null,
+    scope: meta.scope!,
+    catalyst: catalyst?.label ?? null,
+  };
+}
+
+// Repartit une liste en sous-listes d'au plus "size" elements.
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Pour ne pas faire une requete Google News par entreprise (le flux devient
+// trop volumineux avec une watchlist elargie et risque de re-declencher les
+// blocages anti-bot deja rencontres), on regroupe plusieurs entreprises du
+// meme secteur dans une seule requete "OR", puis on retrouve apres coup a
+// quelle entreprise du lot chaque article appartient en cherchant son nom
+// dans le titre (le plus long nom correspondant l'emporte, pour eviter les
+// faux positifs entre noms courts inclus dans des noms plus longs).
+function matchCompanyInBatch(title: string, batch: Stock[]): Stock | null {
+  const lower = title.toLowerCase();
+  let best: Stock | null = null;
+  for (const stock of batch) {
+    if (lower.includes(stock.name.toLowerCase())) {
+      if (!best || stock.name.length > best.name.length) best = stock;
+    }
+  }
+  return best;
+}
+
+const BATCH_SIZE = 7;
+
+async function fetchCompanyBatch(batch: Stock[], sector: string): Promise<NewsItem[]> {
+  const query = `${batch.map((s) => `"${s.name}"`).join(" OR ")} bourse`;
+  const raws = await fetchRssItems(query);
+  return raws.map((raw) => {
+    const stock = matchCompanyInBatch(raw.title, batch);
+    return toItem(raw, {
+      symbol: stock?.symbol ?? null,
+      company: stock?.name ?? null,
+      sector,
+      scope: stock ? "company" : "sector",
+    });
+  });
 }
 
 async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<NewsItem[]>) {
@@ -93,17 +143,27 @@ async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
 }
 
 export async function fetchAllNews(watchlist: Stock[]): Promise<NewsItem[]> {
-  const companyJobs = watchlist.map((stock) => ({
-    query: `"${stock.name}" bourse`,
-    meta: { symbol: stock.symbol, company: stock.name, sector: stock.sector, scope: "company" as const },
-  }));
-  const sectorJobs = Object.entries(SECTOR_QUERIES).map(([sector, query]) => ({
-    query,
-    meta: { symbol: null, company: null, sector, scope: "sector" as const },
-  }));
+  const bySector: Record<string, Stock[]> = {};
+  for (const stock of watchlist) (bySector[stock.sector] ||= []).push(stock);
 
-  const allJobs = [...companyJobs, ...sectorJobs];
-  const items = await mapWithConcurrency(allJobs, 2, (job) => fetchFeed(job.query, job.meta));
+  const companyBatchJobs = Object.entries(bySector).flatMap(([sector, stocks]) =>
+    chunk(stocks, BATCH_SIZE).map((batch) => ({ batch, sector }))
+  );
+  const sectorJobs = Object.entries(SECTOR_QUERIES).map(([sector, query]) => ({ query, sector }));
+
+  const items = await mapWithConcurrency(
+    [
+      ...companyBatchJobs.map((job) => () => fetchCompanyBatch(job.batch, job.sector)),
+      ...sectorJobs.map(
+        (job) => () =>
+          fetchRssItems(job.query).then((raws) =>
+            raws.map((raw) => toItem(raw, { symbol: null, company: null, sector: job.sector, scope: "sector" }))
+          )
+      ),
+    ],
+    2,
+    (job) => job()
+  );
 
   const seen = new Set<string>();
   const unique: NewsItem[] = [];
