@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "check": "node server/scripts/run-check.js",
     "generate-vapid": "node server/scripts/generate-vapid.js"
   },
   "dependencies": {

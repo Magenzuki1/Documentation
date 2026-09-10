@@ -22,4 +22,9 @@ module.exports = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
   vapidContactEmail: process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com',
+
+  // Utilise pour partager l'etat (abonnements, reglages, historique) entre
+  // le tableau de bord local et le controleur planifie (GitHub Actions).
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseKey: process.env.SUPABASE_ANON_KEY || '',
 };

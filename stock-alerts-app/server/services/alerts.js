@@ -28,7 +28,7 @@ function isQuietHours(settings) {
 }
 
 async function notify({ title, body, url, tag }, settings) {
-  store.pushAlertHistory({ title, body, url, tag, sentPush: !isQuietHours(settings), createdAt: new Date().toISOString() });
+  await store.pushAlertHistory({ title, body, url, tag, sentPush: !isQuietHours(settings) });
   if (isQuietHours(settings)) return;
   await push.sendToAll({ title, body, url, tag });
 }
@@ -39,7 +39,7 @@ async function notify({ title, body, url, tag }, settings) {
  */
 async function evaluatePriceAlerts(quotes, watchlistBySymbol, settings) {
   if (!settings.movePercent) return;
-  const lastPrices = store.getLastPrices();
+  const lastPrices = await store.getLastPrices();
   const updated = { ...lastPrices };
 
   for (const quote of quotes) {
@@ -71,12 +71,12 @@ async function evaluatePriceAlerts(quotes, watchlistBySymbol, settings) {
     }
   }
 
-  store.saveLastPrices(updated);
+  await store.saveLastPrices(updated);
 }
 
 async function evaluateNewsAlerts(newsItems, settings) {
   if (!settings.newsAlerts) return;
-  const seen = new Set(store.getSeenNews());
+  const seen = new Set(await store.getSeenNews());
   const fresh = newsItems.filter((item) => !seen.has(item.id));
   if (fresh.length === 0) return;
 
@@ -96,8 +96,7 @@ async function evaluateNewsAlerts(newsItems, settings) {
     );
   }
 
-  const allIds = [...seen, ...fresh.map((i) => i.id)];
-  store.saveSeenNews(allIds);
+  await store.addSeenNews(fresh.map((i) => i.id));
 }
 
 module.exports = { evaluatePriceAlerts, evaluateNewsAlerts, isQuietHours };

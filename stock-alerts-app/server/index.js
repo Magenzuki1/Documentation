@@ -5,10 +5,7 @@ const express = require('express');
 
 const config = require('./config');
 const { WATCHLIST } = require('./watchlist');
-const store = require('./services/store');
-const { fetchQuotes } = require('./services/prices');
-const { fetchAllNews } = require('./services/news');
-const { evaluatePriceAlerts, evaluateNewsAlerts } = require('./services/alerts');
+const { checkPrices, checkNews } = require('./services/cycle');
 const buildApiRouter = require('./routes/api');
 
 const app = express();
@@ -28,13 +25,8 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 async function refreshPrices() {
   try {
-    const symbols = WATCHLIST.map((s) => s.symbol);
-    const quotes = await fetchQuotes(symbols);
-    cache.quotes = quotes;
+    cache.quotes = await checkPrices(WATCHLIST, watchlistBySymbol);
     cache.lastPriceUpdate = new Date().toISOString();
-
-    const settings = store.getSettings();
-    await evaluatePriceAlerts(quotes, watchlistBySymbol, settings);
   } catch (err) {
     console.error('[cron] echec rafraichissement des cours:', err.message);
   }
@@ -42,12 +34,8 @@ async function refreshPrices() {
 
 async function refreshNews() {
   try {
-    const news = await fetchAllNews(WATCHLIST);
-    cache.news = news;
+    cache.news = await checkNews(WATCHLIST);
     cache.lastNewsUpdate = new Date().toISOString();
-
-    const settings = store.getSettings();
-    await evaluateNewsAlerts(news, settings);
   } catch (err) {
     console.error('[cron] echec rafraichissement des actualites:', err.message);
   }
@@ -55,7 +43,13 @@ async function refreshNews() {
 
 app.listen(config.port, () => {
   console.log(`\nAlertes Bourse Sante/Energie disponibles sur http://localhost:${config.port}`);
-  console.log(`Cours rafraichis toutes les ${config.priceIntervalMinutes} min, actus toutes les ${config.newsIntervalMinutes} min.\n`);
+  console.log(
+    `Cours rafraichis toutes les ${config.priceIntervalMinutes} min, actus toutes les ${config.newsIntervalMinutes} min.`
+  );
+  console.log(
+    'Rappel : ce rafraichissement local ne tourne que quand ce serveur est lance. ' +
+      'Le workflow GitHub Actions prend le relais en continu (voir README).\n'
+  );
 
   // premier rafraichissement immediat au demarrage, puis toutes les N minutes
   refreshPrices();

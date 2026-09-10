@@ -5,6 +5,13 @@ const { WATCHLIST } = require('../watchlist');
 const store = require('../services/store');
 const config = require('../config');
 
+// evite de repeter try/catch dans chaque route
+function asyncRoute(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
 function buildRouter({ getCache }) {
   const router = express.Router();
 
@@ -20,51 +27,76 @@ function buildRouter({ getCache }) {
     res.json(getCache().news || []);
   });
 
-  router.get('/status', (req, res) => {
-    const cache = getCache();
-    res.json({
-      lastPriceUpdate: cache.lastPriceUpdate || null,
-      lastNewsUpdate: cache.lastNewsUpdate || null,
-      subscriptionsCount: store.getSubscriptions().length,
-      pushConfigured: Boolean(config.vapidPublicKey && config.vapidPrivateKey),
-    });
-  });
+  router.get(
+    '/status',
+    asyncRoute(async (req, res) => {
+      const cache = getCache();
+      const subs = await store.getSubscriptions();
+      res.json({
+        lastPriceUpdate: cache.lastPriceUpdate || null,
+        lastNewsUpdate: cache.lastNewsUpdate || null,
+        subscriptionsCount: subs.length,
+        pushConfigured: Boolean(config.vapidPublicKey && config.vapidPrivateKey),
+      });
+    })
+  );
 
-  router.get('/settings', (req, res) => {
-    res.json(store.getSettings());
-  });
+  router.get(
+    '/settings',
+    asyncRoute(async (req, res) => {
+      res.json(await store.getSettings());
+    })
+  );
 
-  router.put('/settings', (req, res) => {
-    const allowed = ['movePercent', 'sectors', 'newsAlerts', 'quietHoursStart', 'quietHoursEnd'];
-    const partial = {};
-    for (const key of allowed) {
-      if (key in req.body) partial[key] = req.body[key];
-    }
-    const saved = store.saveSettings(partial);
-    res.json(saved);
-  });
+  router.put(
+    '/settings',
+    asyncRoute(async (req, res) => {
+      const allowed = ['movePercent', 'sectors', 'newsAlerts', 'quietHoursStart', 'quietHoursEnd'];
+      const partial = {};
+      for (const key of allowed) {
+        if (key in req.body) partial[key] = req.body[key];
+      }
+      const saved = await store.saveSettings(partial);
+      res.json(saved);
+    })
+  );
 
-  router.get('/alerts/history', (req, res) => {
-    res.json(store.getAlertsHistory());
-  });
+  router.get(
+    '/alerts/history',
+    asyncRoute(async (req, res) => {
+      res.json(await store.getAlertsHistory());
+    })
+  );
 
   router.get('/push/public-key', (req, res) => {
     res.json({ publicKey: config.vapidPublicKey || null });
   });
 
-  router.post('/push/subscribe', (req, res) => {
-    const sub = req.body;
-    if (!sub || !sub.endpoint) {
-      return res.status(400).json({ error: 'Abonnement push invalide' });
-    }
-    store.addSubscription(sub);
-    res.status(201).json({ ok: true });
-  });
+  router.post(
+    '/push/subscribe',
+    asyncRoute(async (req, res) => {
+      const sub = req.body;
+      if (!sub || !sub.endpoint) {
+        return res.status(400).json({ error: 'Abonnement push invalide' });
+      }
+      await store.addSubscription(sub);
+      res.status(201).json({ ok: true });
+    })
+  );
 
-  router.post('/push/unsubscribe', (req, res) => {
-    const { endpoint } = req.body || {};
-    if (endpoint) store.removeSubscription(endpoint);
-    res.json({ ok: true });
+  router.post(
+    '/push/unsubscribe',
+    asyncRoute(async (req, res) => {
+      const { endpoint } = req.body || {};
+      if (endpoint) await store.removeSubscription(endpoint);
+      res.json({ ok: true });
+    })
+  );
+
+  // eslint-disable-next-line no-unused-vars
+  router.use((err, req, res, next) => {
+    console.error('[api]', err.message);
+    res.status(500).json({ error: err.message });
   });
 
   return router;

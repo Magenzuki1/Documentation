@@ -23,7 +23,7 @@ function ensureConfigured() {
 async function sendToAll(payload) {
   if (!ensureConfigured()) return { sent: 0, failed: 0 };
 
-  const subs = store.getSubscriptions();
+  const subs = await store.getSubscriptions();
   let sent = 0;
   let failed = 0;
 
@@ -36,7 +36,7 @@ async function sendToAll(payload) {
         failed += 1;
         // Abonnement expire ou invalide -> on le retire
         if (err.statusCode === 404 || err.statusCode === 410) {
-          store.removeSubscription(sub.endpoint);
+          await store.removeSubscription(sub.endpoint);
         } else {
           console.error('[push] echec envoi:', err.message);
         }
