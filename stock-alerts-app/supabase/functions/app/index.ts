@@ -46,6 +46,12 @@ Deno.serve(async (req: Request) => {
         previousClose: r.previous_close,
         changePercent: r.change_percent,
         currency: r.currency,
+        fiftyTwoWeekHigh: r.fifty_two_week_high,
+        fiftyTwoWeekLow: r.fifty_two_week_low,
+        dayHigh: r.day_high,
+        dayLow: r.day_low,
+        volume: r.volume,
+        fullExchangeName: r.full_exchange_name,
         error: r.error,
       }));
       return json(quotes, { headers: corsHeaders() });
