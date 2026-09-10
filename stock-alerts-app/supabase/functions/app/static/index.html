@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Alertes Bourse Sante &amp; Energie</title>
+  <meta name="theme-color" content="#0d1b2a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon-48.png" alt="" width="28" height="28" />
+      <div>
+        <h1>Bourse Sante &amp; Energie</h1>
+        <p class="subtitle">Suivi personnel &#183; valeurs PEA</p>
+      </div>
+    </div>
+    <button id="notif-btn" class="btn btn-accent">Activer les notifications</button>
+  </header>
+
+  <p class="disclaimer">
+    Usage strictement personnel &#183; donnees differees, non garanties &#183; ceci n'est pas un conseil en investissement.
+    Verifie toujours l'eligibilite PEA aupres de ton courtier.
+  </p>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="quotes">Cours</button>
+    <button class="tab" data-tab="news">Actualites</button>
+    <button class="tab" data-tab="history">Historique</button>
+    <button class="tab" data-tab="settings">Reglages</button>
+  </nav>
+
+  <main>
+    <section id="panel-quotes" class="panel active">
+      <div class="section-head">
+        <h2>Sante &amp; biotech</h2>
+        <span id="quotes-updated" class="muted"></span>
+      </div>
+      <div id="quotes-sante" class="quote-grid"></div>
+
+      <div class="section-head">
+        <h2>Energie</h2>
+      </div>
+      <div id="quotes-energie" class="quote-grid"></div>
+    </section>
+
+    <section id="panel-news" class="panel">
+      <div class="section-head">
+        <h2>Actualites</h2>
+        <span id="news-updated" class="muted"></span>
+      </div>
+      <ul id="news-list" class="news-list"></ul>
+    </section>
+
+    <section id="panel-history" class="panel">
+      <div class="section-head">
+        <h2>Historique des alertes</h2>
+      </div>
+      <ul id="history-list" class="history-list"></ul>
+    </section>
+
+    <section id="panel-settings" class="panel">
+      <div class="section-head">
+        <h2>Reglages des alertes</h2>
+      </div>
+
+      <div class="setting-row">
+        <label for="move-percent">Seuil de variation intrajournaliere</label>
+        <div class="range-row">
+          <input type="range" id="move-percent" min="1" max="20" step="0.5" value="3" />
+          <span id="move-percent-value">3%</span>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label>Secteurs a surveiller</label>
+        <div class="checkbox-row">
+          <label class="checkbox"><input type="checkbox" id="sector-sante" checked /> Sante / biotech</label>
+          <label class="checkbox"><input type="checkbox" id="sector-energie" checked /> Energie</label>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label class="checkbox"><input type="checkbox" id="news-alerts" checked /> Notifier les nouvelles actualites</label>
+      </div>
+
+      <div class="setting-row">
+        <label>Ne pas deranger (heures locales du serveur)</label>
+        <div class="quiet-row">
+          <input type="time" id="quiet-start" />
+          <span>a</span>
+          <input type="time" id="quiet-end" />
+          <button id="quiet-clear" class="btn btn-ghost">Effacer</button>
+        </div>
+      </div>
+
+      <button id="save-settings" class="btn btn-accent">Enregistrer</button>
+      <p id="settings-status" class="muted"></p>
+
+      <div class="section-head">
+        <h2>Etat</h2>
+      </div>
+      <p id="push-status" class="muted"></p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
