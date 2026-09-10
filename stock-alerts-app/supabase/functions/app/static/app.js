@@ -50,7 +50,10 @@ function rangeBar(title, low, high, price) {
       <span class="range-title muted">${title}</span>
       <div class="range52">
         <span class="range52-label">${Number(low).toFixed(2)}</span>
-        <div class="range52-track"><span class="range52-marker" style="left:${pct.toFixed(1)}%"></span></div>
+        <div class="range52-track">
+          <div class="range52-fill" style="width:${pct.toFixed(1)}%"></div>
+          <span class="range52-marker" style="left:${pct.toFixed(1)}%"></span>
+        </div>
         <span class="range52-label">${Number(high).toFixed(2)}</span>
       </div>
     </div>`;

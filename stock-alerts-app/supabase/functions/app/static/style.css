@@ -13,6 +13,7 @@
   --ma-line: #60a5fa;
   --volume-bar: rgba(139, 160, 184, 0.45);
   --gold: #ffd54a;
+  --range-color: #22d3ee;
 }
 
 * { box-sizing: border-box; }
@@ -123,19 +124,22 @@ body {
 .change.down { color: var(--down); }
 .quote-card.error { opacity: 0.6; }
 
-/* Encadres tres visuels : vert/rouge selon la tendance, dore pour les
-   meilleures performances du jour (top 3 du classement). */
+/* Encadres tres visuels : toute la carte est remplie de la couleur (pas
+   juste un liseret), vert/rouge selon la tendance, dore pour les
+   meilleures performances du jour (top 3 du classement). color-mix() donne
+   un aplat opaque, contrairement a un fond semi-transparent qui depend de
+   ce qu'il y a derriere. */
 .quote-card.tier-up {
   border-color: var(--up);
-  background: linear-gradient(160deg, rgba(52, 211, 153, 0.2), var(--bg-elevated) 65%);
+  background: color-mix(in srgb, var(--up) 42%, var(--bg-elevated));
 }
 .quote-card.tier-down {
   border-color: var(--down);
-  background: linear-gradient(160deg, rgba(248, 113, 113, 0.2), var(--bg-elevated) 65%);
+  background: color-mix(in srgb, var(--down) 42%, var(--bg-elevated));
 }
 .quote-card.tier-gold {
   border-color: var(--gold);
-  background: linear-gradient(160deg, rgba(255, 213, 74, 0.32), var(--bg-elevated) 70%);
+  background: color-mix(in srgb, var(--gold) 48%, var(--bg-elevated));
   box-shadow: 0 0 18px rgba(255, 213, 74, 0.4);
 }
 .quote-card.tier-gold:hover,
@@ -154,21 +158,30 @@ body {
 .range-block { margin-top: 8px; }
 .range-title { font-size: 0.6rem; display: block; margin-bottom: 2px; }
 .range52 { display: flex; align-items: center; gap: 6px; }
-.range52-label { font-size: 0.62rem; color: var(--muted); }
+.range52-label { font-size: 0.62rem; color: var(--muted); flex-shrink: 0; }
 .range52-track {
   position: relative;
   flex: 1;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
+  height: 9px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  overflow: visible;
+}
+.range52-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--range-color);
+  border-radius: 5px;
 }
 .range52-marker {
   position: absolute;
   top: 50%;
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   background: var(--text);
-  border: 2px solid var(--bg-elevated);
+  border: 2px solid var(--range-color);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
@@ -188,12 +201,17 @@ body {
   transition: transform 0.15s ease;
 }
 .rank-row:hover, .rank-row:focus-visible { transform: translateX(3px); outline: none; }
-.rank-row.tier-up { border-left-color: var(--up); }
-.rank-row.tier-down { border-left-color: var(--down); }
+.rank-row.tier-up {
+  border-color: var(--up);
+  background: color-mix(in srgb, var(--up) 32%, var(--bg-elevated));
+}
+.rank-row.tier-down {
+  border-color: var(--down);
+  background: color-mix(in srgb, var(--down) 32%, var(--bg-elevated));
+}
 .rank-row.tier-gold {
-  border-left-color: var(--gold);
   border-color: var(--gold);
-  background: linear-gradient(90deg, rgba(255, 213, 74, 0.22), var(--bg-elevated) 80%);
+  background: color-mix(in srgb, var(--gold) 38%, var(--bg-elevated));
   box-shadow: 0 0 12px rgba(255, 213, 74, 0.3);
 }
 .rank-pos { width: 30px; flex-shrink: 0; text-align: center; font-size: 1rem; font-weight: 700; }
