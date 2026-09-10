@@ -40,7 +40,7 @@ export async function evaluatePriceAlerts(
   watchlistBySymbol: Record<string, Stock>,
   settings: Settings
 ) {
-  if (!settings.movePercent) return;
+  if (!settings.moveUpPercent && !settings.moveDownPercent) return;
   const lastPrices = await store.getLastPrices();
   const updated = { ...lastPrices };
 
@@ -51,9 +51,13 @@ export async function evaluatePriceAlerts(
     if (!settings.sectors?.[stock.sector as "sante" | "energie"]) continue;
 
     const direction = quote.changePercent >= 0 ? "up" : "down";
+    // Seuils independants : une hausse de +5% et une baisse de -2% peuvent
+    // declencher des notifications a des niveaux differents.
+    const threshold = direction === "up" ? settings.moveUpPercent : settings.moveDownPercent;
+    if (!threshold) continue;
     const state = lastPrices[quote.symbol] || ({} as any);
     const alreadyAlerted = state.date === today() && state.direction === direction;
-    const crossed = Math.abs(quote.changePercent) >= settings.movePercent;
+    const crossed = Math.abs(quote.changePercent) >= threshold;
 
     if (crossed && !alreadyAlerted) {
       const arrow = direction === "up" ? "↑" : "↓";

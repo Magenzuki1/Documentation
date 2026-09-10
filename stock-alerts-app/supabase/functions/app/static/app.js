@@ -475,8 +475,10 @@ async function loadStatus() {
 async function loadSettings() {
   const res = await fetch(api('settings'));
   const s = await res.json();
-  document.getElementById('move-percent').value = s.movePercent;
-  document.getElementById('move-percent-value').textContent = `${s.movePercent}%`;
+  document.getElementById('move-up-percent').value = s.moveUpPercent;
+  document.getElementById('move-up-percent-value').textContent = `+${s.moveUpPercent}%`;
+  document.getElementById('move-down-percent').value = s.moveDownPercent;
+  document.getElementById('move-down-percent-value').textContent = `-${s.moveDownPercent}%`;
   document.getElementById('sector-sante').checked = Boolean(s.sectors?.sante);
   document.getElementById('sector-energie').checked = Boolean(s.sectors?.energie);
   document.getElementById('news-alerts').checked = Boolean(s.newsAlerts);
@@ -484,8 +486,11 @@ async function loadSettings() {
   document.getElementById('quiet-end').value = s.quietHoursEnd || '';
 }
 
-document.getElementById('move-percent').addEventListener('input', (e) => {
-  document.getElementById('move-percent-value').textContent = `${e.target.value}%`;
+document.getElementById('move-up-percent').addEventListener('input', (e) => {
+  document.getElementById('move-up-percent-value').textContent = `+${e.target.value}%`;
+});
+document.getElementById('move-down-percent').addEventListener('input', (e) => {
+  document.getElementById('move-down-percent-value').textContent = `-${e.target.value}%`;
 });
 
 document.getElementById('quiet-clear').addEventListener('click', () => {
@@ -495,7 +500,8 @@ document.getElementById('quiet-clear').addEventListener('click', () => {
 
 document.getElementById('save-settings').addEventListener('click', async () => {
   const payload = {
-    movePercent: parseFloat(document.getElementById('move-percent').value),
+    moveUpPercent: parseFloat(document.getElementById('move-up-percent').value),
+    moveDownPercent: parseFloat(document.getElementById('move-down-percent').value),
     sectors: {
       sante: document.getElementById('sector-sante').checked,
       energie: document.getElementById('sector-energie').checked,
