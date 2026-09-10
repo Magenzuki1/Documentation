@@ -12,25 +12,40 @@ import { store } from "../_shared/store.ts";
 
 const watchlistBySymbol = Object.fromEntries(WATCHLIST.map((s) => [s.symbol, s]));
 
-Deno.serve(async (_req: Request) => {
+// "scope" permet a pg_cron d'appeler cette fonction a des cadences differentes
+// pour les cours (frequents, peu couteux) et les actualites (moins frequentes,
+// pour rester sous le radar anti-bot de Google News). Sans parametre : les deux
+// (utile pour un appel manuel complet).
+Deno.serve(async (req: Request) => {
   const startedAt = new Date().toISOString();
+  const scope = new URL(req.url).searchParams.get("scope");
+  const doQuotes = scope !== "news";
+  const doNews = scope !== "quotes";
   try {
-    const quotes = await fetchQuotes(WATCHLIST);
     const settings = await store.getSettings();
-    await evaluatePriceAlerts(quotes, watchlistBySymbol, settings);
-    await store.saveLatestQuotes(quotes);
+    let quotes: any[] = [];
+    let news: any[] = [];
 
-    const news = await fetchAllNews(WATCHLIST);
-    await evaluateNewsAlerts(news, settings);
-    await store.saveLatestNews(news);
+    if (doQuotes) {
+      quotes = await fetchQuotes(WATCHLIST);
+      await evaluatePriceAlerts(quotes, watchlistBySymbol, settings);
+      await store.saveLatestQuotes(quotes);
+    }
+
+    if (doNews) {
+      news = await fetchAllNews(WATCHLIST);
+      await evaluateNewsAlerts(news, settings);
+      await store.saveLatestNews(news);
+    }
 
     const okQuotes = quotes.filter((q: any) => !q.error).length;
     const summary = {
       ok: true,
       startedAt,
       finishedAt: new Date().toISOString(),
-      quotes: { total: quotes.length, ok: okQuotes },
-      news: { total: news.length },
+      scope: scope || "all",
+      quotes: doQuotes ? { total: quotes.length, ok: okQuotes } : undefined,
+      news: doNews ? { total: news.length } : undefined,
     };
     console.log("[run-check]", JSON.stringify(summary));
     return new Response(JSON.stringify(summary), { headers: { "Content-Type": "application/json" } });

@@ -172,6 +172,18 @@ async function loadChart() {
   }
 }
 
+// Moyenne mobile simple sur "window" points ; null tant qu'il n'y a pas assez
+// d'historique. Repere descriptif de tendance, ce n'est ni un signal ni une
+// prediction.
+function simpleMovingAverage(closes, window) {
+  return closes.map((_, i) => {
+    if (i < window - 1) return null;
+    let sum = 0;
+    for (let j = i - window + 1; j <= i; j++) sum += closes[j];
+    return sum / window;
+  });
+}
+
 function renderLineChart(container, points, currency) {
   const width = 640;
   const height = 260;
@@ -189,10 +201,30 @@ function renderLineChart(container, points, currency) {
   const dir = closes[closes.length - 1] >= closes[0] ? 'up' : 'down';
   const color = dir === 'up' ? 'var(--up)' : 'var(--down)';
 
+  const MA_WINDOW = 20;
+  const ma = simpleMovingAverage(closes, MA_WINDOW);
+  const hasMA = ma.some((v) => v != null);
+
   const x = (i) => padL + (i / (points.length - 1)) * plotW;
   const y = (v) => padT + plotH - ((v - min) / range) * plotH;
 
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.close).toFixed(1)}`).join(' ');
+
+  let maPath = '';
+  if (hasMA) {
+    let started = false;
+    const segments = [];
+    ma.forEach((v, i) => {
+      if (v == null) return;
+      segments.push(`${started ? 'L' : 'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
+      started = true;
+    });
+    maPath = segments.join(' ');
+  }
+
+  const last = closes[closes.length - 1];
+  const pctFromMin = ((last - min) / min) * 100;
+  const pctFromMax = ((last - max) / max) * 100;
 
   const gridLines = [max, min]
     .map(
@@ -212,6 +244,7 @@ function renderLineChart(container, points, currency) {
       ${gridLines}
       <text x="${padL}" y="${height - 6}" class="chart-axis-text" text-anchor="start">${dateLabel(points[0].date)}</text>
       <text x="${width - padR}" y="${height - 6}" class="chart-axis-text" text-anchor="end">${dateLabel(points[points.length - 1].date)}</text>
+      ${hasMA ? `<path d="${maPath}" fill="none" stroke="var(--ma-line)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" />` : ''}
       <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
       <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${color}" stroke="var(--bg-elevated)" stroke-width="2" />
       <g id="chart-crosshair" style="display:none">
@@ -221,6 +254,17 @@ function renderLineChart(container, points, currency) {
       <rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" id="chart-hit-area" />
     </svg>
     <div id="chart-tooltip" class="chart-tooltip" hidden></div>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-swatch" style="background:${color}"></span>Cours de cloture</span>
+      ${hasMA ? `<span class="legend-item"><span class="legend-swatch dashed"></span>Moyenne mobile (${MA_WINDOW}j)</span>` : ''}
+    </div>
+    <div class="chart-stats">
+      <div class="chart-stat"><span class="muted">Plus haut (periode)</span><strong>${max.toFixed(2)} ${currency}</strong></div>
+      <div class="chart-stat"><span class="muted">Plus bas (periode)</span><strong>${min.toFixed(2)} ${currency}</strong></div>
+      <div class="chart-stat"><span class="muted">Cours actuel vs plus bas</span><strong class="up">+${pctFromMin.toFixed(1)}%</strong></div>
+      <div class="chart-stat"><span class="muted">Cours actuel vs plus haut</span><strong class="down">${pctFromMax.toFixed(1)}%</strong></div>
+    </div>
+    <p class="chart-disclaimer">Reperes informatifs (moyenne mobile, ecarts haut/bas) &mdash; pas un signal d'achat, pas une prediction.</p>
   `;
 
   container.innerHTML = svg;
@@ -402,7 +446,11 @@ async function init() {
   await refreshAll();
   await refreshNotifButton();
 
-  setInterval(refreshAll, 60_000);
+  // Le dashboard ne peut pas aller plus vite que les donnees elles-memes :
+  // les cours viennent de pg_cron toutes les 2 min, les actualites toutes les
+  // 5 min (voir supabase/migrations). Ce court interval sert juste a afficher
+  // ces mises a jour des qu'elles arrivent, sans attendre une minute entiere.
+  setInterval(refreshAll, 20_000);
 }
 
 init();
