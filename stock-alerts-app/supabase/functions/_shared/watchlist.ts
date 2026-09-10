@@ -1,11 +1,25 @@
-// Valeurs santé/biotech et énergie éligibles PEA. Garde ce fichier synchronisé
+// Valeurs éligibles PEA, tous domaines. Garde ce fichier synchronisé
 // avec server/watchlist.js (version Node du même projet).
 
 export interface Stock {
   symbol: string;
   name: string;
-  sector: "sante" | "energie";
+  sector: string;
 }
+
+// Libellés FR utilisés dans les notifications push (cote front, app.js a sa
+// propre copie pour l'affichage - garder les deux synchronisees).
+export const SECTOR_LABELS: Record<string, string> = {
+  sante: "Sante/biotech",
+  energie: "Energie",
+  finance: "Finance/banque",
+  technologie: "Technologie",
+  consommation: "Consommation/distribution",
+  industrie: "Industrie",
+  telecom: "Telecom",
+  immobilier: "Immobilier",
+  automobile: "Automobile",
+};
 
 export const WATCHLIST: Stock[] = [
   { symbol: "IVA.PA", name: "Inventiva", sector: "sante" },

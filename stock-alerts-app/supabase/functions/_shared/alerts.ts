@@ -3,6 +3,7 @@
 import { store, type Settings } from "./store.ts";
 import { sendToAll } from "./push.ts";
 import type { Stock } from "./watchlist.ts";
+import { SECTOR_LABELS } from "./watchlist.ts";
 import type { NewsItem } from "./news.ts";
 
 function today() {
@@ -56,7 +57,7 @@ export async function evaluatePriceAlerts(
     if (quote.error || typeof quote.changePercent !== "number") continue;
     const stock = watchlistBySymbol[quote.symbol];
     if (!stock) continue;
-    if (!settings.sectors?.[stock.sector as "sante" | "energie"]) continue;
+    if (!settings.sectors?.[stock.sector]) continue;
 
     const direction = quote.changePercent >= 0 ? "up" : "down";
     // Seuils independants : une hausse de +5% et une baisse de -2% peuvent
@@ -95,7 +96,7 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
   const fresh = newsItems.filter((item) => !seen.has(item.id));
   if (fresh.length === 0) return;
 
-  const inSector = (item: NewsItem) => !item.sector || settings.sectors?.[item.sector as "sante" | "energie"];
+  const inSector = (item: NewsItem) => !item.sector || settings.sectors?.[item.sector];
 
   // Les catalyseurs potentiels (resultats d'essai, reglementaire, contrat...)
   // sont toujours notifies, sans limite : c'est le signal le plus utile.
@@ -104,7 +105,7 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
   const regularItems = fresh.filter((item) => !item.catalyst && inSector(item)).slice(0, 5);
 
   for (const item of catalystItems) {
-    const label = item.company ? item.company : item.sector === "sante" ? "Sante/biotech" : "Energie";
+    const label = item.company ? item.company : (item.sector && SECTOR_LABELS[item.sector]) || "Bourse";
     await notify(
       {
         title: `🧪 Catalyseur potentiel — ${label}`,
@@ -120,7 +121,7 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
   }
 
   for (const item of regularItems) {
-    const label = item.company ? item.company : item.sector === "sante" ? "Sante/biotech" : "Energie";
+    const label = item.company ? item.company : (item.sector && SECTOR_LABELS[item.sector]) || "Bourse";
     await notify(
       {
         title: `📰 ${label}`,

@@ -1,6 +1,29 @@
 'use strict';
 
-const SECTOR_LABELS = { sante: 'Sante / biotech', energie: 'Energie' };
+const SECTOR_LABELS = {
+  sante: 'Sante / biotech',
+  energie: 'Energie',
+  finance: 'Finance / banque',
+  technologie: 'Technologie',
+  consommation: 'Consommation / distribution',
+  industrie: 'Industrie',
+  telecom: 'Telecom',
+  immobilier: 'Immobilier',
+  automobile: 'Automobile',
+};
+// Ordre d'affichage des sections de domaines (les nouveaux domaines sans
+// entree ici s'affichent quand meme, tries alphabetiquement, a la suite).
+const DOMAIN_ORDER = [
+  'sante',
+  'energie',
+  'finance',
+  'technologie',
+  'consommation',
+  'industrie',
+  'telecom',
+  'immobilier',
+  'automobile',
+];
 
 // Cette page est servie de facon statique depuis Supabase Storage ; l'API
 // (donnees + abonnements push) vit dans une Edge Function separee, appelee
@@ -72,6 +95,29 @@ function computeRanking(quotes) {
   return sorted;
 }
 
+// Les sections de domaines sont construites une seule fois (l'ensemble des
+// domaines de la watchlist ne change pas en cours de route), puis seul le
+// contenu de chaque grille est rafraichi - evite de reconstruire la page
+// (et de perdre le defilement) toutes les 20s.
+let quotesSectionsBuilt = false;
+
+function buildQuotesSections(sectors) {
+  const known = DOMAIN_ORDER.filter((s) => sectors.has(s));
+  const extra = [...sectors]
+    .filter((s) => !DOMAIN_ORDER.includes(s))
+    .sort((a, b) => (SECTOR_LABELS[a] || a).localeCompare(SECTOR_LABELS[b] || b, 'fr'));
+  const order = [...known, ...extra];
+  document.getElementById('quotes-container').innerHTML = order
+    .map(
+      (sector) => `
+      <div class="section-head">
+        <h2>${SECTOR_LABELS[sector] || sector}</h2>
+      </div>
+      <div id="quotes-${sector}" class="quote-grid"></div>`
+    )
+    .join('');
+}
+
 async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
@@ -81,14 +127,25 @@ async function loadQuotes() {
   rankingData = computeRanking(quotes);
   const rankBySymbol = Object.fromEntries(rankingData.map((q) => [q.symbol, q.rank]));
 
-  renderQuoteGroup('quotes-sante', watchlist.filter((s) => s.sector === 'sante'), quotesBySymbol, rankBySymbol);
-  renderQuoteGroup('quotes-energie', watchlist.filter((s) => s.sector === 'energie'), quotesBySymbol, rankBySymbol);
+  const bySector = {};
+  for (const stock of watchlist) (bySector[stock.sector] ||= []).push(stock);
+
+  if (!quotesSectionsBuilt) {
+    buildQuotesSections(new Set(Object.keys(bySector)));
+    quotesSectionsBuilt = true;
+  }
+
+  for (const [sector, stocks] of Object.entries(bySector)) {
+    renderQuoteGroup(`quotes-${sector}`, stocks, quotesBySymbol, rankBySymbol);
+  }
   renderRanking();
 }
 
 function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
   const container = document.getElementById(containerId);
-  container.innerHTML = stocks
+  if (!container) return;
+  const sorted = [...stocks].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  container.innerHTML = sorted
     .map((stock) => {
       const q = quotesBySymbol[stock.symbol];
       if (!q || q.error || q.price == null) {
@@ -505,8 +562,17 @@ async function loadSettings() {
   document.getElementById('move-up-percent-value').textContent = `+${s.moveUpPercent}%`;
   document.getElementById('move-down-percent').value = s.moveDownPercent;
   document.getElementById('move-down-percent-value').textContent = `-${s.moveDownPercent}%`;
-  document.getElementById('sector-sante').checked = Boolean(s.sectors?.sante);
-  document.getElementById('sector-energie').checked = Boolean(s.sectors?.energie);
+
+  // Une case par domaine connu (voir SECTOR_LABELS) ; un domaine absent des
+  // reglages enregistres (ex. tout juste ajoute a la watchlist) est actif
+  // par defaut, pas desactive silencieusement.
+  document.getElementById('sector-checkboxes').innerHTML = Object.entries(SECTOR_LABELS)
+    .map(
+      ([key, label]) =>
+        `<label class="checkbox"><input type="checkbox" id="sector-${key}" ${s.sectors?.[key] !== false ? 'checked' : ''} /> ${label}</label>`
+    )
+    .join('');
+
   document.getElementById('news-alerts').checked = Boolean(s.newsAlerts);
   document.getElementById('quiet-start').value = s.quietHoursStart || '';
   document.getElementById('quiet-end').value = s.quietHoursEnd || '';
@@ -525,13 +591,15 @@ document.getElementById('quiet-clear').addEventListener('click', () => {
 });
 
 document.getElementById('save-settings').addEventListener('click', async () => {
+  const sectors = {};
+  Object.keys(SECTOR_LABELS).forEach((key) => {
+    const el = document.getElementById(`sector-${key}`);
+    if (el) sectors[key] = el.checked;
+  });
   const payload = {
     moveUpPercent: parseFloat(document.getElementById('move-up-percent').value),
     moveDownPercent: parseFloat(document.getElementById('move-down-percent').value),
-    sectors: {
-      sante: document.getElementById('sector-sante').checked,
-      energie: document.getElementById('sector-energie').checked,
-    },
+    sectors,
     newsAlerts: document.getElementById('news-alerts').checked,
     quietHoursStart: document.getElementById('quiet-start').value || null,
     quietHoursEnd: document.getElementById('quiet-end').value || null,
