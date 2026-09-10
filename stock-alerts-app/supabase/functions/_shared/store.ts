@@ -32,7 +32,8 @@ export interface PushSubscriptionRecord {
 }
 
 export interface Settings {
-  movePercent: number;
+  moveUpPercent: number;
+  moveDownPercent: number;
   sectors: { sante: boolean; energie: boolean };
   newsAlerts: boolean;
   quietHoursStart: string | null;
@@ -40,7 +41,8 @@ export interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  movePercent: 3,
+  moveUpPercent: 3,
+  moveDownPercent: 3,
   sectors: { sante: true, energie: true },
   newsAlerts: true,
   quietHoursStart: null,
@@ -50,7 +52,8 @@ const DEFAULT_SETTINGS: Settings = {
 function rowToSettings(row: any): Settings {
   if (!row) return { ...DEFAULT_SETTINGS };
   return {
-    movePercent: Number(row.move_percent),
+    moveUpPercent: Number(row.move_up_percent ?? row.move_percent ?? DEFAULT_SETTINGS.moveUpPercent),
+    moveDownPercent: Number(row.move_down_percent ?? row.move_percent ?? DEFAULT_SETTINGS.moveDownPercent),
     sectors: row.sectors || DEFAULT_SETTINGS.sectors,
     newsAlerts: row.news_alerts,
     quietHoursStart: row.quiet_hours_start,
@@ -94,7 +97,8 @@ export const store = {
     await sb("app_settings?id=eq.default", {
       method: "PATCH",
       body: JSON.stringify({
-        move_percent: merged.movePercent,
+        move_up_percent: merged.moveUpPercent,
+        move_down_percent: merged.moveDownPercent,
         sectors: merged.sectors,
         news_alerts: merged.newsAlerts,
         quiet_hours_start: merged.quietHoursStart,

@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
     }
     if (path === "/api/settings" && req.method === "PUT") {
       const body = await req.json();
-      const allowed = ["movePercent", "sectors", "newsAlerts", "quietHoursStart", "quietHoursEnd"];
+      const allowed = ["moveUpPercent", "moveDownPercent", "sectors", "newsAlerts", "quietHoursStart", "quietHoursEnd"];
       const partial: Record<string, unknown> = {};
       for (const key of allowed) if (key in body) partial[key] = body[key];
       const saved = await store.saveSettings(partial);
