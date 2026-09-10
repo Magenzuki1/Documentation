@@ -30,57 +30,31 @@ allumer, sans configuration a faire de ton cote :
   composants.
 
 **Ce qui reste a faire pour recevoir les notifications sur ton telephone :**
-chaque appareil doit s'abonner **une fois** (ca necessite d'ouvrir une page
-web et d'appuyer sur un bouton — voir plus bas). Apres cet abonnement
-unique, plus rien a faire : les notifications arrivent automatiquement,
-meme telephone eteint puis rallume, meme sans jamais rouvrir l'application.
+chaque appareil doit s'abonner **une fois** en ouvrant le lien ci-dessous et
+en appuyant sur un bouton. Apres cet abonnement unique, plus rien a faire :
+les notifications arrivent automatiquement, meme telephone eteint puis
+rallume, meme sans jamais rouvrir l'application.
 
-## Limite rencontree : pas de page web cliquable auto-hebergee
+## Le lien du tableau de bord
 
-J'ai essaye d'heberger le tableau de bord (la page que tu ouvrirais pour
-t'abonner et consulter les cours) directement sur Supabase, pour te livrer
-un lien pret a l'emploi sans que tu aies rien a faire. **Ca n'a pas ete
-possible** : Supabase bloque deliberement le HTML servi depuis ses domaines
-publics (Edge Functions *et* Storage), quel que soit le contenu ou
-l'extension du fichier — verifie par plusieurs tests directs. C'est une
-protection anti-phishing de la plateforme (empecher que *.supabase.co serve
-de faux sites), pas un bug, et je n'ai pas de moyen de la contourner avec
-les outils dont je dispose dans cette session (pas d'acces a Vercel,
-Netlify, ou aux reglages GitHub Pages).
+**https://bananacollector.fr/stock-alerts/**
 
-Consequence concrete : je peux te donner un lien qui **fonctionne** (l'API
-JSON, verifiable avec les commandes ci-dessous) mais pas un lien qui
-**s'affiche comme une page** dans un navigateur.
+Cette page est servie par GitHub Pages, en sous-chemin du meme site que
+banana-collector (le jeu reste inchange a la racine, `bananacollector.fr/`,
+deploiement independant du tableau de bord — aucune donnee ni fonctionnalite
+partagee entre les deux). C'etait le seul hebergement gratuit accessible
+sans creer un nouveau depot (Supabase bloque le HTML servi depuis ses
+domaines publics ; voir la note technique en bas de fichier si ca t'interesse).
 
-### Options pour obtenir un vrai lien cliquable
-
-Toutes necessitent une action minime de ta part (je ne peux pas les faire a
-ta place, faute d'acces a ces services) :
-
-1. **GitHub Pages** (recommande, gratuit) : dans les reglages du depot
-   GitHub → Pages → Source, choisir la branche et le dossier
-   `stock-alerts-app/supabase/functions/app/static`. Une fois active
-   (10 secondes, un seul clic), l'URL fonctionne definitivement et se
-   met a jour a chaque modification poussee sur le depot.
-2. **Vercel/Netlify** (gratuit) : importer le depot GitHub depuis leur site,
-   pointer vers le meme dossier. Quelques clics, aucune commande.
-3. Me donner acces a l'un de ces services (ou un autre de ton choix) et je
-   termine le deploiement moi-meme.
-
-Dis-moi laquelle tu preferes (ou si tu veux que j'attende que tu aies un
-moment) et je m'occupe du reste.
+Ouvre ce lien sur ton telephone, ajoute-le a l'ecran d'accueil, appuie sur
+« Activer les notifications ». C'est termine.
 
 ## Verifier que la surveillance fonctionne (sans rien installer)
 
-Ouvre ces liens dans un navigateur (ou demande a quelqu'un de le faire) :
-
-- Cours en direct : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/quotes`
-- Actualites : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/news`
-- Etat general : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/status`
-
-Ces liens affichent des donnees brutes (JSON), pas une page presentable —
-c'est le API qui alimentera la vraie page une fois le lien cliquable
-disponible (voir ci-dessus).
+- Tableau de bord : `https://bananacollector.fr/stock-alerts/`
+- Cours en direct (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/quotes`
+- Actualites (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/news`
+- Etat general (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/status`
 
 ## Personnaliser la liste de valeurs suivies
 
@@ -99,8 +73,8 @@ stock-alerts-app/
       _shared/            code partage (store Postgres, cours, actus, alertes, push)
       run-check/          cycle de verification, declenche par pg_cron toutes les 10 min
       app/                API JSON (cours, actus, reglages, abonnements push)
-        static/           HTML/CSS/JS du tableau de bord (pret a heberger ailleurs)
-      deploy-assets/       utilitaire : publie static/ dans Supabase Storage
+        static/           HTML/CSS/JS du tableau de bord, publie sur GitHub Pages
+      deploy-assets/       utilitaire (non utilise en prod) : publication vers Supabase Storage
   server/                 version Node.js locale (alternative, voir plus bas)
   public/                 assets de la version Node.js locale
 ```
@@ -136,3 +110,21 @@ peux tout fermer.
 Cette version locale peut cohabiter avec le systeme Supabase (meme base de
 donnees partagee) : elle sert surtout de secours si tu preferes garder le
 controle total sur l'hebergement.
+
+## Mettre a jour le tableau de bord publie
+
+Toute modification poussee sur `main` dans
+`stock-alerts-app/supabase/functions/app/static/` republie automatiquement
+la page (workflow `.github/workflows/deploy-banana-collector.yml`, qui gere
+aussi le deploiement de banana-collector — les deux sont independants,
+seul le mecanisme de publication est partage).
+
+## Note technique : pourquoi GitHub Pages plutot que Supabase
+
+Le tableau de bord ne peut pas etre servi directement depuis les domaines
+publics de Supabase (Edge Functions ou Storage) : la plateforme force tout
+contenu dont le Content-Type contient "html" a `text/plain` avec un
+Content-Security-Policy verrouille, quels que soient le contenu ou
+l'extension du fichier — verifie par plusieurs tests directs. C'est une
+protection anti-phishing volontaire de Supabase, pas un bug contournable.
+GitHub Pages n'a pas cette restriction.
