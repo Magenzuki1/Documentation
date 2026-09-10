@@ -34,7 +34,9 @@ export interface PushSubscriptionRecord {
 export interface Settings {
   moveUpPercent: number;
   moveDownPercent: number;
-  sectors: { sante: boolean; energie: boolean };
+  // Domaines ouverts : n'importe quelle cle correspondant a un secteur de la
+  // watchlist (voir _shared/watchlist.ts et app.js/SECTOR_LABELS cote front).
+  sectors: Record<string, boolean>;
   newsAlerts: boolean;
   quietHoursStart: string | null;
   quietHoursEnd: string | null;
@@ -43,7 +45,17 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   moveUpPercent: 3,
   moveDownPercent: 3,
-  sectors: { sante: true, energie: true },
+  sectors: {
+    sante: true,
+    energie: true,
+    finance: true,
+    technologie: true,
+    consommation: true,
+    industrie: true,
+    telecom: true,
+    immobilier: true,
+    automobile: true,
+  },
   newsAlerts: true,
   quietHoursStart: null,
   quietHoursEnd: null,
@@ -54,7 +66,10 @@ function rowToSettings(row: any): Settings {
   return {
     moveUpPercent: Number(row.move_up_percent ?? row.move_percent ?? DEFAULT_SETTINGS.moveUpPercent),
     moveDownPercent: Number(row.move_down_percent ?? row.move_percent ?? DEFAULT_SETTINGS.moveDownPercent),
-    sectors: row.sectors || DEFAULT_SETTINGS.sectors,
+    // Fusionne sur les valeurs par defaut : un domaine ajoute apres coup a la
+    // watchlist et absent des reglages deja enregistres reste actif par
+    // defaut plutot que silencieusement desactive.
+    sectors: { ...DEFAULT_SETTINGS.sectors, ...(row.sectors || {}) },
     newsAlerts: row.news_alerts,
     quietHoursStart: row.quiet_hours_start,
     quietHoursEnd: row.quiet_hours_end,

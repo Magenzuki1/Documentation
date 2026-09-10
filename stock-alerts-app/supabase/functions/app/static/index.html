@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Alertes Bourse Sante &amp; Energie</title>
+  <title>Alertes Bourse PEA</title>
   <meta name="theme-color" content="#0d1b2a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
@@ -15,7 +15,7 @@
     <div class="brand">
       <img src="icons/icon-48.png" alt="" width="28" height="28" />
       <div>
-        <h1>Bourse Sante &amp; Energie</h1>
+        <h1>Bourse PEA</h1>
         <p class="subtitle">Suivi personnel &#183; valeurs PEA</p>
       </div>
     </div>
@@ -38,15 +38,10 @@
   <main>
     <section id="panel-quotes" class="panel active">
       <div class="section-head">
-        <h2>Sante &amp; biotech</h2>
+        <h2>Cours</h2>
         <span id="quotes-updated" class="muted"></span>
       </div>
-      <div id="quotes-sante" class="quote-grid"></div>
-
-      <div class="section-head">
-        <h2>Energie</h2>
-      </div>
-      <div id="quotes-energie" class="quote-grid"></div>
+      <div id="quotes-container"></div>
     </section>
 
     <section id="panel-ranking" class="panel">
@@ -98,10 +93,7 @@
 
       <div class="setting-row">
         <label>Secteurs a surveiller</label>
-        <div class="checkbox-row">
-          <label class="checkbox"><input type="checkbox" id="sector-sante" checked /> Sante / biotech</label>
-          <label class="checkbox"><input type="checkbox" id="sector-energie" checked /> Energie</label>
-        </div>
+        <div class="checkbox-row" id="sector-checkboxes"></div>
       </div>
 
       <div class="setting-row">

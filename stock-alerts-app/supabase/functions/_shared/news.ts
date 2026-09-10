@@ -10,6 +10,13 @@ const GOOGLE_NEWS_RSS = (query: string) =>
 const SECTOR_QUERIES: Record<string, string> = {
   sante: "biotech OR pharma bourse Euronext Paris",
   energie: "energie renouvelable OR hydrogene bourse Euronext Paris",
+  finance: "banque OR assurance resultats bourse Euronext Paris",
+  technologie: "technologie OR semi-conducteurs bourse Euronext Paris",
+  consommation: "consommation OR luxe OR distribution bourse Euronext Paris",
+  industrie: "industrie OR aeronautique bourse Euronext Paris",
+  telecom: "telecom bourse Euronext Paris",
+  immobilier: "immobilier cote bourse Euronext Paris",
+  automobile: "automobile equipementier bourse Euronext Paris",
 };
 
 export interface NewsItem {
