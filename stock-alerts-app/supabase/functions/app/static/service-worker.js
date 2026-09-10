@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'stock-alerts-v1';
+const CACHE_NAME = 'stock-alerts-v2';
 // self.registration.scope se termine toujours par "/" : sert de base pour
 // construire les URLs absolues des assets, quel que soit le chemin de
 // deploiement (fonction Supabase servie sous /functions/v1/app/).
@@ -32,19 +32,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.pathname.includes('/api/')) return;
 
+  // Le dashboard change souvent (nouvelles fonctionnalites, redeploiements) :
+  // reseau en priorite pour toujours avoir la derniere version au chargement,
+  // le cache ne sert que de secours hors-ligne.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
 
