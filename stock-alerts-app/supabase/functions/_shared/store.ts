@@ -114,14 +114,29 @@ export const store = {
       url: r.url,
       tag: r.tag,
       sentPush: r.sent_push,
+      catalyst: r.catalyst,
       createdAt: r.created_at,
     }));
   },
-  async pushAlertHistory(entry: { title: string; body?: string; url?: string; tag?: string; sentPush: boolean }) {
+  async pushAlertHistory(entry: {
+    title: string;
+    body?: string;
+    url?: string;
+    tag?: string;
+    sentPush: boolean;
+    catalyst?: string | null;
+  }) {
     await sb("alerts_history", {
       method: "POST",
       body: JSON.stringify([
-        { title: entry.title, body: entry.body, url: entry.url, tag: entry.tag, sent_push: entry.sentPush },
+        {
+          title: entry.title,
+          body: entry.body,
+          url: entry.url,
+          tag: entry.tag,
+          sent_push: entry.sentPush,
+          catalyst: entry.catalyst ?? null,
+        },
       ]),
     });
   },
@@ -197,6 +212,7 @@ export const store = {
       source: n.source,
       pub_date: n.pubDate ? new Date(n.pubDate).toISOString() : null,
       fetched_at: new Date().toISOString(),
+      catalyst: n.catalyst ?? null,
     }));
     await sb("latest_news", {
       method: "POST",
