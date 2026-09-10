@@ -140,6 +140,10 @@ document.getElementById('ranking-filter').addEventListener('click', (e) => {
   btn.classList.add('active');
   rankingSortDir = btn.dataset.dir;
   renderRanking();
+  // Sur une longue liste, remonter en haut apres le tri : sinon, si on etait
+  // scrolle plus bas, le changement de tri n'est pas visible et donne
+  // l'impression que le bouton ne fait rien.
+  document.getElementById('panel-ranking').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 function renderRanking() {
@@ -210,15 +214,37 @@ async function loadHistory() {
   const items = await res.json();
   const list = document.getElementById('history-list');
   list.innerHTML = items
-    .map(
-      (item) => `
-        <li class="history-item">
+    .map((item, i) => {
+      // Cliquable si on sait quoi ouvrir : le graphique de la valeur concernee,
+      // sinon le lien de l'actualite (quand il y en a un reel, pas juste "/").
+      const clickable = Boolean(item.symbol) || Boolean(item.url && item.url !== '/');
+      return `
+        <li class="history-item${clickable ? ' clickable' : ''}" data-index="${i}" ${clickable ? 'tabindex="0" role="button"' : ''}>
           <div class="title">${item.title}</div>
           <div class="body">${item.body || ''}</div>
           <div class="history-meta">${fmtDateTime(item.createdAt)}${item.sentPush ? '' : ' &middot; silencieux (ne pas deranger)'}</div>
-        </li>`
-    )
+        </li>`;
+    })
     .join('');
+
+  function activate(item) {
+    if (item.symbol) {
+      openChart(item.symbol, item.company || item.symbol);
+    } else if (item.url && item.url !== '/') {
+      window.open(item.url, '_blank', 'noopener');
+    }
+  }
+
+  list.querySelectorAll('.history-item.clickable').forEach((li) => {
+    const item = items[Number(li.dataset.index)];
+    li.addEventListener('click', () => activate(item));
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activate(item);
+      }
+    });
+  });
 }
 
 // ---------- Chart modal ----------

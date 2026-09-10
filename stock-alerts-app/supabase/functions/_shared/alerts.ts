@@ -27,7 +27,15 @@ function isQuietHours(settings: Settings): boolean {
 }
 
 async function notify(
-  payload: { title: string; body?: string; url?: string; tag?: string; catalyst?: string | null },
+  payload: {
+    title: string;
+    body?: string;
+    url?: string;
+    tag?: string;
+    catalyst?: string | null;
+    symbol?: string | null;
+    company?: string | null;
+  },
   settings: Settings
 ) {
   await store.pushAlertHistory({ ...payload, sentPush: !isQuietHours(settings) });
@@ -67,6 +75,8 @@ export async function evaluatePriceAlerts(
           body: `${quote.price} ${quote.currency || ""} (veille: ${quote.previousClose ?? "?"})`,
           url: "/",
           tag: `price-${quote.symbol}`,
+          symbol: quote.symbol,
+          company: stock.name,
         },
         settings
       );
@@ -102,6 +112,8 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
         url: item.link,
         tag: `catalyst-${item.id}`,
         catalyst: item.catalyst,
+        symbol: item.symbol,
+        company: item.company,
       },
       settings
     );
@@ -110,7 +122,15 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
   for (const item of regularItems) {
     const label = item.company ? item.company : item.sector === "sante" ? "Sante/biotech" : "Energie";
     await notify(
-      { title: `📰 ${label}`, body: item.title, url: item.link, tag: `news-${item.id}`, catalyst: null },
+      {
+        title: `📰 ${label}`,
+        body: item.title,
+        url: item.link,
+        tag: `news-${item.id}`,
+        catalyst: null,
+        symbol: item.symbol,
+        company: item.company,
+      },
       settings
     );
   }

@@ -244,6 +244,16 @@ body {
 .news-meta, .history-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
 .history-item .title { font-size: 0.85rem; font-weight: 600; }
 .history-item .body { font-size: 0.8rem; color: var(--muted); }
+.history-item.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.history-item.clickable:hover,
+.history-item.clickable:focus-visible {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  outline: none;
+}
 
 .news-item.has-catalyst { border-color: var(--catalyst); }
 .catalyst-badge {

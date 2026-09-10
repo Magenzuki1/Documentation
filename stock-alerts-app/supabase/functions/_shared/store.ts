@@ -119,6 +119,8 @@ export const store = {
       tag: r.tag,
       sentPush: r.sent_push,
       catalyst: r.catalyst,
+      symbol: r.symbol,
+      company: r.company,
       createdAt: r.created_at,
     }));
   },
@@ -129,6 +131,8 @@ export const store = {
     tag?: string;
     sentPush: boolean;
     catalyst?: string | null;
+    symbol?: string | null;
+    company?: string | null;
   }) {
     await sb("alerts_history", {
       method: "POST",
@@ -140,6 +144,8 @@ export const store = {
           tag: entry.tag,
           sent_push: entry.sentPush,
           catalyst: entry.catalyst ?? null,
+          symbol: entry.symbol ?? null,
+          company: entry.company ?? null,
         },
       ]),
     });
