@@ -27,7 +27,7 @@ function isQuietHours(settings: Settings): boolean {
 }
 
 async function notify(
-  payload: { title: string; body?: string; url?: string; tag?: string },
+  payload: { title: string; body?: string; url?: string; tag?: string; catalyst?: string | null },
   settings: Settings
 ) {
   await store.pushAlertHistory({ ...payload, sentPush: !isQuietHours(settings) });
@@ -81,14 +81,32 @@ export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settin
   const fresh = newsItems.filter((item) => !seen.has(item.id));
   if (fresh.length === 0) return;
 
-  const toNotify = fresh
-    .filter((item) => !item.sector || settings.sectors?.[item.sector as "sante" | "energie"])
-    .slice(0, 5);
+  const inSector = (item: NewsItem) => !item.sector || settings.sectors?.[item.sector as "sante" | "energie"];
 
-  for (const item of toNotify) {
+  // Les catalyseurs potentiels (resultats d'essai, reglementaire, contrat...)
+  // sont toujours notifies, sans limite : c'est le signal le plus utile.
+  // Les autres actualites restent plafonnees pour ne pas noyer le telephone.
+  const catalystItems = fresh.filter((item) => item.catalyst && inSector(item));
+  const regularItems = fresh.filter((item) => !item.catalyst && inSector(item)).slice(0, 5);
+
+  for (const item of catalystItems) {
     const label = item.company ? item.company : item.sector === "sante" ? "Sante/biotech" : "Energie";
     await notify(
-      { title: `📰 ${label}`, body: item.title, url: item.link, tag: `news-${item.id}` },
+      {
+        title: `🧪 Catalyseur potentiel — ${label}`,
+        body: `[${item.catalyst}] ${item.title}`,
+        url: item.link,
+        tag: `catalyst-${item.id}`,
+        catalyst: item.catalyst,
+      },
+      settings
+    );
+  }
+
+  for (const item of regularItems) {
+    const label = item.company ? item.company : item.sector === "sante" ? "Sante/biotech" : "Energie";
+    await notify(
+      { title: `📰 ${label}`, body: item.title, url: item.link, tag: `news-${item.id}`, catalyst: null },
       settings
     );
   }

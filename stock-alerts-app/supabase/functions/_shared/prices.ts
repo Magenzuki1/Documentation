@@ -56,3 +56,48 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 export async function fetchQuotes(watchlist: Stock[]) {
   return mapWithConcurrency(watchlist, 5, fetchOne);
 }
+
+const HISTORY_RANGES = new Set(["1mo", "3mo", "6mo", "1y", "5y"]);
+
+export interface HistoryPoint {
+  date: string;
+  close: number;
+}
+
+export async function fetchHistory(symbol: string, range: string) {
+  const safeRange = HISTORY_RANGES.has(range) ? range : "6mo";
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?interval=1d&range=${safeRange}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; PersonalStockAlerts/1.0)",
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} pour l'historique de ${symbol}`);
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  if (!result) {
+    const err = json?.chart?.error?.description || "reponse vide";
+    throw new Error(`Pas d'historique pour ${symbol}: ${err}`);
+  }
+
+  const timestamps: number[] = result.timestamp || [];
+  const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
+
+  const points: HistoryPoint[] = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const close = closes[i];
+    if (close == null) continue;
+    points.push({ date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10), close });
+  }
+
+  return {
+    symbol,
+    range: safeRange,
+    currency: result.meta?.currency ?? null,
+    points,
+  };
+}

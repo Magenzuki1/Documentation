@@ -5,6 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { store } from "../_shared/store.ts";
 import { WATCHLIST } from "../_shared/watchlist.ts";
+import { fetchHistory } from "../_shared/prices.ts";
 
 function json(data: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(data), {
@@ -60,8 +61,17 @@ Deno.serve(async (req: Request) => {
         company: r.company,
         sector: r.sector,
         source: r.source,
+        catalyst: r.catalyst,
       }));
       return json(news, { headers: corsHeaders() });
+    }
+
+    if (path === "/api/history" && req.method === "GET") {
+      const symbol = url.searchParams.get("symbol");
+      const range = url.searchParams.get("range") || "6mo";
+      if (!symbol) return json({ error: "Parametre symbol requis" }, { status: 400, headers: corsHeaders() });
+      const history = await fetchHistory(symbol, range);
+      return json(history, { headers: corsHeaders() });
     }
 
     if (path === "/api/status" && req.method === "GET") {

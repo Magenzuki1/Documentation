@@ -2,6 +2,7 @@
 // externe : un petit extracteur regex suffit pour ce format XML simple.
 
 import type { Stock } from "./watchlist.ts";
+import { detectCatalyst } from "./catalysts.ts";
 
 const GOOGLE_NEWS_RSS = (query: string) =>
   `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=fr&gl=FR&ceid=FR:fr`;
@@ -21,6 +22,7 @@ export interface NewsItem {
   company: string | null;
   sector: string | null;
   scope: "company" | "sector";
+  catalyst: string | null;
 }
 
 function decodeEntities(text: string): string {
@@ -56,9 +58,11 @@ async function fetchFeed(query: string, meta: Partial<NewsItem>): Promise<NewsIt
     const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 8);
     return items.map(([, block]) => {
       const link = extractTag(block, "link") || "";
+      const title = extractTag(block, "title") || "(sans titre)";
+      const catalyst = detectCatalyst(title);
       return {
         id: link,
-        title: extractTag(block, "title") || "(sans titre)",
+        title,
         link,
         pubDate: extractTag(block, "pubDate"),
         source: extractTag(block, "source") || "Google News",
@@ -66,6 +70,7 @@ async function fetchFeed(query: string, meta: Partial<NewsItem>): Promise<NewsIt
         company: meta.company ?? null,
         sector: meta.sector ?? null,
         scope: meta.scope!,
+        catalyst: catalyst?.label ?? null,
       };
     });
   } catch (err) {
