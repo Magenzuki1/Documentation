@@ -66,7 +66,7 @@ faire directement si tu me dis quoi changer).
 
 ## Structure du projet
 
-```
+```text
 stock-alerts-app/
   supabase/
     functions/
