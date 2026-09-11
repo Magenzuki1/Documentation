@@ -240,7 +240,7 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
           <div class="symbol">${stock.symbol}</div>
           <div class="price-row">
             <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
-            <span class="change ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
+            <span class="change-pill ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
           </div>
           ${rangeBar('Aujourd’hui', q.dayLow, q.dayHigh, q.price)}
           ${rangeBar('52 semaines', q.fiftyTwoWeekLow, q.fiftyTwoWeekHigh, q.price)}

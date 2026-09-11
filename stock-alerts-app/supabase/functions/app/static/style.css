@@ -14,6 +14,9 @@
   --volume-bar: rgba(139, 160, 184, 0.45);
   --gold: #ffd54a;
   --range-color: #22d3ee;
+  --radius-card: 14px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -36,16 +39,16 @@ body {
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand h1 { font-size: 1.05rem; margin: 0; }
-.subtitle { margin: 0; font-size: 0.75rem; color: var(--muted); }
+.brand h1 { font-size: 1.05rem; margin: 0; letter-spacing: -0.01em; }
+.subtitle { margin: 0; font-size: 0.72rem; color: var(--muted); }
 
 .disclaimer {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin: 0 0 12px;
+  opacity: 0.85;
+  border: none;
+  padding: 0;
+  margin: 0 0 14px;
 }
 
 .btn {
@@ -70,13 +73,16 @@ body {
   background: transparent;
   border: none;
   color: var(--muted);
-  padding: 10px 12px;
-  font-size: 0.85rem;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  transition: color 0.15s ease;
 }
-.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
 
 .panel { display: none; max-width: 720px; margin: 0 auto; }
 .panel.active { display: block; }
@@ -123,79 +129,104 @@ body {
 
 .quote-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
 }
 
+/* Langage visuel "premium" : cartes neutres et sobres, un accent de couleur
+   discret en bordure gauche (pas un aplat plein) pour indiquer la tendance,
+   la hierarchie typographique et l'ombrage font le reste du travail. */
 .quote-card {
   position: relative;
   background: var(--bg-elevated);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .quote-card:not(.error):hover,
 .quote-card:not(.error):focus-visible {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
   outline: none;
 }
-.quote-card .name { font-size: 0.85rem; font-weight: 600; }
-.quote-card .symbol { font-size: 0.68rem; color: var(--muted); }
+.quote-card .name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding-right: 18px;
+}
+.quote-card .symbol {
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
 .quote-card .price-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 10px;
 }
-.quote-card .price { font-size: 1rem; font-weight: 700; }
-.quote-card .change { font-size: 0.85rem; font-weight: 700; }
-.change.up { color: var(--up); }
-.change.down { color: var(--down); }
-.quote-card.error { opacity: 0.6; }
+.quote-card .price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.change-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.change-pill.up { color: var(--up); background: color-mix(in srgb, var(--up) 16%, transparent); }
+.change-pill.down { color: var(--down); background: color-mix(in srgb, var(--down) 16%, transparent); }
+.quote-card.error { opacity: 0.55; }
 
-/* Encadres tres visuels : toute la carte est remplie de la couleur (pas
-   juste un liseret), vert/rouge selon la tendance, dore pour les
-   meilleures performances du jour (top 3 du classement). color-mix() donne
-   un aplat opaque, contrairement a un fond semi-transparent qui depend de
-   ce qu'il y a derriere. */
-.quote-card.tier-up {
-  border-color: var(--up);
-  background: color-mix(in srgb, var(--up) 42%, var(--bg-elevated));
-}
-.quote-card.tier-down {
-  border-color: var(--down);
-  background: color-mix(in srgb, var(--down) 42%, var(--bg-elevated));
-}
+.quote-card.tier-up { border-left-color: var(--up); }
+.quote-card.tier-down { border-left-color: var(--down); }
 .quote-card.tier-gold {
-  border-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 48%, var(--bg-elevated));
-  box-shadow: 0 0 18px rgba(255, 213, 74, 0.4);
+  border-left-color: var(--gold);
+  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
 }
 .quote-card.tier-gold:hover,
 .quote-card.tier-gold:focus-visible {
-  box-shadow: 0 0 26px rgba(255, 213, 74, 0.6);
+  box-shadow: var(--shadow-md), 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent);
 }
 .medal-badge {
   position: absolute;
-  top: -12px;
-  right: -8px;
-  font-size: 1.5rem;
-  transform: rotate(12deg);
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  top: 10px;
+  right: 12px;
+  font-size: 1rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .range-block { margin-top: 8px; }
-.range-title { font-size: 0.6rem; display: block; margin-bottom: 2px; }
+.range-title {
+  font-size: 0.56rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 3px;
+}
 .range52 { display: flex; align-items: center; gap: 6px; }
-.range52-label { font-size: 0.62rem; color: var(--muted); flex-shrink: 0; }
+.range52-label { font-size: 0.58rem; color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .range52-track {
   position: relative;
   flex: 1;
-  height: 9px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
   overflow: visible;
 }
 .range52-fill {
@@ -204,19 +235,20 @@ body {
   left: 0;
   height: 100%;
   background: var(--range-color);
-  border-radius: 5px;
+  border-radius: 3px;
+  opacity: 0.85;
 }
 .range52-marker {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   background: var(--text);
   border: 2px solid var(--range-color);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
-.quote-extra { font-size: 0.66rem; margin-top: 6px; }
+.quote-extra { font-size: 0.62rem; color: var(--muted); margin-top: 8px; }
 
 .ranking-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .rank-row {
@@ -225,27 +257,22 @@ body {
   gap: 10px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 12px;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.rank-row:hover, .rank-row:focus-visible { transform: translateX(3px); outline: none; }
-.rank-row.tier-up {
-  border-color: var(--up);
-  background: color-mix(in srgb, var(--up) 32%, var(--bg-elevated));
-}
-.rank-row.tier-down {
-  border-color: var(--down);
-  background: color-mix(in srgb, var(--down) 32%, var(--bg-elevated));
-}
+.rank-row:hover, .rank-row:focus-visible { transform: translateY(-1px); box-shadow: var(--shadow-md); outline: none; }
+.rank-row.tier-up { border-left-color: var(--up); }
+.rank-row.tier-down { border-left-color: var(--down); }
 .rank-row.tier-gold {
-  border-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 38%, var(--bg-elevated));
-  box-shadow: 0 0 12px rgba(255, 213, 74, 0.3);
+  border-left-color: var(--gold);
+  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent);
 }
-.rank-pos { width: 30px; flex-shrink: 0; text-align: center; font-size: 1rem; font-weight: 700; }
+.rank-pos { width: 26px; flex-shrink: 0; text-align: center; font-size: 0.95rem; font-weight: 700; color: var(--muted); }
+.rank-row.tier-gold .rank-pos { font-size: 1.05rem; }
 .rank-main { flex: 1; min-width: 0; }
 .rank-name {
   font-size: 0.8rem;
@@ -255,11 +282,11 @@ body {
   text-overflow: ellipsis;
   margin-bottom: 4px;
 }
-.rank-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.rank-bar-fill { height: 100%; border-radius: 3px; }
+.rank-bar-track { height: 4px; background: rgba(255, 255, 255, 0.06); border-radius: 2px; overflow: hidden; }
+.rank-bar-fill { height: 100%; border-radius: 2px; }
 .rank-bar-fill.up { background: var(--up); }
 .rank-bar-fill.down { background: var(--down); }
-.rank-value { width: 58px; flex-shrink: 0; text-align: right; font-weight: 700; font-size: 0.85rem; }
+.rank-value { width: 58px; flex-shrink: 0; text-align: right; font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .rank-value.up { color: var(--up); }
 .rank-value.down { color: var(--down); }
 
@@ -269,41 +296,44 @@ body {
   align-items: flex-start;
   gap: 10px;
   background: var(--bg-elevated);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  transition: transform 0.15s ease;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 11px 13px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.news-item:hover { transform: translateX(3px); }
+.news-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .news-body { flex: 1; min-width: 0; }
-.news-item a { color: var(--text); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+.news-item a { color: var(--text); text-decoration: none; font-size: 0.86rem; font-weight: 600; line-height: 1.35; }
 .news-item a:hover { text-decoration: underline; }
-.news-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+.news-meta { font-size: 0.66rem; color: var(--muted); margin-top: 5px; }
 
-/* Rond colore reprenant le ton detecte (voir SENTIMENT_ICON dans app.js) :
-   meme logique visuelle que les cartes de cours (aplat de couleur plein). */
+/* Rond avec teinte douce reprenant le ton detecte (voir SENTIMENT_ICON dans
+   app.js), et accent de bordure gauche - meme langage sobre que les cartes
+   de cours, pas d'aplat plein sur toute la carte. */
 .news-sentiment-icon {
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   margin-top: 1px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 700;
 }
-.news-item.sentiment-positive {
-  border-color: var(--up);
-  background: color-mix(in srgb, var(--up) 24%, var(--bg-elevated));
+.news-item.sentiment-positive { border-left-color: var(--up); }
+.news-item.sentiment-positive .news-sentiment-icon {
+  background: color-mix(in srgb, var(--up) 22%, transparent);
+  color: var(--up);
 }
-.news-item.sentiment-positive .news-sentiment-icon { background: var(--up); color: var(--bg); }
-.news-item.sentiment-negative {
-  border-color: var(--down);
-  background: color-mix(in srgb, var(--down) 24%, var(--bg-elevated));
+.news-item.sentiment-negative { border-left-color: var(--down); }
+.news-item.sentiment-negative .news-sentiment-icon {
+  background: color-mix(in srgb, var(--down) 22%, transparent);
+  color: var(--down);
 }
-.news-item.sentiment-negative .news-sentiment-icon { background: var(--down); color: var(--bg); }
 .news-item.sentiment-neutral .news-sentiment-icon { background: var(--border); color: var(--muted); }
 .catalyst-badge {
   display: inline-block;
@@ -354,12 +384,13 @@ input[type="time"] {
 .modal-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px 18px;
+  border-radius: 16px;
+  padding: 16px 18px 20px;
   width: 100%;
   max-width: 680px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: var(--shadow-md);
 }
 
 .modal-head {
@@ -431,7 +462,7 @@ input[type="time"] {
 .chart-stat {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
