@@ -96,6 +96,29 @@ function formatCompactNumber(n) {
   return String(n);
 }
 
+// "Logo" en initiales colorees plutot qu'un vrai logo recupere en ligne :
+// avec 239 valeurs europeennes sans base fiable de domaines par entreprise,
+// deviner un domaine par societe produirait surtout des images cassees.
+// Couleur deterministe par symbole (meme valeur = meme couleur a chaque
+// rendu), independante de la tendance du cours.
+function stockInitials(name) {
+  const words = name
+    .replace(/\(.*?\)/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function stockColor(symbol) {
+  let hash = 0;
+  for (let i = 0; i < symbol.length; i++) hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 60%, 38%)`;
+}
+
 function rangeBar(title, low, high, price) {
   if (low == null || high == null || high <= low) return '';
   const pct = Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
@@ -121,6 +144,7 @@ let searchQuery = '';
 let lastWatchlistBySector = {};
 let lastStockBySymbol = {};
 let lastQuotesBySymbol = {};
+let previousQuotesBySymbol = {};
 let lastRankBySymbol = {};
 
 function normalizeSearch(s) {
@@ -189,13 +213,19 @@ function computeRanking(quotes) {
 // (et de perdre le defilement) toutes les 20s.
 let quotesSectionsBuilt = false;
 
-function buildQuotesSections(sectors) {
+// Ordre d'affichage commun aux grilles par domaine et aux pastilles de
+// navigation : domaines connus dans l'ordre editorial (DOMAIN_ORDER), puis
+// les eventuels nouveaux domaines tries alphabetiquement a la suite.
+function orderedSectors(sectors) {
   const known = DOMAIN_ORDER.filter((s) => sectors.has(s));
   const extra = [...sectors]
     .filter((s) => !DOMAIN_ORDER.includes(s))
     .sort((a, b) => (SECTOR_LABELS[a] || a).localeCompare(SECTOR_LABELS[b] || b, 'fr'));
-  const order = [...known, ...extra];
-  document.getElementById('quotes-container').innerHTML = order
+  return [...known, ...extra];
+}
+
+function buildQuotesSections(sectors) {
+  document.getElementById('quotes-container').innerHTML = orderedSectors(sectors)
     .map(
       (sector) => `
       <div class="sector-block" id="sector-block-${sector}">
@@ -208,11 +238,37 @@ function buildQuotesSections(sectors) {
     .join('');
 }
 
+// Pastilles de navigation rapide vers chaque section de domaine, pour
+// eviter de scroller les 9 sections a la main. Simple raccourci de defilement
+// (pas un filtre) : la mise en avant "active" est juste visuelle au clic,
+// sans suivi de la section visible pendant le scroll.
+function buildSectorFilter(sectors) {
+  const el = document.getElementById('sector-filter');
+  if (!el) return;
+  el.innerHTML = orderedSectors(sectors)
+    .map((sector) => `<button class="sector-chip" data-sector="${sector}">${SECTOR_LABELS[sector] || sector}</button>`)
+    .join('');
+  el.querySelectorAll('.sector-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const target = document.getElementById(`sector-block-${chip.dataset.sector}`);
+      if (!target || target.hidden) return;
+      el.querySelectorAll('.sector-chip').forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
 async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
   const quotes = await quotesRes.json();
   lastStockBySymbol = Object.fromEntries(watchlist.map((s) => [s.symbol, s]));
+  // Instantane precedent garde de coté avant d'etre ecrase, pour detecter
+  // les prix qui viennent de bouger (voir priceFlashClass) et les faire
+  // flasher brievement - vide au tout premier chargement, donc rien ne
+  // flashe a l'ouverture de la page.
+  previousQuotesBySymbol = lastQuotesBySymbol;
   lastQuotesBySymbol = Object.fromEntries(quotes.map((q) => [q.symbol, q]));
 
   rankingData = computeRanking(quotes);
@@ -223,6 +279,7 @@ async function loadQuotes() {
 
   if (!quotesSectionsBuilt) {
     buildQuotesSections(new Set(Object.keys(lastWatchlistBySector)));
+    buildSectorFilter(new Set(Object.keys(lastWatchlistBySector)));
     quotesSectionsBuilt = true;
   }
 
@@ -297,20 +354,36 @@ function renderAllQuoteGroups() {
 // 239 cartes a chaque chargement solliciterait Yahoo Finance bien plus que
 // necessaire, avec le risque de re-provoquer les blocages anti-bot deja
 // rencontres par le passe (voir _shared/news.ts).
+// Flasher brievement la carte quand le cours vient de bouger par rapport au
+// rafraichissement precedent (toutes les 20s) - vide au tout premier
+// chargement (previousQuotesBySymbol est alors {}), donc rien ne flashe a
+// l'ouverture de la page, seulement sur une vraie mise a jour.
+function priceFlashClass(symbol, q) {
+  const prev = previousQuotesBySymbol[symbol];
+  if (!prev || prev.price == null || q.price == null || prev.price === q.price) return '';
+  return prev.price < q.price ? ' flash-up' : ' flash-down';
+}
+
 function quoteCardHtml(stock, q, rankBySymbol, withSparkline) {
   const isFav = favorites.has(stock.symbol);
   const favBtn = `<button class="favorite-toggle${isFav ? ' active' : ''}" data-symbol="${stock.symbol}" aria-label="${
     isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'
   }">${isFav ? '★' : '☆'}</button>`;
+  const logo = `<span class="stock-logo" style="background:${stockColor(stock.symbol)}" aria-hidden="true">${stockInitials(
+    stock.name
+  )}</span>`;
 
   if (!q || q.error || q.price == null) {
     return `
       <div class="quote-card error" data-symbol="${stock.symbol}" data-name="${stock.name}">
         <div class="card-top">
           ${favBtn}
-          <div class="name">${stock.name}</div>
+          ${logo}
+          <div class="name-block">
+            <div class="name">${stock.name}</div>
+            <div class="symbol">${stock.symbol}</div>
+          </div>
         </div>
-        <div class="symbol">${stock.symbol}</div>
         <div class="muted">indisponible</div>
       </div>`;
   }
@@ -322,14 +395,18 @@ function quoteCardHtml(stock, q, rankBySymbol, withSparkline) {
   const sign = q.changePercent >= 0 ? '+' : '';
   const arrow = q.changePercent >= 0 ? '▲' : '▼';
   const medal = isGold ? MEDALS[rank] : '';
+  const flash = priceFlashClass(stock.symbol, q);
   return `
-    <div class="quote-card tier-${tier}" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
+    <div class="quote-card tier-${tier}${flash}" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
       <div class="card-top">
         ${favBtn}
-        <div class="name">${stock.name}</div>
+        ${logo}
+        <div class="name-block">
+          <div class="name">${stock.name}</div>
+          <div class="symbol">${stock.symbol}</div>
+        </div>
         ${medal ? `<span class="medal-badge">${medal}</span>` : ''}
       </div>
-      <div class="symbol">${stock.symbol}</div>
       <div class="price-row">
         <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
         <span class="change-pill ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
