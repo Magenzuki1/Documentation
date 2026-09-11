@@ -40,19 +40,30 @@ const BASE = location.pathname.endsWith('/') ? location.pathname : `${location.p
 // retire de l'URL, pour que les routes d'ecriture (reglages, abonnement
 // push) ne soient pas ouvertes a n'importe qui connaissant juste l'URL du
 // tableau de bord.
+// Protege par try/catch : si le stockage local est bloque (navigation
+// privee, reglages de confidentialite), cette capture ne doit jamais faire
+// planter le reste de l'application - au pire le jeton n'est pas retenu.
 (() => {
-  const url = new URL(location.href);
-  const token = url.searchParams.get('token');
-  if (token) {
-    localStorage.setItem('writeToken', token);
-    url.searchParams.delete('token');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  try {
+    const url = new URL(location.href);
+    const token = url.searchParams.get('token');
+    if (token) {
+      localStorage.setItem('writeToken', token);
+      url.searchParams.delete('token');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+  } catch (err) {
+    console.error('Jeton non sauvegarde (stockage local indisponible) :', err);
   }
 })();
 
 function writeHeaders() {
-  const token = localStorage.getItem('writeToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const token = localStorage.getItem('writeToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch (err) {
+    return {};
+  }
 }
 
 // ---------- Tabs ----------
