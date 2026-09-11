@@ -5,12 +5,17 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { WATCHLIST } from "../_shared/watchlist.ts";
-import { fetchQuotes } from "../_shared/prices.ts";
+import { fetchQuotes, fetchAllSparklines } from "../_shared/prices.ts";
 import { fetchAllNews } from "../_shared/news.ts";
 import { evaluatePriceAlerts, evaluateNewsAlerts, evaluateHealthAlert } from "../_shared/alerts.ts";
 import { store } from "../_shared/store.ts";
 
 const watchlistBySymbol = Object.fromEntries(WATCHLIST.map((s) => [s.symbol, s]));
+
+// Les mini-graphiques (sparklines) ne bougent presque pas d'un cycle de 10
+// minutes a l'autre : les recalculer a cette frequence pour 239 valeurs
+// solliciterait Yahoo Finance sans raison. Une fois par jour suffit.
+const SPARKLINE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // "scope" permet a pg_cron d'appeler cette fonction a des cadences differentes
 // pour les cours (frequents, peu couteux) et les actualites (moins frequentes,
@@ -30,6 +35,21 @@ Deno.serve(async (req: Request) => {
       quotes = await fetchQuotes(WATCHLIST);
       await evaluatePriceAlerts(quotes, watchlistBySymbol, settings);
       await evaluateHealthAlert(quotes, settings);
+
+      const lastSparkline = settings.lastSparklineUpdateAt ? new Date(settings.lastSparklineUpdateAt).getTime() : 0;
+      if (Date.now() - lastSparkline > SPARKLINE_INTERVAL_MS) {
+        // Lot couteux (239 requetes supplementaires) isole dans son propre
+        // try/catch : un echec ou un ralentissement ici ne doit jamais faire
+        // rater l'enregistrement des cours ni les alertes de prix.
+        try {
+          const sparklines = await fetchAllSparklines(WATCHLIST);
+          for (const q of quotes) q.sparkline = sparklines[q.symbol] || [];
+          await store.saveSettings({ lastSparklineUpdateAt: new Date().toISOString() });
+        } catch (err) {
+          console.error("[run-check] echec sparklines:", err);
+        }
+      }
+
       await store.saveLatestQuotes(quotes);
     }
 

@@ -121,3 +121,24 @@ export async function fetchHistory(symbol: string, range: string) {
     points,
   };
 }
+
+// Mini-graphiques (sparklines) pour toutes les cartes du tableau de bord.
+// Precalcule cote serveur (une fois par jour, voir SPARKLINE_INTERVAL_MS
+// dans run-check/index.ts) plutot qu'a chaque affichage cote navigateur :
+// generer un mini-graphique par carte a chaque chargement de page
+// solliciterait Yahoo Finance des centaines de fois par visite, avec un
+// risque reel de re-provoquer les blocages anti-bot deja rencontres par le
+// passe (voir _shared/news.ts). Concurrence volontairement moderee (6) car
+// ce lot ne tourne qu'une fois par jour, pas toutes les 10 minutes comme les
+// cours.
+export async function fetchAllSparklines(watchlist: Stock[]): Promise<Record<string, number[]>> {
+  const entries = await mapWithConcurrency(watchlist, 6, async (stock) => {
+    try {
+      const history = await fetchHistory(stock.symbol, "1mo");
+      return [stock.symbol, history.points.map((p) => p.close)] as const;
+    } catch {
+      return [stock.symbol, []] as const;
+    }
+  });
+  return Object.fromEntries(entries);
+}
