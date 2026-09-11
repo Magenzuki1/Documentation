@@ -82,6 +82,7 @@ Deno.serve(async (req: Request) => {
         sector: r.sector,
         source: r.source,
         catalyst: r.catalyst,
+        sentiment: r.sentiment || "neutral",
       }));
       return json(news, { headers: corsHeaders() });
     }

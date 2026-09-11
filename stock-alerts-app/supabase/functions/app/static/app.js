@@ -321,6 +321,10 @@ function renderRanking() {
 }
 
 // ---------- News ----------
+// icone + libelle du ton detecte (mots-cles, indicatif - voir catalysts.ts
+// cote serveur) : sert juste a reperer d'un coup d'oeil, pas une analyse fiable.
+const SENTIMENT_ICON = { positive: '▲', negative: '▼', neutral: '•' };
+
 async function loadNews() {
   const res = await fetch(api('news'));
   const items = await res.json();
@@ -332,11 +336,15 @@ async function loadNews() {
       const badge = item.catalyst
         ? `<span class="catalyst-badge">🧪 ${item.catalyst}</span>`
         : '';
+      const sentiment = item.sentiment || 'neutral';
       return `
-        <li class="news-item${item.catalyst ? ' has-catalyst' : ''}">
-          ${badge}
-          <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-          <div class="news-meta">${label} &middot; ${fmtDateTime(item.pubDate)}</div>
+        <li class="news-item sentiment-${sentiment}${item.catalyst ? ' has-catalyst' : ''}">
+          <div class="news-sentiment-icon">${SENTIMENT_ICON[sentiment]}</div>
+          <div class="news-body">
+            ${badge}
+            <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+            <div class="news-meta">${label} &middot; ${fmtDateTime(item.pubDate)}</div>
+          </div>
         </li>`;
     })
     .join('');

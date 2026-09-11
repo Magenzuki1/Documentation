@@ -252,6 +252,7 @@ export const store = {
       pub_date: n.pubDate ? new Date(n.pubDate).toISOString() : null,
       fetched_at: new Date().toISOString(),
       catalyst: n.catalyst ?? null,
+      sentiment: n.sentiment ?? "neutral",
     }));
     await sb("latest_news", {
       method: "POST",

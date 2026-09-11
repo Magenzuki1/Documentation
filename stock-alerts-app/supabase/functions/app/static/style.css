@@ -265,16 +265,46 @@ body {
 
 .news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .news-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
   padding: 10px 12px;
+  transition: transform 0.15s ease;
 }
-.news-item a { color: var(--text); text-decoration: none; font-size: 0.88rem; }
+.news-item:hover { transform: translateX(3px); }
+.news-body { flex: 1; min-width: 0; }
+.news-item a { color: var(--text); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
 .news-item a:hover { text-decoration: underline; }
 .news-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
 
-.news-item.has-catalyst { border-color: var(--catalyst); }
+/* Rond colore reprenant le ton detecte (voir SENTIMENT_ICON dans app.js) :
+   meme logique visuelle que les cartes de cours (aplat de couleur plein). */
+.news-sentiment-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.news-item.sentiment-positive {
+  border-color: var(--up);
+  background: color-mix(in srgb, var(--up) 24%, var(--bg-elevated));
+}
+.news-item.sentiment-positive .news-sentiment-icon { background: var(--up); color: var(--bg); }
+.news-item.sentiment-negative {
+  border-color: var(--down);
+  background: color-mix(in srgb, var(--down) 24%, var(--bg-elevated));
+}
+.news-item.sentiment-negative .news-sentiment-icon { background: var(--down); color: var(--bg); }
+.news-item.sentiment-neutral .news-sentiment-icon { background: var(--border); color: var(--muted); }
 .catalyst-badge {
   display: inline-block;
   background: rgba(251, 191, 36, 0.16);
