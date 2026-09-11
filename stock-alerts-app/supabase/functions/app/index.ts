@@ -22,6 +22,20 @@ function corsHeaders() {
   };
 }
 
+// Les routes en lecture restent publiques (donnees non sensibles), mais les
+// routes d'ecriture (reglages, abonnement push) exigent un jeton partage :
+// sans ca, n'importe qui connaissant l'URL du projet pourrait modifier les
+// seuils d'alerte ou injecter de faux abonnements. Le jeton est distribue
+// une fois via un lien (?token=...), sauvegarde cote navigateur - voir
+// app.js.
+async function hasValidWriteToken(req: Request): Promise<boolean> {
+  const auth = req.headers.get("Authorization") || "";
+  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!provided) return false;
+  const secrets = await store.getSecrets();
+  return Boolean(secrets.writeToken) && provided === secrets.writeToken;
+}
+
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   let path = url.pathname.replace(/^\/functions\/v1\/app/, "").replace(/^\/app/, "");
@@ -102,6 +116,9 @@ Deno.serve(async (req: Request) => {
       return json(await store.getSettings(), { headers: corsHeaders() });
     }
     if (path === "/api/settings" && req.method === "PUT") {
+      if (!(await hasValidWriteToken(req))) {
+        return json({ error: "Jeton d'acces manquant ou invalide" }, { status: 401, headers: corsHeaders() });
+      }
       const body = await req.json();
       const allowed = ["moveUpPercent", "moveDownPercent", "sectors", "newsAlerts", "quietHoursStart", "quietHoursEnd"];
       const partial: Record<string, unknown> = {};
@@ -120,6 +137,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (path === "/api/push/subscribe" && req.method === "POST") {
+      if (!(await hasValidWriteToken(req))) {
+        return json({ error: "Jeton d'acces manquant ou invalide" }, { status: 401, headers: corsHeaders() });
+      }
       const sub = await req.json();
       if (!sub || !sub.endpoint) return json({ error: "Abonnement push invalide" }, { status: 400 });
       await store.addSubscription(sub);
@@ -127,6 +147,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (path === "/api/push/unsubscribe" && req.method === "POST") {
+      if (!(await hasValidWriteToken(req))) {
+        return json({ error: "Jeton d'acces manquant ou invalide" }, { status: 401, headers: corsHeaders() });
+      }
       const { endpoint } = await req.json().catch(() => ({}));
       if (endpoint) await store.removeSubscription(endpoint);
       return json({ ok: true }, { headers: corsHeaders() });

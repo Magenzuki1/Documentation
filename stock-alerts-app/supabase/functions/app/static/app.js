@@ -35,6 +35,26 @@ const api = (path) => API_BASE + path;
 // pour l'enregistrement du service worker (meme origine que la page).
 const BASE = location.pathname.endsWith('/') ? location.pathname : `${location.pathname}/`;
 
+// ---------- Jeton d'ecriture ----------
+// Distribue une fois via un lien (?token=...) : sauvegarde localement puis
+// retire de l'URL, pour que les routes d'ecriture (reglages, abonnement
+// push) ne soient pas ouvertes a n'importe qui connaissant juste l'URL du
+// tableau de bord.
+(() => {
+  const url = new URL(location.href);
+  const token = url.searchParams.get('token');
+  if (token) {
+    localStorage.setItem('writeToken', token);
+    url.searchParams.delete('token');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+})();
+
+function writeHeaders() {
+  const token = localStorage.getItem('writeToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // ---------- Tabs ----------
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
@@ -565,12 +585,16 @@ document.getElementById('save-settings').addEventListener('click', async () => {
     quietHoursStart: document.getElementById('quiet-start').value || null,
     quietHoursEnd: document.getElementById('quiet-end').value || null,
   };
-  await fetch(api('settings'), {
+  const res = await fetch(api('settings'), {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...writeHeaders() },
     body: JSON.stringify(payload),
   });
   const status = document.getElementById('settings-status');
+  if (res.status === 401) {
+    status.textContent = "Jeton d'acces manquant ou invalide : rouvre le lien complet qui t'a ete transmis.";
+    return;
+  }
   status.textContent = 'Reglages enregistres.';
   setTimeout(() => (status.textContent = ''), 2500);
 });
@@ -619,11 +643,15 @@ async function enablePush() {
     });
   }
 
-  await fetch(api('push/subscribe'), {
+  const res = await fetch(api('push/subscribe'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...writeHeaders() },
     body: JSON.stringify(sub),
   });
+  if (res.status === 401) {
+    alert("Jeton d'acces manquant ou invalide : rouvre le lien complet qui t'a ete transmis.");
+    return;
+  }
 
   await refreshNotifButton();
 }
