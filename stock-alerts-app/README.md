@@ -52,9 +52,9 @@ Ouvre ce lien sur ton telephone, ajoute-le a l'ecran d'accueil, appuie sur
 ## Verifier que la surveillance fonctionne (sans rien installer)
 
 - Tableau de bord : `https://bananacollector.fr/stock-alerts/`
-- Cours en direct (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/quotes`
-- Actualites (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/news`
-- Etat general (JSON brut) : `https://zimqplubdbugurphhucm.supabase.co/functions/v1/app/api/status`
+- Cours en direct (JSON brut) : `https://egyizjvisjomgqbaovpo.supabase.co/functions/v1/app/api/quotes`
+- Actualites (JSON brut) : `https://egyizjvisjomgqbaovpo.supabase.co/functions/v1/app/api/news`
+- Etat general (JSON brut) : `https://egyizjvisjomgqbaovpo.supabase.co/functions/v1/app/api/status`
 
 ## Personnaliser la liste de valeurs suivies
 
@@ -66,7 +66,7 @@ faire directement si tu me dis quoi changer).
 
 ## Structure du projet
 
-```
+```text
 stock-alerts-app/
   supabase/
     functions/
