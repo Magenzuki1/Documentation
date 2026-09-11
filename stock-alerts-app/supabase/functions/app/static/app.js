@@ -113,6 +113,34 @@ function rangeBar(title, low, high, price) {
     </div>`;
 }
 
+// ---------- Recherche ----------
+// Filtre en direct la liste des cours (nom ou symbole), insensible aux
+// accents et a la casse. Re-rendu a partir des dernieres donnees deja
+// chargees (pas de nouvel appel reseau a chaque frappe).
+let searchQuery = '';
+let lastWatchlistBySector = {};
+let lastQuotesBySymbol = {};
+let lastRankBySymbol = {};
+
+function normalizeSearch(s) {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearch(stock) {
+  if (!searchQuery) return true;
+  const q = normalizeSearch(searchQuery);
+  return normalizeSearch(stock.name).includes(q) || normalizeSearch(stock.symbol).includes(q);
+}
+
+document.getElementById('quotes-search').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  renderAllQuoteGroups();
+});
+
 const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 // Classement du jour, calcule une fois par rafraichissement et reutilise par
@@ -141,10 +169,12 @@ function buildQuotesSections(sectors) {
   document.getElementById('quotes-container').innerHTML = order
     .map(
       (sector) => `
-      <div class="section-head">
-        <h2>${SECTOR_LABELS[sector] || sector}</h2>
-      </div>
-      <div id="quotes-${sector}" class="quote-grid"></div>`
+      <div class="sector-block" id="sector-block-${sector}">
+        <div class="section-head">
+          <h2>${SECTOR_LABELS[sector] || sector}</h2>
+        </div>
+        <div id="quotes-${sector}" class="quote-grid"></div>
+      </div>`
     )
     .join('');
 }
@@ -153,29 +183,43 @@ async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
   const quotes = await quotesRes.json();
-  const quotesBySymbol = Object.fromEntries(quotes.map((q) => [q.symbol, q]));
+  lastQuotesBySymbol = Object.fromEntries(quotes.map((q) => [q.symbol, q]));
 
   rankingData = computeRanking(quotes);
-  const rankBySymbol = Object.fromEntries(rankingData.map((q) => [q.symbol, q.rank]));
+  lastRankBySymbol = Object.fromEntries(rankingData.map((q) => [q.symbol, q.rank]));
 
-  const bySector = {};
-  for (const stock of watchlist) (bySector[stock.sector] ||= []).push(stock);
+  lastWatchlistBySector = {};
+  for (const stock of watchlist) (lastWatchlistBySector[stock.sector] ||= []).push(stock);
 
   if (!quotesSectionsBuilt) {
-    buildQuotesSections(new Set(Object.keys(bySector)));
+    buildQuotesSections(new Set(Object.keys(lastWatchlistBySector)));
     quotesSectionsBuilt = true;
   }
 
-  for (const [sector, stocks] of Object.entries(bySector)) {
-    renderQuoteGroup(`quotes-${sector}`, stocks, quotesBySymbol, rankBySymbol);
-  }
+  renderAllQuoteGroups();
   renderRanking();
+}
+
+function renderAllQuoteGroups() {
+  let totalVisible = 0;
+  for (const [sector, stocks] of Object.entries(lastWatchlistBySector)) {
+    totalVisible += renderQuoteGroup(`quotes-${sector}`, stocks, lastQuotesBySymbol, lastRankBySymbol);
+  }
+  const noResults = document.getElementById('quotes-no-results');
+  if (noResults) noResults.hidden = !searchQuery || totalVisible > 0;
 }
 
 function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
   const container = document.getElementById(containerId);
-  if (!container) return;
-  const sorted = [...stocks].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  if (!container) return 0;
+  const filtered = stocks.filter(matchesSearch);
+  const block = container.closest('.sector-block');
+  if (block) block.hidden = filtered.length === 0;
+  if (filtered.length === 0) {
+    container.innerHTML = '';
+    return 0;
+  }
+  const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   container.innerHTML = sorted
     .map((stock) => {
       const q = quotesBySymbol[stock.symbol];
@@ -216,6 +260,8 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
       }
     });
   });
+
+  return sorted.length;
 }
 
 // ---------- Classement ----------
