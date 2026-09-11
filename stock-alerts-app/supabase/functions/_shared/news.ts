@@ -2,7 +2,7 @@
 // externe : un petit extracteur regex suffit pour ce format XML simple.
 
 import type { Stock } from "./watchlist.ts";
-import { detectCatalyst } from "./catalysts.ts";
+import { detectCatalyst, detectSentiment, type Sentiment } from "./catalysts.ts";
 
 const GOOGLE_NEWS_RSS = (query: string) =>
   `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=fr&gl=FR&ceid=FR:fr`;
@@ -30,6 +30,7 @@ export interface NewsItem {
   sector: string | null;
   scope: "company" | "sector";
   catalyst: string | null;
+  sentiment: Sentiment;
 }
 
 function decodeEntities(text: string): string {
@@ -92,6 +93,7 @@ function toItem(
     sector: meta.sector ?? null,
     scope: meta.scope!,
     catalyst: catalyst?.label ?? null,
+    sentiment: detectSentiment(raw.title),
   };
 }
 
