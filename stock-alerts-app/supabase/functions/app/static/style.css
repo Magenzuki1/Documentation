@@ -232,8 +232,8 @@ body {
 .rank-value.up { color: var(--up); }
 .rank-value.down { color: var(--down); }
 
-.news-list, .history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.news-item, .history-item {
+.news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.news-item {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -241,19 +241,7 @@ body {
 }
 .news-item a { color: var(--text); text-decoration: none; font-size: 0.88rem; }
 .news-item a:hover { text-decoration: underline; }
-.news-meta, .history-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
-.history-item .title { font-size: 0.85rem; font-weight: 600; }
-.history-item .body { font-size: 0.8rem; color: var(--muted); }
-.history-item.clickable {
-  cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.history-item.clickable:hover,
-.history-item.clickable:focus-visible {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  outline: none;
-}
+.news-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
 
 .news-item.has-catalyst { border-color: var(--catalyst); }
 .catalyst-badge {

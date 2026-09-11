@@ -265,45 +265,6 @@ async function loadNews() {
     .join('');
 }
 
-// ---------- History ----------
-async function loadHistory() {
-  const res = await fetch(api('alerts/history'));
-  const items = await res.json();
-  const list = document.getElementById('history-list');
-  list.innerHTML = items
-    .map((item, i) => {
-      // Cliquable si on sait quoi ouvrir : le graphique de la valeur concernee,
-      // sinon le lien de l'actualite (quand il y en a un reel, pas juste "/").
-      const clickable = Boolean(item.symbol) || Boolean(item.url && item.url !== '/');
-      return `
-        <li class="history-item${clickable ? ' clickable' : ''}" data-index="${i}" ${clickable ? 'tabindex="0" role="button"' : ''}>
-          <div class="title">${item.title}</div>
-          <div class="body">${item.body || ''}</div>
-          <div class="history-meta">${fmtDateTime(item.createdAt)}${item.sentPush ? '' : ' &middot; silencieux (ne pas deranger)'}</div>
-        </li>`;
-    })
-    .join('');
-
-  function activate(item) {
-    if (item.symbol) {
-      openChart(item.symbol, item.company || item.symbol);
-    } else if (item.url && item.url !== '/') {
-      window.open(item.url, '_blank', 'noopener');
-    }
-  }
-
-  list.querySelectorAll('.history-item.clickable').forEach((li) => {
-    const item = items[Number(li.dataset.index)];
-    li.addEventListener('click', () => activate(item));
-    li.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        activate(item);
-      }
-    });
-  });
-}
-
 // ---------- Chart modal ----------
 const chartState = { symbol: null, name: null, range: '6mo' };
 
@@ -671,7 +632,7 @@ document.getElementById('notif-btn').addEventListener('click', enablePush);
 
 // ---------- Init ----------
 async function refreshAll() {
-  const tasks = [loadQuotes(), loadNews(), loadHistory(), loadStatus()];
+  const tasks = [loadQuotes(), loadNews(), loadStatus()];
   if (!chartModal.hidden) tasks.push(loadChart());
   await Promise.all(tasks);
 }
