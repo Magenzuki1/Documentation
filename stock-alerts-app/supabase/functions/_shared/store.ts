@@ -44,12 +44,16 @@ export interface Settings {
   // evaluateHealthAlert dans alerts.ts) : sert uniquement a espacer ces
   // alertes, jamais expose via l'API publique des reglages.
   lastHealthAlertAt: string | null;
+  // Horodatage du dernier calcul des mini-graphiques (voir run-check/index.ts) :
+  // espace ce lot couteux (239 requetes Yahoo) a une fois par jour environ.
+  lastSparklineUpdateAt: string | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   moveUpPercent: 3,
   moveDownPercent: 3,
   lastHealthAlertAt: null,
+  lastSparklineUpdateAt: null,
   sectors: {
     sante: true,
     energie: true,
@@ -79,6 +83,7 @@ function rowToSettings(row: any): Settings {
     quietHoursStart: row.quiet_hours_start,
     quietHoursEnd: row.quiet_hours_end,
     lastHealthAlertAt: row.last_health_alert_at ?? null,
+    lastSparklineUpdateAt: row.last_sparkline_update_at ?? null,
   };
 }
 
@@ -126,6 +131,7 @@ export const store = {
         quiet_hours_start: merged.quietHoursStart,
         quiet_hours_end: merged.quietHoursEnd,
         last_health_alert_at: merged.lastHealthAlertAt,
+        last_sparkline_update_at: merged.lastSparklineUpdateAt,
         updated_at: new Date().toISOString(),
       }),
     });
@@ -227,6 +233,10 @@ export const store = {
       volume: q.error ? null : q.volume,
       full_exchange_name: q.error ? null : q.fullExchangeName,
       error: q.error || null,
+      // Absent (cle omise par JSON.stringify) sauf le jour ou run-check vient
+      // de recalculer les sparklines - alors present sur toutes les lignes
+      // de cet appel, jamais un sous-ensemble (voir run-check/index.ts).
+      sparkline: q.sparkline,
       updated_at: new Date().toISOString(),
     }));
     if (rows.length === 0) return;

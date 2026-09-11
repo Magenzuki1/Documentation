@@ -67,6 +67,7 @@ Deno.serve(async (req: Request) => {
         volume: r.volume,
         fullExchangeName: r.full_exchange_name,
         error: r.error,
+        sparkline: r.sparkline || null,
       }));
       return json(quotes, { headers: corsHeaders() });
     }

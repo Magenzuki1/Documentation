@@ -348,12 +348,6 @@ function renderAllQuoteGroups() {
   if (noResults) noResults.hidden = !searchQuery || totalVisible > 0;
 }
 
-// Fabrique de carte partagee entre les grilles par domaine et le bandeau
-// Favoris, pour ne pas dupliquer le gabarit. withSparkline n'est active que
-// pour les favoris (poignee de valeurs) : generer un mini-graphique pour les
-// 239 cartes a chaque chargement solliciterait Yahoo Finance bien plus que
-// necessaire, avec le risque de re-provoquer les blocages anti-bot deja
-// rencontres par le passe (voir _shared/news.ts).
 // Flasher brievement la carte quand le cours vient de bouger par rapport au
 // rafraichissement precedent (toutes les 20s) - vide au tout premier
 // chargement (previousQuotesBySymbol est alors {}), donc rien ne flashe a
@@ -364,7 +358,32 @@ function priceFlashClass(symbol, q) {
   return prev.price < q.price ? ' flash-up' : ' flash-down';
 }
 
-function quoteCardHtml(stock, q, rankBySymbol, withSparkline) {
+// Mini-graphique (30 derniers jours), calcule cote serveur une fois par jour
+// pour les 239 valeurs (voir fetchAllSparklines dans _shared/prices.ts) et
+// livre directement dans /api/quotes : rendu synchrone ici, sans aucune
+// requete reseau supplementaire depuis le navigateur (evite de solliciter
+// Yahoo Finance des centaines de fois par visite, avec le risque de
+// re-provoquer les blocages anti-bot deja rencontres par le passe - voir
+// _shared/news.ts).
+function sparklineSvg(points) {
+  if (!Array.isArray(points) || points.length < 2) return '';
+
+  const width = 100;
+  const height = 30;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const stepX = width / (points.length - 1);
+  const path = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * stepX).toFixed(1)} ${(height - ((v - min) / range) * height).toFixed(1)}`)
+    .join(' ');
+  const dir = points[points.length - 1] >= points[0] ? 'up' : 'down';
+  const color = dir === 'up' ? 'var(--up)' : 'var(--down)';
+
+  return `<div class="sparkline"><svg viewBox="0 0 ${width} ${height}" class="sparkline-svg" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /></svg></div>`;
+}
+
+function quoteCardHtml(stock, q, rankBySymbol) {
   const isFav = favorites.has(stock.symbol);
   const favBtn = `<button class="favorite-toggle${isFav ? ' active' : ''}" data-symbol="${stock.symbol}" aria-label="${
     isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'
@@ -411,7 +430,7 @@ function quoteCardHtml(stock, q, rankBySymbol, withSparkline) {
         <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
         <span class="change-pill ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
       </div>
-      ${withSparkline ? `<div class="sparkline" data-symbol="${stock.symbol}"></div>` : ''}
+      ${sparklineSvg(q.sparkline)}
       ${rangeBar('Aujourd’hui', q.dayLow, q.dayHigh, q.price)}
       ${rangeBar('52 semaines', q.fiftyTwoWeekLow, q.fiftyTwoWeekHigh, q.price)}
       <div class="quote-extra muted">
@@ -459,14 +478,12 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
     return 0;
   }
   const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  container.innerHTML = sorted.map((stock) => quoteCardHtml(stock, quotesBySymbol[stock.symbol], rankBySymbol, false)).join('');
+  container.innerHTML = sorted.map((stock) => quoteCardHtml(stock, quotesBySymbol[stock.symbol], rankBySymbol)).join('');
   wireQuoteCards(container);
   return sorted.length;
 }
 
 // ---------- Favoris (bandeau) ----------
-const sparklineCache = new Map();
-
 function renderFavorites() {
   const section = document.getElementById('favorites-section');
   const grid = document.getElementById('quotes-favorites');
@@ -482,46 +499,8 @@ function renderFavorites() {
     grid.innerHTML = '';
     return;
   }
-  grid.innerHTML = favStocks.map((stock) => quoteCardHtml(stock, lastQuotesBySymbol[stock.symbol], lastRankBySymbol, true)).join('');
+  grid.innerHTML = favStocks.map((stock) => quoteCardHtml(stock, lastQuotesBySymbol[stock.symbol], lastRankBySymbol)).join('');
   wireQuoteCards(grid);
-  favStocks.forEach((stock) => loadSparkline(stock.symbol, grid));
-}
-
-// Mini-graphique (30 derniers jours) : reutilise l'historique deja calcule
-// une fois par symbole pendant la session plutot que de le re-demander a
-// chaque rafraichissement (toutes les 20s) - le trace bouge trop peu sur un
-// mois pour justifier de re-interroger Yahoo aussi souvent.
-async function loadSparkline(symbol, container) {
-  const el = container.querySelector(`.sparkline[data-symbol="${symbol}"]`);
-  if (!el) return;
-
-  let points = sparklineCache.get(symbol);
-  if (!points) {
-    try {
-      const res = await fetch(api(`history?symbol=${encodeURIComponent(symbol)}&range=1mo`));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      points = (data.points || []).map((p) => p.close);
-      sparklineCache.set(symbol, points);
-    } catch (err) {
-      return;
-    }
-  }
-  if (points.length < 2) return;
-
-  const width = 100;
-  const height = 30;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const stepX = width / (points.length - 1);
-  const path = points
-    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * stepX).toFixed(1)} ${(height - ((v - min) / range) * height).toFixed(1)}`)
-    .join(' ');
-  const dir = points[points.length - 1] >= points[0] ? 'up' : 'down';
-  const color = dir === 'up' ? 'var(--up)' : 'var(--down)';
-
-  el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="sparkline-svg" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /></svg>`;
 }
 
 // ---------- Classement ----------
