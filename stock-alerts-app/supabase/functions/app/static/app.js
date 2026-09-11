@@ -198,6 +198,57 @@ async function loadQuotes() {
 
   renderAllQuoteGroups();
   renderRanking();
+  renderMarketSummary();
+}
+
+// Bandeau de synthese en haut de l'onglet Cours : vue d'ensemble en un
+// coup d'oeil (nombre de hausses/baisses, meilleure/moins bonne valeur du
+// jour) sans avoir a parcourir les 239 cartes. Reflete toujours le marche
+// complet, pas le resultat filtre par la recherche.
+function renderMarketSummary() {
+  const el = document.getElementById('market-summary');
+  if (!el) return;
+  if (rankingData.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const gainers = rankingData.filter((q) => q.changePercent > 0).length;
+  const losers = rankingData.filter((q) => q.changePercent < 0).length;
+  const best = rankingData[0];
+  const worst = rankingData[rankingData.length - 1];
+  el.innerHTML = `
+    <div class="summary-chip">
+      <span class="summary-value">${rankingData.length}</span>
+      <span class="summary-label">suivies</span>
+    </div>
+    <div class="summary-chip">
+      <span class="summary-value up">${gainers}</span>
+      <span class="summary-label">en hausse</span>
+    </div>
+    <div class="summary-chip">
+      <span class="summary-value down">${losers}</span>
+      <span class="summary-label">en baisse</span>
+    </div>
+    <div class="summary-chip summary-highlight up" data-symbol="${best.symbol}" data-name="${best.name}" tabindex="0" role="button">
+      <span class="summary-label">🥇 Meilleure</span>
+      <span class="summary-name">${best.name}</span>
+      <span class="summary-value up">+${best.changePercent.toFixed(1)}%</span>
+    </div>
+    <div class="summary-chip summary-highlight down" data-symbol="${worst.symbol}" data-name="${worst.name}" tabindex="0" role="button">
+      <span class="summary-label">Moins bonne</span>
+      <span class="summary-name">${worst.name}</span>
+      <span class="summary-value down">${worst.changePercent.toFixed(1)}%</span>
+    </div>
+  `;
+  el.querySelectorAll('.summary-chip[data-symbol]').forEach((chip) => {
+    chip.addEventListener('click', () => openChart(chip.dataset.symbol, chip.dataset.name));
+    chip.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openChart(chip.dataset.symbol, chip.dataset.name);
+      }
+    });
+  });
 }
 
 function renderAllQuoteGroups() {
