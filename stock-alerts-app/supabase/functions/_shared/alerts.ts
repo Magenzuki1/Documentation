@@ -90,6 +90,34 @@ export async function evaluatePriceAlerts(
   await store.saveLastPrices(updated);
 }
 
+// Alerte si la recuperation des cours echoue majoritairement (ex: Yahoo
+// Finance bloque nos requetes) : sans ca, une panne silencieuse ne se voit
+// qu'en remarquant que "derniere mise a jour" est ancienne sur le tableau
+// de bord. Espacee d'au moins 1h pour ne pas spammer pendant toute la duree
+// d'une panne prolongee.
+const HEALTH_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
+
+export async function evaluateHealthAlert(quotes: any[], settings: Settings) {
+  if (quotes.length === 0) return;
+  const okCount = quotes.filter((q) => !q.error).length;
+  const failing = okCount / quotes.length < 0.5;
+  if (!failing) return;
+
+  const last = settings.lastHealthAlertAt ? new Date(settings.lastHealthAlertAt).getTime() : 0;
+  if (Date.now() - last < HEALTH_ALERT_COOLDOWN_MS) return;
+
+  await notify(
+    {
+      title: "⚠️ Surveillance des cours en echec",
+      body: `Seulement ${okCount}/${quotes.length} valeurs recuperees. Yahoo Finance bloque peut-etre les requetes.`,
+      url: "/",
+      tag: "health-quotes",
+    },
+    settings
+  );
+  await store.saveSettings({ lastHealthAlertAt: new Date().toISOString() });
+}
+
 export async function evaluateNewsAlerts(newsItems: NewsItem[], settings: Settings) {
   if (!settings.newsAlerts) return;
   const seen = new Set(await store.getSeenNews());

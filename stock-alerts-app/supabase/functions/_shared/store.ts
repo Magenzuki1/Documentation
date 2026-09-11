@@ -40,11 +40,16 @@ export interface Settings {
   newsAlerts: boolean;
   quietHoursStart: string | null;
   quietHoursEnd: string | null;
+  // Horodatage de la derniere alerte "surveillance en panne" envoyee (voir
+  // evaluateHealthAlert dans alerts.ts) : sert uniquement a espacer ces
+  // alertes, jamais expose via l'API publique des reglages.
+  lastHealthAlertAt: string | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   moveUpPercent: 3,
   moveDownPercent: 3,
+  lastHealthAlertAt: null,
   sectors: {
     sante: true,
     energie: true,
@@ -73,6 +78,7 @@ function rowToSettings(row: any): Settings {
     newsAlerts: row.news_alerts,
     quietHoursStart: row.quiet_hours_start,
     quietHoursEnd: row.quiet_hours_end,
+    lastHealthAlertAt: row.last_health_alert_at ?? null,
   };
 }
 
@@ -84,6 +90,7 @@ export const store = {
       vapidPublicKey: row.vapid_public_key as string | null,
       vapidPrivateKey: row.vapid_private_key as string | null,
       vapidContactEmail: (row.vapid_contact_email as string | null) || "mailto:admin@example.com",
+      writeToken: row.write_token as string | null,
     };
   },
 
@@ -118,6 +125,7 @@ export const store = {
         news_alerts: merged.newsAlerts,
         quiet_hours_start: merged.quietHoursStart,
         quiet_hours_end: merged.quietHoursEnd,
+        last_health_alert_at: merged.lastHealthAlertAt,
         updated_at: new Date().toISOString(),
       }),
     });

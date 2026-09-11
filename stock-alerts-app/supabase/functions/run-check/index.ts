@@ -7,7 +7,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { WATCHLIST } from "../_shared/watchlist.ts";
 import { fetchQuotes } from "../_shared/prices.ts";
 import { fetchAllNews } from "../_shared/news.ts";
-import { evaluatePriceAlerts, evaluateNewsAlerts } from "../_shared/alerts.ts";
+import { evaluatePriceAlerts, evaluateNewsAlerts, evaluateHealthAlert } from "../_shared/alerts.ts";
 import { store } from "../_shared/store.ts";
 
 const watchlistBySymbol = Object.fromEntries(WATCHLIST.map((s) => [s.symbol, s]));
@@ -29,6 +29,7 @@ Deno.serve(async (req: Request) => {
     if (doQuotes) {
       quotes = await fetchQuotes(WATCHLIST);
       await evaluatePriceAlerts(quotes, watchlistBySymbol, settings);
+      await evaluateHealthAlert(quotes, settings);
       await store.saveLatestQuotes(quotes);
     }
 
