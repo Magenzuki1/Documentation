@@ -119,6 +119,7 @@ function rangeBar(title, low, high, price) {
 // chargees (pas de nouvel appel reseau a chaque frappe).
 let searchQuery = '';
 let lastWatchlistBySector = {};
+let lastStockBySymbol = {};
 let lastQuotesBySymbol = {};
 let lastRankBySymbol = {};
 
@@ -139,7 +140,35 @@ function matchesSearch(stock) {
 document.getElementById('quotes-search').addEventListener('input', (e) => {
   searchQuery = e.target.value;
   renderAllQuoteGroups();
+  renderFavorites();
 });
+
+// ---------- Favoris ----------
+// Epingles localement (par appareil) pour retrouver quelques valeurs en un
+// coup d'oeil en haut de l'onglet Cours, sans parcourir les 239 cartes.
+let favorites = new Set();
+try {
+  favorites = new Set(JSON.parse(localStorage.getItem('favorites') || '[]'));
+} catch (err) {
+  favorites = new Set();
+}
+
+function saveFavorites() {
+  try {
+    localStorage.setItem('favorites', JSON.stringify([...favorites]));
+  } catch (err) {
+    // Stockage local indisponible (navigation privee, reglages navigateur) :
+    // le favori ne persiste pas au rechargement, le reste continue de marcher.
+  }
+}
+
+function toggleFavorite(symbol) {
+  if (favorites.has(symbol)) favorites.delete(symbol);
+  else favorites.add(symbol);
+  saveFavorites();
+  renderFavorites();
+  renderAllQuoteGroups();
+}
 
 const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -183,6 +212,7 @@ async function loadQuotes() {
   const [watchlistRes, quotesRes] = await Promise.all([fetch(api('watchlist')), fetch(api('quotes'))]);
   const watchlist = await watchlistRes.json();
   const quotes = await quotesRes.json();
+  lastStockBySymbol = Object.fromEntries(watchlist.map((s) => [s.symbol, s]));
   lastQuotesBySymbol = Object.fromEntries(quotes.map((q) => [q.symbol, q]));
 
   rankingData = computeRanking(quotes);
@@ -199,6 +229,7 @@ async function loadQuotes() {
   renderAllQuoteGroups();
   renderRanking();
   renderMarketSummary();
+  renderFavorites();
 }
 
 // Bandeau de synthese en haut de l'onglet Cours : vue d'ensemble en un
@@ -260,6 +291,86 @@ function renderAllQuoteGroups() {
   if (noResults) noResults.hidden = !searchQuery || totalVisible > 0;
 }
 
+// Fabrique de carte partagee entre les grilles par domaine et le bandeau
+// Favoris, pour ne pas dupliquer le gabarit. withSparkline n'est active que
+// pour les favoris (poignee de valeurs) : generer un mini-graphique pour les
+// 239 cartes a chaque chargement solliciterait Yahoo Finance bien plus que
+// necessaire, avec le risque de re-provoquer les blocages anti-bot deja
+// rencontres par le passe (voir _shared/news.ts).
+function quoteCardHtml(stock, q, rankBySymbol, withSparkline) {
+  const isFav = favorites.has(stock.symbol);
+  const favBtn = `<button class="favorite-toggle${isFav ? ' active' : ''}" data-symbol="${stock.symbol}" aria-label="${
+    isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'
+  }">${isFav ? '★' : '☆'}</button>`;
+
+  if (!q || q.error || q.price == null) {
+    return `
+      <div class="quote-card error" data-symbol="${stock.symbol}" data-name="${stock.name}">
+        <div class="card-top">
+          ${favBtn}
+          <div class="name">${stock.name}</div>
+        </div>
+        <div class="symbol">${stock.symbol}</div>
+        <div class="muted">indisponible</div>
+      </div>`;
+  }
+
+  const rank = rankBySymbol[stock.symbol];
+  const isGold = rank && rank <= 3 && q.changePercent > 0;
+  const dir = q.changePercent >= 0 ? 'up' : 'down';
+  const tier = isGold ? 'gold' : dir;
+  const sign = q.changePercent >= 0 ? '+' : '';
+  const arrow = q.changePercent >= 0 ? '▲' : '▼';
+  const medal = isGold ? MEDALS[rank] : '';
+  return `
+    <div class="quote-card tier-${tier}" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
+      <div class="card-top">
+        ${favBtn}
+        <div class="name">${stock.name}</div>
+        ${medal ? `<span class="medal-badge">${medal}</span>` : ''}
+      </div>
+      <div class="symbol">${stock.symbol}</div>
+      <div class="price-row">
+        <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
+        <span class="change-pill ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
+      </div>
+      ${withSparkline ? `<div class="sparkline" data-symbol="${stock.symbol}"></div>` : ''}
+      ${rangeBar('Aujourd’hui', q.dayLow, q.dayHigh, q.price)}
+      ${rangeBar('52 semaines', q.fiftyTwoWeekLow, q.fiftyTwoWeekHigh, q.price)}
+      <div class="quote-extra muted">
+        ${q.volume != null ? `Vol. ${formatCompactNumber(q.volume)}` : ''}
+      </div>
+    </div>`;
+}
+
+// Attache les interactions (ouverture du graphique, bascule favori) sur les
+// cartes d'un conteneur donne - partage entre les grilles par domaine et le
+// bandeau Favoris.
+function wireQuoteCards(container) {
+  container.querySelectorAll('.quote-card:not(.error)').forEach((card) => {
+    card.addEventListener('click', () => openChart(card.dataset.symbol, card.dataset.name));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openChart(card.dataset.symbol, card.dataset.name);
+      }
+    });
+  });
+  container.querySelectorAll('.favorite-toggle').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFavorite(btn.dataset.symbol);
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleFavorite(btn.dataset.symbol);
+      }
+    });
+  });
+}
+
 function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
   const container = document.getElementById(containerId);
   if (!container) return 0;
@@ -271,48 +382,69 @@ function renderQuoteGroup(containerId, stocks, quotesBySymbol, rankBySymbol) {
     return 0;
   }
   const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  container.innerHTML = sorted
-    .map((stock) => {
-      const q = quotesBySymbol[stock.symbol];
-      if (!q || q.error || q.price == null) {
-        return `<div class="quote-card error" data-symbol="${stock.symbol}" data-name="${stock.name}"><div class="name">${stock.name}</div><div class="symbol">${stock.symbol}</div><div class="muted">indisponible</div></div>`;
-      }
-      const rank = rankBySymbol[stock.symbol];
-      const isGold = rank && rank <= 3 && q.changePercent > 0;
-      const dir = q.changePercent >= 0 ? 'up' : 'down';
-      const tier = isGold ? 'gold' : dir;
-      const sign = q.changePercent >= 0 ? '+' : '';
-      const arrow = q.changePercent >= 0 ? '▲' : '▼';
-      const medal = isGold ? MEDALS[rank] : '';
-      return `
-        <div class="quote-card tier-${tier}" data-symbol="${stock.symbol}" data-name="${stock.name}" tabindex="0" role="button">
-          ${medal ? `<span class="medal-badge">${medal}</span>` : ''}
-          <div class="name">${stock.name}</div>
-          <div class="symbol">${stock.symbol}</div>
-          <div class="price-row">
-            <span class="price">${Number(q.price).toFixed(2)} ${q.currency || ''}</span>
-            <span class="change-pill ${dir}">${arrow} ${sign}${Number(q.changePercent).toFixed(1)}%</span>
-          </div>
-          ${rangeBar('Aujourd’hui', q.dayLow, q.dayHigh, q.price)}
-          ${rangeBar('52 semaines', q.fiftyTwoWeekLow, q.fiftyTwoWeekHigh, q.price)}
-          <div class="quote-extra muted">
-            ${q.volume != null ? `Vol. ${formatCompactNumber(q.volume)}` : ''}
-          </div>
-        </div>`;
-    })
-    .join('');
-
-  container.querySelectorAll('.quote-card:not(.error)').forEach((card) => {
-    card.addEventListener('click', () => openChart(card.dataset.symbol, card.dataset.name));
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openChart(card.dataset.symbol, card.dataset.name);
-      }
-    });
-  });
-
+  container.innerHTML = sorted.map((stock) => quoteCardHtml(stock, quotesBySymbol[stock.symbol], rankBySymbol, false)).join('');
+  wireQuoteCards(container);
   return sorted.length;
+}
+
+// ---------- Favoris (bandeau) ----------
+const sparklineCache = new Map();
+
+function renderFavorites() {
+  const section = document.getElementById('favorites-section');
+  const grid = document.getElementById('quotes-favorites');
+  if (!section || !grid) return;
+  const favStocks = [...favorites]
+    .map((symbol) => lastStockBySymbol[symbol])
+    .filter(Boolean)
+    .filter(matchesSearch)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+  section.hidden = favStocks.length === 0;
+  if (favStocks.length === 0) {
+    grid.innerHTML = '';
+    return;
+  }
+  grid.innerHTML = favStocks.map((stock) => quoteCardHtml(stock, lastQuotesBySymbol[stock.symbol], lastRankBySymbol, true)).join('');
+  wireQuoteCards(grid);
+  favStocks.forEach((stock) => loadSparkline(stock.symbol, grid));
+}
+
+// Mini-graphique (30 derniers jours) : reutilise l'historique deja calcule
+// une fois par symbole pendant la session plutot que de le re-demander a
+// chaque rafraichissement (toutes les 20s) - le trace bouge trop peu sur un
+// mois pour justifier de re-interroger Yahoo aussi souvent.
+async function loadSparkline(symbol, container) {
+  const el = container.querySelector(`.sparkline[data-symbol="${symbol}"]`);
+  if (!el) return;
+
+  let points = sparklineCache.get(symbol);
+  if (!points) {
+    try {
+      const res = await fetch(api(`history?symbol=${encodeURIComponent(symbol)}&range=1mo`));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      points = (data.points || []).map((p) => p.close);
+      sparklineCache.set(symbol, points);
+    } catch (err) {
+      return;
+    }
+  }
+  if (points.length < 2) return;
+
+  const width = 100;
+  const height = 30;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const stepX = width / (points.length - 1);
+  const path = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * stepX).toFixed(1)} ${(height - ((v - min) / range) * height).toFixed(1)}`)
+    .join(' ');
+  const dir = points[points.length - 1] >= points[0] ? 'up' : 'down';
+  const color = dir === 'up' ? 'var(--up)' : 'var(--down)';
+
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="sparkline-svg" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /></svg>`;
 }
 
 // ---------- Classement ----------
